@@ -45,12 +45,12 @@ Plans:
   3. When a real-world game is postponed or cancelled, the corresponding ProphetX event is flagged on the dashboard with a dashboard indicator and an alert is raised; no automated write action is taken
   4. An operator can manually trigger a status sync for any event from the dashboard (POST endpoint) and the action is executed via the same idempotent action worker path as automated sync
   5. Every automated and manual action is written to the append-only audit log with timestamp, actor, event/market ID, action type, before state, and after state; the application DB user cannot UPDATE or DELETE audit_log rows; the full audit log is viewable with pagination
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Event ID matching layer (event_matcher.py, event_id_mappings table, confidence scoring, Redis caching of matches)
-- [ ] 02-02: Poll workers (poll_prophetx + poll_sports_data), mismatch detector, liquidity monitor, and distributed lock pattern
-- [ ] 02-03: Action workers (update_event_status with idempotent retry, send_alerts stub), audit writer, liquidity threshold config, and manual sync endpoint
+- [ ] 02-01-PLAN.md — DB models (Event, Market, EventIDMapping, AuditLog, Notification), Alembic migration 002, and EventMatcher with confidence scoring + Redis cache
+- [ ] 02-02-PLAN.md — Full poll workers (ProphetX + SportsDataIO), mismatch detector, and liquidity monitor pure functions with unit tests
+- [ ] 02-03-PLAN.md — update_event_status action worker (distributed lock + idempotent), send_alerts stub, events/markets/audit API endpoints, router wiring
 
 ### Phase 3: Dashboard and Alerts
 **Goal**: Operators see all events and markets in a real-time dashboard that updates via SSE within 30 seconds of any change, receive Slack alerts with deduplication, can toggle alert-only mode for safe rollout, and have an in-app notification center with read/unread state
