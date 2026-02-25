@@ -19,6 +19,7 @@ dependencies = [
     "pwdlib[bcrypt]>=0.2",
     "celery[redis]>=5.4",
     "celery-redbeat>=2.0",
+    "rapidfuzz>=3.14.3",
 ]
 
 [project.optional-dependencies]
