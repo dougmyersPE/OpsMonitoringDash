@@ -1,6 +1,6 @@
 """
-Seed script — creates admin user on first startup if it doesn't exist.
-Run via: python -m app.seed
+Seed script: creates admin user from env vars if not already present.
+Run as: python -m app.seed
 """
 import structlog
 from sqlalchemy import select
@@ -8,7 +8,9 @@ from sqlalchemy.exc import OperationalError
 
 from app.core.config import settings
 from app.core.constants import RoleEnum
+from app.core.security import hash_password
 from app.db.sync_session import SyncSessionLocal
+from app.models.user import User
 
 log = structlog.get_logger()
 
@@ -16,37 +18,29 @@ log = structlog.get_logger()
 def seed():
     """Create admin user if it does not exist."""
     try:
-        # Import here to avoid circular imports at module load time
-        from app.models.user import User  # noqa: F401
-
         with SyncSessionLocal() as session:
             existing = session.execute(
                 select(User).where(User.email == settings.ADMIN_EMAIL)
             ).scalar_one_or_none()
 
             if existing:
-                log.info("seed", message="Admin user already exists, skipping seed")
+                log.info("seed_skip", reason="admin user already exists", email=settings.ADMIN_EMAIL)
                 return
 
-            # Lazy import to avoid loading pwdlib at module level unnecessarily
-            from pwdlib import PasswordHash
-            from pwdlib.hashers.bcrypt import BcryptHasher
-
-            pwd_hasher = PasswordHash([BcryptHasher()])
             admin = User(
                 email=settings.ADMIN_EMAIL,
-                password_hash=pwd_hasher.hash(settings.ADMIN_PASSWORD),
+                password_hash=hash_password(settings.ADMIN_PASSWORD),
                 role=RoleEnum.admin,
                 name="Admin",
+                is_active=True,
             )
             session.add(admin)
             session.commit()
-            log.info("seed", message="Admin user created", email=settings.ADMIN_EMAIL)
+            log.info("seed_complete", email=settings.ADMIN_EMAIL, role="admin")
     except OperationalError as e:
-        # Tables may not exist yet — Alembic runs after this; safe to ignore
-        log.warning("seed", message="Seed skipped — DB not ready yet", error=str(e))
+        log.warning("seed_skip", reason="DB not ready yet", error=str(e))
     except Exception as e:
-        log.error("seed", message="Seed failed", error=str(e))
+        log.error("seed_failed", error=str(e))
         raise
 
 
