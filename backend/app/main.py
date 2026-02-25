@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 
-from app.api.v1 import auth, config, health, probe
+from app.api.v1 import auth, audit, config, events, health, markets, probe
 from app.db.redis import close_redis_pool, get_redis_client
 
 structlog.configure(
@@ -42,3 +42,6 @@ app.include_router(health.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(config.router, prefix="/api/v1")
 app.include_router(probe.router, prefix="/api/v1")
+app.include_router(events.router, prefix="/api/v1")
+app.include_router(markets.router, prefix="/api/v1")
+app.include_router(audit.router, prefix="/api/v1")
