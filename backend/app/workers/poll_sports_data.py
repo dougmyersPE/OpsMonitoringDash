@@ -23,8 +23,10 @@ from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
 from app.models.event_id_mapping import EventIDMapping
 from app.monitoring.event_matcher import EventMatcher
-from app.monitoring.mismatch_detector import is_flag_only, is_mismatch
+from app.monitoring.mismatch_detector import get_expected_px_status, is_flag_only, is_mismatch
 from app.workers.celery_app import celery_app
+from app.workers.send_alerts import run as send_alerts_task
+from app.workers.update_event_status import run as update_status_task
 
 log = structlog.get_logger()
 
@@ -247,10 +249,19 @@ def run(self):
                     sdio_status=sdio_status,
                 )
                 mismatches_found += 1
+                # SYNC-01: enqueue status update task for confirmed mismatches
+                if is_confirmed:
+                    expected_px_status = get_expected_px_status(sdio_status)
+                    if expected_px_status is not None:
+                        update_status_task.delay(
+                            event_id=str(px_event.id),
+                            target_status=expected_px_status,
+                            actor="system",
+                        )
             else:
                 px_event.status_match = True
 
-            # Flag-only detection (SYNC-02: no write action for Postponed/Canceled etc.)
+            # Flag-only detection (SYNC-02: flag and alert, no write action for Postponed/Canceled etc.)
             if is_flag_only(sdio_status):
                 px_event.is_flagged = True
                 log.warning(
@@ -258,6 +269,13 @@ def run(self):
                     event_id=str(px_event.id),
                     prophetx_event_id=str(px_event.prophetx_event_id),
                     sdio_status=sdio_status,
+                )
+                # SYNC-02: enqueue send_alerts for flag-only events
+                send_alerts_task.delay(
+                    alert_type="flag_event",
+                    entity_type="event",
+                    entity_id=str(px_event.id),
+                    message=f"Event {px_event.prophetx_event_id} flagged: SportsDataIO status '{sdio_status}' requires manual review",
                 )
                 flagged_count += 1
 

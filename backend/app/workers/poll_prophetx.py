@@ -22,6 +22,7 @@ from app.models.event import Event
 from app.models.market import Market
 from app.monitoring.liquidity_monitor import is_below_threshold
 from app.workers.celery_app import celery_app
+from app.workers.send_alerts import run as send_alerts_task
 
 log = structlog.get_logger()
 
@@ -267,7 +268,7 @@ def run(self):
 
             markets_upserted += 1
 
-            # 5. Liquidity breach check — log WARNING only (no alerts until Plan 02-03)
+            # 5. Liquidity breach check — enqueue alert (LIQ-02)
             if is_below_threshold(market_obj, session):
                 log.warning(
                     "liquidity_breach_detected",
@@ -275,6 +276,12 @@ def run(self):
                     prophetx_market_id=prophetx_market_id,
                     current_liquidity=str(market_obj.current_liquidity),
                     event_id=str(event_db_id),
+                )
+                send_alerts_task.delay(
+                    alert_type="liquidity_alert",
+                    entity_type="market",
+                    entity_id=str(market_obj.id),
+                    message=f"Market {market_obj.name} liquidity {market_obj.current_liquidity} below threshold",
                 )
                 liquidity_alerts += 1
 
