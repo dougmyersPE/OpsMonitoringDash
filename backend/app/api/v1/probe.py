@@ -20,7 +20,7 @@ async def probe_api_clients():
 
     async with ProphetXClient() as px:
         try:
-            raw = await px.get_events_raw()
+            raw = await px.get_tournaments_raw()
             results["prophetx"] = {
                 "status": "ok",
                 "response_type": type(raw).__name__,
