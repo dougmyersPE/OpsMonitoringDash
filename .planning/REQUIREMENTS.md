@@ -41,9 +41,9 @@
 
 ### Auth & Access
 
-- [ ] **AUTH-01**: User logs in with email and password via JWT authentication; session persists across browser refresh
-- [ ] **AUTH-02**: Three roles enforced server-side: Admin (full access including config), Operator (dashboard read + manual sync actions), Read-Only (dashboard view only)
-- [ ] **AUTH-03**: Admin can configure system settings via UI: polling interval, Slack webhook URL, global liquidity threshold, per-market liquidity thresholds, alert-only mode toggle
+- [x] **AUTH-01**: User logs in with email and password via JWT authentication; session persists across browser refresh
+- [x] **AUTH-02**: Three roles enforced server-side: Admin (full access including config), Operator (dashboard read + manual sync actions), Read-Only (dashboard view only)
+- [x] **AUTH-03**: Admin can configure system settings via UI: polling interval, Slack webhook URL, global liquidity threshold, per-market liquidity thresholds, alert-only mode toggle
 
 ### Audit
 
@@ -85,9 +85,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | CORE-01 | Phase 1 | Complete |
 | CORE-02 | Phase 1 | Complete |
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
 | CORE-03 | Phase 2 | Pending |
 | SYNC-01 | Phase 2 | Pending |
 | SYNC-02 | Phase 2 | Pending |
@@ -112,4 +112,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-24 — traceability populated by roadmapper*
+*Last updated: 2026-02-25 — AUTH-01, AUTH-02, AUTH-03 marked complete (Plan 01-02)*

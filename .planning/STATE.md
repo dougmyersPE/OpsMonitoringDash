@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 1 of 3 (Foundation)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-25 — Completed Plan 01-01 (Docker Compose foundation, Alembic migrations, /health endpoint)
+Last activity: 2026-02-25 — Completed Plan 01-02 (JWT auth, RBAC, /auth/login, /config endpoints, 8 passing tests)
 
-Progress: [█░░░░░░░░░] 11%
+Progress: [██░░░░░░░░] 22%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 8 min
-- Total execution time: 0.13 hours
+- Total plans completed: 2
+- Average duration: 11.5 min
+- Total execution time: 0.38 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 1/3 | 8 min | 8 min |
+| 01-foundation | 2/3 | 23 min | 11.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 8 min
-- Trend: -
+- Last 5 plans: 8 min, 15 min
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -52,6 +52,10 @@ Recent decisions affecting current work:
 - 01-01: Alembic async env.py pattern: single do_run_migrations callback with configure + begin_transaction inside run_sync
 - 01-01: nginx.conf requires events{} and http{} wrapper blocks — upstream directive not valid at top level
 - 01-01: Worker/beat services declared in docker-compose.yml now but await celery_app.py from Plan 01-03
+- 01-02: OAuth2PasswordRequestForm for login (form body not JSON) — enables Swagger UI Authorize button; form.username maps to email
+- 01-02: config.py created in Task 1 commit (not Task 2 as planned) — main.py imports both auth and config; config.py must exist before uvicorn starts
+- 01-02: asyncio_default_test_loop_scope=session in pyproject.toml — asyncpg pool connections are tied to event loop; function-scoped loops break pool on 2nd+ test
+- 01-02: operator_token fixture uses SyncSessionLocal to create test user — avoids async session scope issues in fixture setup
 
 ### Pending Todos
 
@@ -65,5 +69,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 01-01-PLAN.md — Docker Compose skeleton, Alembic migrations, /health endpoint all running. Ready for Plan 01-02 (auth).
+Stopped at: Completed 01-02-PLAN.md — JWT auth, RBAC dependency, /auth/login, /config endpoints, and 8 passing integration tests. Ready for Plan 01-03 (Celery workers).
 Resume file: None — clean state, no mid-plan work
