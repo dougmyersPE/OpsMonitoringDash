@@ -23,6 +23,17 @@ class BaseAPIClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=1, max=4),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
+        reraise=True,
+    )
+    async def _post(self, path: str, **kwargs) -> dict | list:
+        response = await self._client.post(path, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
     async def close(self):
         await self._client.aclose()
 

@@ -37,7 +37,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     # External APIs
-    PROPHETX_API_KEY: str
+    PROPHETX_BASE_URL: str = "https://api-ss-sandbox.betprophet.co/partner"
+    PROPHETX_ACCESS_KEY: str
+    PROPHETX_SECRET_KEY: str
     SPORTSDATAIO_API_KEY: str
 
     # Admin seed
