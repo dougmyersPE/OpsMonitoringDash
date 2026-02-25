@@ -28,12 +28,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A user can log in with email/password and receive a JWT; role-based access is enforced server-side (Admin, Operator, Read-Only roles reject unauthorized requests)
   4. ProphetX API client and SportsDataIO API client successfully authenticate and return raw responses that are logged to confirm actual status enum values
   5. Celery Beat is scheduled (30s interval) but workers do nothing yet beyond logging that they fired
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Docker Compose, PostgreSQL schema, Alembic migrations, Redis configuration, and project skeleton
-- [ ] 01-02: JWT authentication, RBAC enforcement, and user seed data
-- [ ] 01-03: ProphetX API client, SportsDataIO API client, and Celery/RedBeat scaffold with 30s polling schedule
+- [ ] 01-01-PLAN.md — Docker Compose skeleton, PostgreSQL schema, Alembic async migrations, Redis memory config, two SQLAlchemy engines, GET /health endpoint
+- [ ] 01-02-PLAN.md — JWT authentication (PyJWT + pwdlib), three-role RBAC dependency, system config endpoint, seed admin user
+- [ ] 01-03-PLAN.md — Celery/RedBeat scaffold with 30s stub poll tasks, ProphetX + SportsDataIO API clients, /probe/clients validation endpoint
 
 ### Phase 2: Monitoring Engine
 **Goal**: The system continuously polls both APIs, correctly matches ProphetX events to SportsDataIO games, detects mismatches and liquidity breaches, auto-corrects event statuses with idempotent distributed-locked actions, and logs every action to an append-only audit log
@@ -76,6 +76,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Not started | - |
+| 1. Foundation | 0/3 | Planned | - |
 | 2. Monitoring Engine | 0/3 | Not started | - |
 | 3. Dashboard and Alerts | 0/3 | Not started | - |
