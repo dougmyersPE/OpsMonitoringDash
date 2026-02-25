@@ -1,0 +1,93 @@
+"""Unit tests for mismatch_detector.py — no network or DB required."""
+
+import pytest
+from app.monitoring.mismatch_detector import (
+    FLAG_ONLY_STATUSES,
+    SDIO_TO_PX_STATUS,
+    get_expected_px_status,
+    is_flag_only,
+    is_mismatch,
+)
+
+
+class TestIsMismatch:
+    def test_scheduled_to_upcoming_no_mismatch(self):
+        """Scheduled SDIO + 'upcoming' ProphetX = no mismatch (statuses agree)."""
+        assert is_mismatch("upcoming", "Scheduled") is False
+
+    def test_inprogress_to_upcoming_is_mismatch(self):
+        """InProgress SDIO + 'upcoming' ProphetX = mismatch (game started, PX still upcoming)."""
+        assert is_mismatch("upcoming", "InProgress") is True
+
+    def test_final_to_ended_no_mismatch(self):
+        """Final SDIO + 'ended' ProphetX = no mismatch."""
+        assert is_mismatch("ended", "Final") is False
+
+    def test_postponed_not_mismatch_is_flag_only(self):
+        """Postponed SDIO → is_mismatch False (flag-only, no auto-action per SYNC-02)."""
+        assert is_mismatch("upcoming", "Postponed") is False
+
+    def test_canceled_not_mismatch_is_flag_only(self):
+        """Canceled SDIO → is_mismatch False (flag-only, no auto-action per SYNC-02)."""
+        assert is_mismatch("upcoming", "Canceled") is False
+
+    def test_unknown_sdio_status_returns_false(self):
+        """Unknown SDIO status → is_mismatch False (safe default avoids false positives)."""
+        assert is_mismatch("upcoming", "Unknown") is False
+
+    def test_inprogress_to_live_no_mismatch(self):
+        """InProgress SDIO + 'live' ProphetX = no mismatch (statuses agree)."""
+        assert is_mismatch("live", "InProgress") is False
+
+    def test_final_ot_to_ended_no_mismatch(self):
+        """F/OT SDIO + 'ended' ProphetX = no mismatch."""
+        assert is_mismatch("ended", "F/OT") is False
+
+    def test_final_so_to_ended_no_mismatch(self):
+        """F/SO SDIO + 'ended' ProphetX = no mismatch."""
+        assert is_mismatch("ended", "F/SO") is False
+
+
+class TestGetExpectedPxStatus:
+    def test_get_expected_px_status_flag_only_returns_none(self):
+        """FLAG_ONLY statuses must return None — no expected ProphetX status."""
+        assert get_expected_px_status("Postponed") is None
+
+    def test_get_expected_px_status_canceled_returns_none(self):
+        """Canceled is FLAG_ONLY — returns None."""
+        assert get_expected_px_status("Canceled") is None
+
+    def test_get_expected_px_status_scheduled(self):
+        """Scheduled maps to 'upcoming' (UNCONFIRMED ProphetX value)."""
+        assert get_expected_px_status("Scheduled") == "upcoming"
+
+    def test_get_expected_px_status_inprogress(self):
+        """InProgress maps to 'live' (UNCONFIRMED ProphetX value)."""
+        assert get_expected_px_status("InProgress") == "live"
+
+    def test_get_expected_px_status_unknown_returns_none(self):
+        """Unknown SDIO status returns None (not in mapping)."""
+        assert get_expected_px_status("CompletelyUnknown") is None
+
+
+class TestIsFlagOnly:
+    def test_postponed_is_flag_only(self):
+        assert is_flag_only("Postponed") is True
+
+    def test_canceled_is_flag_only(self):
+        assert is_flag_only("Canceled") is True
+
+    def test_suspended_is_flag_only(self):
+        assert is_flag_only("Suspended") is True
+
+    def test_delayed_is_flag_only(self):
+        assert is_flag_only("Delayed") is True
+
+    def test_scheduled_not_flag_only(self):
+        assert is_flag_only("Scheduled") is False
+
+    def test_inprogress_not_flag_only(self):
+        assert is_flag_only("InProgress") is False
+
+    def test_final_not_flag_only(self):
+        assert is_flag_only("Final") is False
