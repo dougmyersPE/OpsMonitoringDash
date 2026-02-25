@@ -9,4 +9,7 @@ COPY uv.lock* ./
 
 RUN uv sync --frozen --no-cache
 
+# Add the virtual environment's bin directory to PATH so all commands use it
+ENV PATH="/app/.venv/bin:$PATH"
+
 COPY . .
