@@ -1,11 +1,288 @@
-from app.workers.celery_app import celery_app
+"""
+ProphetX poll worker — runs every 30 seconds via Celery Beat (RedBeat).
+
+Steps:
+1. Fetch events and markets from ProphetX API
+2. Log observed status values (CRITICAL: enables SDIO_TO_PX_STATUS calibration)
+3. Upsert events to DB
+4. Upsert markets to DB
+5. Detect liquidity breaches per market (logs WARNING; does not alert yet — Plan 02-03)
+6. Commit and log summary
+"""
+
+import asyncio
+from datetime import datetime, timezone
+
 import structlog
+from sqlalchemy import select
+
+from app.clients.prophetx import ProphetXClient
+from app.db.sync_session import SyncSessionLocal
+from app.models.event import Event
+from app.models.market import Market
+from app.monitoring.liquidity_monitor import is_below_threshold
+from app.workers.celery_app import celery_app
 
 log = structlog.get_logger()
 
 
 @celery_app.task(name="app.workers.poll_prophetx.run", bind=True, max_retries=3)
 def run(self):
-    """Phase 1 stub: logs that the task fired. Phase 2 adds actual ProphetX API calls."""
-    log.info("poll_prophetx_fired", task_id=self.request.id)
-    # Phase 2 will call ProphetXClient().get_events_raw() here
+    """Fetch ProphetX events + markets, upsert to DB, detect liquidity breaches."""
+    try:
+        # ------------------------------------------------------------------ #
+        # 1. Fetch from ProphetX API (async client, run in sync Celery task)  #
+        # ------------------------------------------------------------------ #
+        async def _fetch():
+            async with ProphetXClient() as px:
+                events = await px.get_events_raw()
+                markets = await px.get_markets_raw()
+                return events, markets
+
+        raw_events, raw_markets = asyncio.run(_fetch())
+
+    except Exception as exc:
+        log.error(
+            "poll_prophetx_fetch_failed",
+            error=str(exc),
+            retry=self.request.retries,
+        )
+        raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+
+    # ------------------------------------------------------------------ #
+    # 2. CRITICAL: Log all unique status values observed in this response  #
+    # This output is required to confirm/correct SDIO_TO_PX_STATUS values. #
+    # See RESEARCH.md Open Questions #1 and #2.                            #
+    # ------------------------------------------------------------------ #
+    if isinstance(raw_events, list):
+        events_list = raw_events
+    elif isinstance(raw_events, dict):
+        # ProphetX may wrap list under "data" key — handle both shapes
+        events_list = raw_events.get("data", raw_events.get("events", [raw_events]))
+        if isinstance(events_list, dict):
+            events_list = [events_list]
+    else:
+        events_list = []
+
+    statuses = {
+        e.get("status") or e.get("event_status") or "UNKNOWN_FIELD"
+        for e in events_list
+        if isinstance(e, dict)
+    }
+    log.info("prophetx_status_values_observed", statuses=sorted(statuses))
+
+    if isinstance(raw_markets, list):
+        markets_list = raw_markets
+    elif isinstance(raw_markets, dict):
+        markets_list = raw_markets.get("data", raw_markets.get("markets", [raw_markets]))
+        if isinstance(markets_list, dict):
+            markets_list = [markets_list]
+    else:
+        markets_list = []
+
+    if markets_list:
+        first_market = markets_list[0] if isinstance(markets_list[0], dict) else {}
+        log.info("prophetx_market_fields", fields=list(first_market.keys()))
+
+    # ------------------------------------------------------------------ #
+    # 3–5. Upsert events, upsert markets, detect liquidity breaches        #
+    # ------------------------------------------------------------------ #
+    events_upserted = 0
+    markets_upserted = 0
+    liquidity_alerts = 0
+    now = datetime.now(timezone.utc)
+
+    with SyncSessionLocal() as session:
+        # -- Upsert events --
+        for raw_event in events_list:
+            if not isinstance(raw_event, dict):
+                continue
+
+            prophetx_event_id = raw_event.get("id") or raw_event.get("event_id")
+            if not prophetx_event_id:
+                log.warning(
+                    "prophetx_event_missing_id",
+                    raw_keys=list(raw_event.keys()),
+                )
+                continue
+
+            prophetx_event_id = str(prophetx_event_id)
+
+            # Detect status field name (may vary between API responses)
+            status_value = (
+                raw_event.get("status")
+                or raw_event.get("event_status")
+                or raw_event.get("state")
+            )
+
+            # Parse scheduled start — accept ISO string or unix timestamp
+            scheduled_raw = (
+                raw_event.get("scheduled_start")
+                or raw_event.get("start_time")
+                or raw_event.get("starts_at")
+            )
+            scheduled_start = None
+            if scheduled_raw is not None:
+                try:
+                    if isinstance(scheduled_raw, (int, float)):
+                        scheduled_start = datetime.fromtimestamp(scheduled_raw, tz=timezone.utc)
+                    else:
+                        scheduled_start = datetime.fromisoformat(str(scheduled_raw))
+                        if scheduled_start.tzinfo is None:
+                            scheduled_start = scheduled_start.replace(tzinfo=timezone.utc)
+                except Exception as e:
+                    log.warning(
+                        "prophetx_event_invalid_start_time",
+                        event_id=prophetx_event_id,
+                        value=scheduled_raw,
+                        error=str(e),
+                    )
+
+            # SELECT then INSERT/UPDATE (works with any DB setup)
+            existing = session.execute(
+                select(Event).where(Event.prophetx_event_id == prophetx_event_id)
+            ).scalar_one_or_none()
+
+            if existing is None:
+                event = Event(
+                    prophetx_event_id=prophetx_event_id,
+                    sport=str(raw_event.get("sport") or raw_event.get("league_name") or "unknown"),
+                    name=str(raw_event.get("name") or raw_event.get("title") or prophetx_event_id),
+                    home_team=raw_event.get("home_team") or raw_event.get("home"),
+                    away_team=raw_event.get("away_team") or raw_event.get("away"),
+                    scheduled_start=scheduled_start,
+                    prophetx_status=status_value,
+                    last_prophetx_poll=now,
+                )
+                session.add(event)
+            else:
+                existing.sport = str(
+                    raw_event.get("sport") or raw_event.get("league_name") or existing.sport
+                )
+                existing.name = str(
+                    raw_event.get("name") or raw_event.get("title") or existing.name
+                )
+                existing.home_team = (
+                    raw_event.get("home_team") or raw_event.get("home") or existing.home_team
+                )
+                existing.away_team = (
+                    raw_event.get("away_team") or raw_event.get("away") or existing.away_team
+                )
+                if scheduled_start is not None:
+                    existing.scheduled_start = scheduled_start
+                existing.prophetx_status = status_value
+                existing.last_prophetx_poll = now
+
+            events_upserted += 1
+
+        # Flush events before upserting markets (FK lookup needs event rows)
+        session.flush()
+
+        # -- Upsert markets --
+        for raw_market in markets_list:
+            if not isinstance(raw_market, dict):
+                continue
+
+            prophetx_market_id = raw_market.get("id") or raw_market.get("market_id")
+            if not prophetx_market_id:
+                log.warning(
+                    "prophetx_market_missing_id",
+                    raw_keys=list(raw_market.keys()),
+                )
+                continue
+
+            prophetx_market_id = str(prophetx_market_id)
+
+            # Resolve parent event FK
+            event_prophetx_id = (
+                raw_market.get("event_id")
+                or raw_market.get("sport_event_id")
+            )
+            event_db_id = None
+            if event_prophetx_id:
+                parent = session.execute(
+                    select(Event).where(
+                        Event.prophetx_event_id == str(event_prophetx_id)
+                    )
+                ).scalar_one_or_none()
+                if parent:
+                    event_db_id = parent.id
+
+            if event_db_id is None:
+                log.warning(
+                    "prophetx_market_no_parent_event",
+                    market_id=prophetx_market_id,
+                    event_prophetx_id=event_prophetx_id,
+                )
+                continue
+
+            # Identify liquidity field — log uncertainty if not found
+            liquidity_raw = (
+                raw_market.get("liquidity")
+                or raw_market.get("current_liquidity")
+                or raw_market.get("available_liquidity")
+                or raw_market.get("volume")
+            )
+            if liquidity_raw is None:
+                log.warning(
+                    "prophetx_market_liquidity_field_not_found",
+                    market_id=prophetx_market_id,
+                    available_fields=list(raw_market.keys()),
+                )
+
+            from decimal import Decimal
+
+            try:
+                liquidity_value = Decimal(str(liquidity_raw)) if liquidity_raw is not None else Decimal("0")
+            except Exception:
+                liquidity_value = Decimal("0")
+
+            market_name = str(
+                raw_market.get("name") or raw_market.get("title") or prophetx_market_id
+            )
+            market_status = str(raw_market.get("status") or "active")
+
+            existing_market = session.execute(
+                select(Market).where(Market.prophetx_market_id == prophetx_market_id)
+            ).scalar_one_or_none()
+
+            if existing_market is None:
+                market = Market(
+                    prophetx_market_id=prophetx_market_id,
+                    event_id=event_db_id,
+                    name=market_name,
+                    current_liquidity=liquidity_value,
+                    status=market_status,
+                    last_polled=now,
+                )
+                session.add(market)
+                session.flush()
+                market_obj = market
+            else:
+                existing_market.name = market_name
+                existing_market.current_liquidity = liquidity_value
+                existing_market.status = market_status
+                existing_market.last_polled = now
+                market_obj = existing_market
+
+            markets_upserted += 1
+
+            # 5. Liquidity breach check — log WARNING only (no alerts until Plan 02-03)
+            if is_below_threshold(market_obj, session):
+                log.warning(
+                    "liquidity_breach_detected",
+                    market_id=str(market_obj.id),
+                    prophetx_market_id=prophetx_market_id,
+                    current_liquidity=str(market_obj.current_liquidity),
+                    event_id=str(event_db_id),
+                )
+                liquidity_alerts += 1
+
+        session.commit()
+
+    log.info(
+        "poll_prophetx_complete",
+        events=events_upserted,
+        markets=markets_upserted,
+        liquidity_alerts=liquidity_alerts,
+    )
