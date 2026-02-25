@@ -7,8 +7,8 @@
 
 ### Core Engine
 
-- [ ] **CORE-01**: System polls ProphetX events and markets every ~30 seconds via Celery Beat workers
-- [ ] **CORE-02**: System polls real-world game statuses from SportsDataIO every ~30 seconds
+- [x] **CORE-01**: System polls ProphetX events and markets every ~30 seconds via Celery Beat workers
+- [x] **CORE-02**: System polls real-world game statuses from SportsDataIO every ~30 seconds
 - [ ] **CORE-03**: Event ID matching layer links ProphetX events to SportsDataIO games by sport + teams + scheduled start time, with confidence scoring (≥0.90 required to trigger auto-actions; below threshold flagged for manual review)
 
 ### Status Sync
@@ -83,8 +83,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CORE-01 | Phase 1 | Pending |
-| CORE-02 | Phase 1 | Pending |
+| CORE-01 | Phase 1 | Complete |
+| CORE-02 | Phase 1 | Complete |
 | AUTH-01 | Phase 1 | Pending |
 | AUTH-02 | Phase 1 | Pending |
 | AUTH-03 | Phase 1 | Pending |

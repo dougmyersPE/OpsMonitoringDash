@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 1 of 3 (Foundation)
-Plan: 0 of 3 in current phase
-Status: Ready to plan
-Last activity: 2026-02-24 — Roadmap created; ready to begin Phase 1 planning
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-25 — Completed Plan 01-01 (Docker Compose foundation, Alembic migrations, /health endpoint)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 11%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 8 min
+- Total execution time: 0.13 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-foundation | 1/3 | 8 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: -
+- Last 5 plans: 8 min
 - Trend: -
 
 *Updated after each plan completion*
@@ -47,10 +47,15 @@ Recent decisions affecting current work:
 - Pre-roadmap: Event ID matching layer (CORE-03) must be built and validated before poll workers produce meaningful comparisons
 - Pre-roadmap: Alert deduplication (ALERT-02) ships in same phase as alerting (ALERT-01) — cannot be retrofitted
 - Pre-roadmap: Alert-only mode (ALERT-03) ships before alerting is enabled in production — safe rollout plan
+- 01-01: Use PyJWT + pwdlib (not python-jose/passlib) — python-jose abandoned since 2021, passlib breaks on Python 3.13
+- 01-01: Startup order: alembic upgrade head THEN seed THEN uvicorn — seed queries users table which requires migration first
+- 01-01: Alembic async env.py pattern: single do_run_migrations callback with configure + begin_transaction inside run_sync
+- 01-01: nginx.conf requires events{} and http{} wrapper blocks — upstream directive not valid at top level
+- 01-01: Worker/beat services declared in docker-compose.yml now but await celery_app.py from Plan 01-03
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
@@ -60,5 +65,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Project fully initialized. Reviewed all 4 research files (ARCHITECTURE, FEATURES, STACK, PITFALLS). Approved 21 v1 requirements. Roadmapper created 3-phase roadmap (9 plans total). Updated GSD to v1.20.6. Ready to start Phase 1 planning.
+Stopped at: Completed 01-01-PLAN.md — Docker Compose skeleton, Alembic migrations, /health endpoint all running. Ready for Plan 01-02 (auth).
 Resume file: None — clean state, no mid-plan work
