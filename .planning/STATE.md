@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 2 in progress — Plan 02 (Monitoring Engine Workers) complete
+**Current focus:** Phase 2 in progress — Plan 03 (Action Worker, Alert Wiring, API Endpoints) complete
 
 ## Current Position
 
 Phase: 2 of 3 (Monitoring Engine) — IN PROGRESS
-Plan: 2 of 5 in current phase — COMPLETE
-Status: Phase 2 Plan 02 complete
-Last activity: 2026-02-25 — Completed Plan 02-02 (mismatch_detector, liquidity_monitor, poll_prophetx, poll_sports_data, 30 unit tests)
+Plan: 3 of 5 in current phase — COMPLETE
+Status: Phase 2 Plan 03 complete
+Last activity: 2026-02-25 — Completed Plan 02-03 (update_event_status, send_alerts, events/markets/audit-log API endpoints)
 
-Progress: [█████░░░░░] 50%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -28,7 +28,7 @@ Progress: [█████░░░░░] 50%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 43 min | 14.3 min |
-| 02-monitoring-engine | 2/5 | 10 min | 5 min |
+| 02-monitoring-engine | 3/5 | 16 min | 5.3 min |
 
 **Recent Trend:**
 - Last 5 plans: 8 min, 15 min, 20 min, 5 min, 5 min
@@ -36,6 +36,7 @@ Progress: [█████░░░░░] 50%
 
 *Updated after each plan completion*
 | Phase 02-monitoring-engine P02 | 5 | 2 tasks | 7 files |
+| Phase 02-monitoring-engine P03 | 6 | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,8 @@ Recent decisions affecting current work:
 - 02-01: EventMatcher cache key pattern: match:px:{px_event_id}, 24h TTL; invalidate when scheduled_start changes
 - [Phase 02-monitoring-engine]: SDIO_TO_PX_STATUS all ProphetX values marked UNCONFIRMED — update after prophetx_status_values_observed log captured from live API
 - [Phase 02-monitoring-engine]: poll_sports_data polls NBA/MLB/NHL/Soccer only — NFL/NCAAB/NCAAF excluded per 404 from RESEARCH.md
+- [Phase 02-monitoring-engine]: ProphetX write endpoint stubbed in update_event_status — log-only until endpoint path confirmed; expected PATCH /mm/update_sport_event_status
+- [Phase 02-monitoring-engine]: RoleEnum.readonly (no underscore) used in API routers — plan used 'read_only' string but enum definition has no underscore; using enum avoids string drift
 
 ### Pending Todos
 
@@ -82,5 +85,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 02-02-PLAN.md — mismatch_detector, liquidity_monitor, poll_prophetx, poll_sports_data, 30 unit tests passing
-Resume file: None — clean state, ready for 02-03
+Stopped at: Completed 02-03-PLAN.md — update_event_status worker, send_alerts stub, alert wiring (SYNC-01/SYNC-02/LIQ-02), events/markets/audit-log API endpoints, 4 unit tests passing
+Resume file: None — clean state, ready for 02-04

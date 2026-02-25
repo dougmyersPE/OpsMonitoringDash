@@ -13,7 +13,7 @@ Three phases that build in strict dependency order. Phase 1 assembles the infras
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Infrastructure, database, auth, and API clients — everything every subsequent phase depends on
-- [ ] **Phase 2: Monitoring Engine** - Event matching, polling workers, auto status sync, liquidity monitoring, and audit log — the core value
+- [x] **Phase 2: Monitoring Engine** - Event matching, polling workers, auto status sync, liquidity monitoring, and audit log — the core value (completed 2026-02-25)
 - [ ] **Phase 3: Dashboard and Alerts** - Real-time SSE dashboard, Slack alerting with deduplication, alert-only mode, and notification center
 
 ## Phase Details
@@ -77,5 +77,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-02-25 |
-| 2. Monitoring Engine | 2/3 | In Progress|  |
+| 2. Monitoring Engine | 3/3 | Complete   | 2026-02-25 |
 | 3. Dashboard and Alerts | 0/3 | Not started | - |
