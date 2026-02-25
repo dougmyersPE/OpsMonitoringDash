@@ -9,7 +9,7 @@
 
 - [x] **CORE-01**: System polls ProphetX events and markets every ~30 seconds via Celery Beat workers
 - [x] **CORE-02**: System polls real-world game statuses from SportsDataIO every ~30 seconds
-- [ ] **CORE-03**: Event ID matching layer links ProphetX events to SportsDataIO games by sport + teams + scheduled start time, with confidence scoring (≥0.90 required to trigger auto-actions; below threshold flagged for manual review)
+- [x] **CORE-03**: Event ID matching layer links ProphetX events to SportsDataIO games by sport + teams + scheduled start time, with confidence scoring (≥0.90 required to trigger auto-actions; below threshold flagged for manual review)
 
 ### Status Sync
 
@@ -88,7 +88,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
-| CORE-03 | Phase 2 | Pending |
+| CORE-03 | Phase 2 | Complete — 02-01 |
 | SYNC-01 | Phase 2 | Pending |
 | SYNC-02 | Phase 2 | Pending |
 | SYNC-03 | Phase 2 | Pending |

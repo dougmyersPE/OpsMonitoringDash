@@ -48,7 +48,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — DB models (Event, Market, EventIDMapping, AuditLog, Notification), Alembic migration 002, and EventMatcher with confidence scoring + Redis cache
+- [x] 02-01-PLAN.md — DB models (Event, Market, EventIDMapping, AuditLog, Notification), Alembic migration 002, and EventMatcher with confidence scoring + Redis cache
 - [ ] 02-02-PLAN.md — Full poll workers (ProphetX + SportsDataIO), mismatch detector, and liquidity monitor pure functions with unit tests
 - [ ] 02-03-PLAN.md — update_event_status action worker (distributed lock + idempotent), send_alerts stub, events/markets/audit API endpoints, router wiring
 
@@ -77,5 +77,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-02-25 |
-| 2. Monitoring Engine | 0/3 | Not started | - |
+| 2. Monitoring Engine | 1/3 | In progress | - |
 | 3. Dashboard and Alerts | 0/3 | Not started | - |

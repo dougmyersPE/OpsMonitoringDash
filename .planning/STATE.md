@@ -5,32 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 1 complete — ready for Phase 2 (Polling + Comparison)
+**Current focus:** Phase 2 in progress — Plan 01 (Schema + EventMatcher) complete
 
 ## Current Position
 
-Phase: 1 of 3 (Foundation) — COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase 1 complete
-Last activity: 2026-02-25 — Completed Plan 01-03 (Celery workers, RedBeat, ProphetX + SportsDataIO clients, probe endpoint)
+Phase: 2 of 3 (Monitoring Engine) — IN PROGRESS
+Plan: 1 of 5 in current phase — COMPLETE
+Status: Phase 2 Plan 01 complete
+Last activity: 2026-02-25 — Completed Plan 02-01 (5 ORM models, Alembic migration 002, EventMatcher with rapidfuzz + Redis cache, 6 unit tests)
 
-Progress: [███░░░░░░░] 33%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 14.3 min
-- Total execution time: 0.71 hours
+- Total plans completed: 4
+- Average duration: 12.5 min
+- Total execution time: 0.79 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 43 min | 14.3 min |
+| 02-monitoring-engine | 1/5 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 8 min, 15 min, 20 min
+- Last 5 plans: 8 min, 15 min, 20 min, 5 min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -59,6 +60,10 @@ Recent decisions affecting current work:
 - 01-03: Worker command uses -Q celery,default — Celery routes to 'celery' queue by default; -Q default alone silently starves the worker
 - 01-03: ProphetX base URL (api.prophetx.co) DNS failure — placeholder; must get correct URL + real API key from Doug before Phase 2
 - 01-03: SportsDataIO header auth locked (Ocp-Apim-Subscription-Key) — never query param; key in URL logs to Nginx access log
+- 02-01: REVOKE on audit_log wrapped in DO block — role 'prophet_monitor' may not exist in dev/test where connecting user IS the table owner
+- 02-01: Confidence threshold 0.90 — 'LA Lakers' vs 'Los Angeles Lakers' scores 0.8574 (below threshold); validate against real API data in 02-02+
+- 02-01: .dockerignore excludes .venv — local macOS venv overwrote Linux container venv during docker build COPY without it
+- 02-01: EventMatcher cache key pattern: match:px:{px_event_id}, 24h TTL; invalidate when scheduled_start changes
 
 ### Pending Todos
 
@@ -74,5 +79,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 01-03-PLAN.md — Celery workers, RedBeat scheduler, ProphetX + SportsDataIO clients, Admin probe endpoint, 5 unit tests. Phase 1 Foundation complete.
-Resume file: None — clean state, Phase 1 done
+Stopped at: Completed 02-01-PLAN.md — 5 ORM models, Alembic migration 002, EventMatcher with rapidfuzz + Redis cache, 6 unit tests passing
+Resume file: None — clean state, ready for 02-02
