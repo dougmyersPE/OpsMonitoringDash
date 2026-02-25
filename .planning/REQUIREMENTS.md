@@ -13,14 +13,14 @@
 
 ### Status Sync
 
-- [ ] **SYNC-01**: System auto-updates ProphetX event status Upcoming→Live→Ended when real-world game state changes (only when match confidence ≥0.90 and distributed lock acquired)
-- [ ] **SYNC-02**: System detects postponed/cancelled events and flags them with alert + dashboard indicator; manual operator resolution required
+- [x] **SYNC-01**: System auto-updates ProphetX event status Upcoming→Live→Ended when real-world game state changes (only when match confidence ≥0.90 and distributed lock acquired)
+- [x] **SYNC-02**: System detects postponed/cancelled events and flags them with alert + dashboard indicator; manual operator resolution required
 - [ ] **SYNC-03**: Operator can manually trigger status sync for any event via the dashboard
 
 ### Liquidity
 
-- [ ] **LIQ-01**: Admin can configure per-market liquidity thresholds with a global default fallback
-- [ ] **LIQ-02**: System detects when market liquidity falls below configured threshold and alerts (no auto top-up in v1)
+- [x] **LIQ-01**: Admin can configure per-market liquidity thresholds with a global default fallback
+- [x] **LIQ-02**: System detects when market liquidity falls below configured threshold and alerts (no auto top-up in v1)
 
 ### Dashboard
 
@@ -89,11 +89,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
 | CORE-03 | Phase 2 | Complete — 02-01 |
-| SYNC-01 | Phase 2 | Pending |
-| SYNC-02 | Phase 2 | Pending |
+| SYNC-01 | Phase 2 | Complete |
+| SYNC-02 | Phase 2 | Complete |
 | SYNC-03 | Phase 2 | Pending |
-| LIQ-01 | Phase 2 | Pending |
-| LIQ-02 | Phase 2 | Pending |
+| LIQ-01 | Phase 2 | Complete |
+| LIQ-02 | Phase 2 | Complete |
 | AUDIT-01 | Phase 2 | Pending |
 | AUDIT-02 | Phase 2 | Pending |
 | DASH-01 | Phase 3 | Pending |

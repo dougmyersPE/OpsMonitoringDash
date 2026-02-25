@@ -5,36 +5,37 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 2 in progress — Plan 01 (Schema + EventMatcher) complete
+**Current focus:** Phase 2 in progress — Plan 02 (Monitoring Engine Workers) complete
 
 ## Current Position
 
 Phase: 2 of 3 (Monitoring Engine) — IN PROGRESS
-Plan: 1 of 5 in current phase — COMPLETE
-Status: Phase 2 Plan 01 complete
-Last activity: 2026-02-25 — Completed Plan 02-01 (5 ORM models, Alembic migration 002, EventMatcher with rapidfuzz + Redis cache, 6 unit tests)
+Plan: 2 of 5 in current phase — COMPLETE
+Status: Phase 2 Plan 02 complete
+Last activity: 2026-02-25 — Completed Plan 02-02 (mismatch_detector, liquidity_monitor, poll_prophetx, poll_sports_data, 30 unit tests)
 
-Progress: [████░░░░░░] 40%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 12.5 min
-- Total execution time: 0.79 hours
+- Total plans completed: 5
+- Average duration: 10 min
+- Total execution time: 0.83 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 43 min | 14.3 min |
-| 02-monitoring-engine | 1/5 | 5 min | 5 min |
+| 02-monitoring-engine | 2/5 | 10 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 8 min, 15 min, 20 min, 5 min
+- Last 5 plans: 8 min, 15 min, 20 min, 5 min, 5 min
 - Trend: stable
 
 *Updated after each plan completion*
+| Phase 02-monitoring-engine P02 | 5 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,8 @@ Recent decisions affecting current work:
 - 02-01: Confidence threshold 0.90 — 'LA Lakers' vs 'Los Angeles Lakers' scores 0.8574 (below threshold); validate against real API data in 02-02+
 - 02-01: .dockerignore excludes .venv — local macOS venv overwrote Linux container venv during docker build COPY without it
 - 02-01: EventMatcher cache key pattern: match:px:{px_event_id}, 24h TTL; invalidate when scheduled_start changes
+- [Phase 02-monitoring-engine]: SDIO_TO_PX_STATUS all ProphetX values marked UNCONFIRMED — update after prophetx_status_values_observed log captured from live API
+- [Phase 02-monitoring-engine]: poll_sports_data polls NBA/MLB/NHL/Soccer only — NFL/NCAAB/NCAAF excluded per 404 from RESEARCH.md
 
 ### Pending Todos
 
@@ -79,5 +82,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 02-01-PLAN.md — 5 ORM models, Alembic migration 002, EventMatcher with rapidfuzz + Redis cache, 6 unit tests passing
-Resume file: None — clean state, ready for 02-02
+Stopped at: Completed 02-02-PLAN.md — mismatch_detector, liquidity_monitor, poll_prophetx, poll_sports_data, 30 unit tests passing
+Resume file: None — clean state, ready for 02-03
