@@ -12,7 +12,7 @@ Three phases that build in strict dependency order. Phase 1 assembles the infras
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Infrastructure, database, auth, and API clients — everything every subsequent phase depends on
+- [x] **Phase 1: Foundation** - Infrastructure, database, auth, and API clients — everything every subsequent phase depends on
 - [ ] **Phase 2: Monitoring Engine** - Event matching, polling workers, auto status sync, liquidity monitoring, and audit log — the core value
 - [ ] **Phase 3: Dashboard and Alerts** - Real-time SSE dashboard, Slack alerting with deduplication, alert-only mode, and notification center
 
@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md — Docker Compose skeleton, PostgreSQL schema, Alembic async migrations, Redis memory config, two SQLAlchemy engines, GET /health endpoint
 - [x] 01-02-PLAN.md — JWT authentication (PyJWT + pwdlib), three-role RBAC dependency, system config endpoint, seed admin user
-- [ ] 01-03-PLAN.md — Celery/RedBeat scaffold with 30s stub poll tasks, ProphetX + SportsDataIO API clients, /probe/clients validation endpoint
+- [x] 01-03-PLAN.md — Celery/RedBeat scaffold with 30s stub poll tasks, ProphetX + SportsDataIO API clients, /probe/clients validation endpoint
 
 ### Phase 2: Monitoring Engine
 **Goal**: The system continuously polls both APIs, correctly matches ProphetX events to SportsDataIO games, detects mismatches and liquidity breaches, auto-corrects event statuses with idempotent distributed-locked actions, and logs every action to an append-only audit log
@@ -76,6 +76,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 2/3 | In progress | - |
+| 1. Foundation | 3/3 | Complete | 2026-02-25 |
 | 2. Monitoring Engine | 0/3 | Not started | - |
 | 3. Dashboard and Alerts | 0/3 | Not started | - |

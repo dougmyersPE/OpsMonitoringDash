@@ -112,4 +112,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-25 — AUTH-01, AUTH-02, AUTH-03 marked complete (Plan 01-02)*
+*Last updated: 2026-02-25 — CORE-01, CORE-02 confirmed complete (Plan 01-03 — Celery Beat + API clients verified running)*
