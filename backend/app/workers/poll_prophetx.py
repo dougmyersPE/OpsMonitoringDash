@@ -11,8 +11,10 @@ Steps:
 """
 
 import asyncio
+import json as _json
 from datetime import datetime, timezone
 
+import redis as _sync_redis
 import structlog
 from sqlalchemy import select
 
@@ -25,6 +27,23 @@ from app.workers.celery_app import celery_app
 from app.workers.send_alerts import run as send_alerts_task
 
 log = structlog.get_logger()
+
+
+def _publish_update(update_type: str, entity_id: str) -> None:
+    """Publish a state change to the SSE pub/sub channel."""
+    from app.core.config import settings
+    r = _sync_redis.from_url(settings.REDIS_URL)
+    r.publish("prophet:updates", _json.dumps({
+        "type": update_type,
+        "entity_id": entity_id,
+    }))
+
+
+def _write_heartbeat(worker_name: str) -> None:
+    """Write worker heartbeat key with 90s TTL — read by /health/workers."""
+    from app.core.config import settings
+    r = _sync_redis.from_url(settings.REDIS_URL)
+    r.set(f"worker:heartbeat:{worker_name}", "1", ex=90)
 
 
 @celery_app.task(name="app.workers.poll_prophetx.run", bind=True, max_retries=3)
@@ -175,6 +194,8 @@ def run(self):
                 existing.last_prophetx_poll = now
 
             events_upserted += 1
+            # Publish SSE update after event upsert
+            _publish_update("event_updated", str(prophetx_event_id))
 
         # Flush events before upserting markets (FK lookup needs event rows)
         session.flush()
@@ -267,6 +288,8 @@ def run(self):
                 market_obj = existing_market
 
             markets_upserted += 1
+            # Publish SSE update after market upsert
+            _publish_update("market_updated", str(market_obj.id))
 
             # 5. Liquidity breach check — enqueue alert (LIQ-02)
             if is_below_threshold(market_obj, session):
@@ -286,6 +309,9 @@ def run(self):
                 liquidity_alerts += 1
 
         session.commit()
+
+    # Write heartbeat key — read by /health/workers to confirm worker is alive
+    _write_heartbeat("poll_prophetx")
 
     log.info(
         "poll_prophetx_complete",

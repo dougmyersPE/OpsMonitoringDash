@@ -1,5 +1,5 @@
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.core.constants import RoleEnum
@@ -24,3 +24,18 @@ def require_role(*roles: RoleEnum):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role")
         return user
     return _checker
+
+
+async def verify_token_from_query(token: str = Query(...)) -> dict:
+    """Auth dependency for SSE endpoint — validates ?token= query parameter.
+
+    The native EventSource API cannot send Authorization headers, so the JWT
+    is passed as a query parameter instead.
+    """
+    try:
+        payload = decode_access_token(token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return payload

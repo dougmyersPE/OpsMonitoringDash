@@ -12,8 +12,10 @@ Steps:
 """
 
 import asyncio
+import json as _json
 from datetime import date, datetime, timedelta, timezone
 
+import redis as _sync_redis
 import structlog
 from sqlalchemy import select
 
@@ -29,6 +31,23 @@ from app.workers.send_alerts import run as send_alerts_task
 from app.workers.update_event_status import run as update_status_task
 
 log = structlog.get_logger()
+
+
+def _publish_update(update_type: str, entity_id: str) -> None:
+    """Publish a state change to the SSE pub/sub channel."""
+    from app.core.config import settings
+    r = _sync_redis.from_url(settings.REDIS_URL)
+    r.publish("prophet:updates", _json.dumps({
+        "type": update_type,
+        "entity_id": entity_id,
+    }))
+
+
+def _write_heartbeat(worker_name: str) -> None:
+    """Write worker heartbeat key with 90s TTL — read by /health/workers."""
+    from app.core.config import settings
+    r = _sync_redis.from_url(settings.REDIS_URL)
+    r.set(f"worker:heartbeat:{worker_name}", "1", ex=90)
 
 # Sports to poll — list reflects confirmed SportsDataIO subscription coverage.
 # NFL/NCAAB/NCAAF return 404 (different URL format per RESEARCH.md); excluded here.
@@ -249,6 +268,8 @@ def run(self):
                     sdio_status=sdio_status,
                 )
                 mismatches_found += 1
+                # Publish SSE update for mismatch
+                _publish_update("mismatch_detected", str(px_event.id))
                 # SYNC-01: enqueue status update task for confirmed mismatches
                 if is_confirmed:
                     expected_px_status = get_expected_px_status(sdio_status)
@@ -282,6 +303,9 @@ def run(self):
             px_event.last_real_world_poll = now
 
         session.commit()
+
+    # Write heartbeat key — read by /health/workers to confirm worker is alive
+    _write_heartbeat("poll_sports_data")
 
     log.info(
         "poll_sports_data_complete",
