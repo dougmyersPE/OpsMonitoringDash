@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 3 in progress — Plan 03 (Notification Center) complete
+**Current focus:** Phase 3 complete — all 4 plans executed
 
 ## Current Position
 
-Phase: 3 of 3 (Dashboard and Alerts) — IN PROGRESS
-Plan: 3 of 4 in current phase — COMPLETE
-Status: Phase 3 Plan 03 complete
-Last activity: 2026-02-26 — Completed Plan 03-03 (notifications backend API, send_alerts DB write, NotificationCenter React component with Bell icon and Sheet panel)
+Phase: 3 of 3 (Dashboard and Alerts) — COMPLETE
+Plan: 4 of 4 in current phase — COMPLETE
+Status: Phase 3 complete — all plans executed
+Last activity: 2026-02-26 — Completed Plan 03-04 (frontend Dockerfile, SPA nginx.conf, SSE-safe Nginx config, frontend service in docker-compose; full stack at http://localhost/)
 
-Progress: [█████████░] 87%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 10 min
-- Total execution time: 0.83 hours
+- Total plans completed: 6
+- Average duration: 9 min
+- Total execution time: 0.92 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [█████████░] 87%
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 43 min | 14.3 min |
 | 02-monitoring-engine | 3/5 | 16 min | 5.3 min |
-| 03-dashboard-and-alerts | 3/4 | 11 min | 3.7 min |
+| 03-dashboard-and-alerts | 4/4 | 16 min | 4.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 8 min, 15 min, 20 min, 5 min, 5 min
+- Last 5 plans: 15 min, 20 min, 5 min, 5 min, 5 min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -41,6 +41,7 @@ Progress: [█████████░] 87%
 | Phase 03-dashboard-and-alerts P01 | 4 | 3 tasks | 17 files |
 | Phase 03-dashboard-and-alerts P02 | 4 | 2 tasks | 10 files |
 | Phase 03-dashboard-and-alerts P03 | 3 | 2 tasks | 8 files |
+| Phase 03-dashboard-and-alerts P04 | 5 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,9 @@ Recent decisions affecting current work:
 - [Phase 03-dashboard-and-alerts]: alert_only_mode read fresh from system_config DB at task start — not cached — real-time config changes take effect immediately
 - [Phase 03-dashboard-and-alerts]: PATCH /mark-all-read route declared before PATCH /{notification_id}/read to prevent FastAPI path conflict where string 'mark-all-read' would be interpreted as UUID
 - [Phase 03-dashboard-and-alerts]: Notification DB write placed before Slack guard in send_alerts.py — in-app notifications appear even without SLACK_WEBHOOK_URL configured
+- 03-04: frontend/nginx.conf handles SPA fallback internally — outer nginx just proxy_passes to frontend:80, keeping concerns separated
+- 03-04: SSE location block (/api/v1/stream) declared before /api/ block — most-specific match wins in Nginx location matching
+- 03-04: chunked_transfer_encoding off in SSE block prevents Nginx from re-chunking SSE frames, ensuring individual event delivery
 
 ### Pending Todos
 
@@ -95,9 +99,10 @@ None.
 - **PHASE 2 BLOCKER:** ProphetX status enum values still unconfirmed (no successful API call yet) — required before Phase 2 comparison logic
 - SportsDataIO NFL/NCAAB/NCAAF endpoint paths return 404 (different URL format than NBA/MLB/NHL/Soccer) — needs research for Phase 2 sport coverage
 - Event ID matching confidence threshold (0.90) must be validated against real ProphetX + SportsDataIO data early in Phase 2
+- /api/v1/health/workers returns 404 despite correct route registration — needs investigation (likely path conflict or import error in workers module)
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 03-03-PLAN.md — notifications backend API (list + mark-read), send_alerts DB write, NotificationCenter React component with Bell icon and Sheet panel
-Resume file: None — clean state, ready for 03-04
+Stopped at: Completed 03-04-PLAN.md — frontend Dockerfile, SPA nginx.conf, SSE-safe Nginx config, frontend service in docker-compose; full stack at http://localhost/
+Resume file: None — Phase 3 complete, all plans executed
