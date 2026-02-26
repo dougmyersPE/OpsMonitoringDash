@@ -15,7 +15,7 @@
 
 - [x] **SYNC-01**: System auto-updates ProphetX event status Upcoming→Live→Ended when real-world game state changes (only when match confidence ≥0.90 and distributed lock acquired)
 - [x] **SYNC-02**: System detects postponed/cancelled events and flags them with alert + dashboard indicator; manual operator resolution required
-- [ ] **SYNC-03**: Operator can manually trigger status sync for any event via the dashboard
+- [x] **SYNC-03**: Operator can manually trigger status sync for any event via the dashboard
 
 ### Liquidity
 
@@ -47,8 +47,8 @@
 
 ### Audit
 
-- [ ] **AUDIT-01**: All automated and manual actions are logged append-only: timestamp, actor (user or system), affected event/market, action type, before state, after state — no deletions permitted
-- [ ] **AUDIT-02**: Operator can view the full audit log in the dashboard with basic pagination
+- [x] **AUDIT-01**: All automated and manual actions are logged append-only: timestamp, actor (user or system), affected event/market, action type, before state, after state — no deletions permitted
+- [x] **AUDIT-02**: Operator can view the full audit log in the dashboard with basic pagination
 
 ## v2 Requirements
 
@@ -91,11 +91,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CORE-03 | Phase 2 | Complete — 02-01 |
 | SYNC-01 | Phase 2 | Complete |
 | SYNC-02 | Phase 2 | Complete |
-| SYNC-03 | Phase 2 | Pending |
+| SYNC-03 | Phase 2 | Complete |
 | LIQ-01 | Phase 2 | Complete |
 | LIQ-02 | Phase 2 | Complete |
-| AUDIT-01 | Phase 2 | Pending |
-| AUDIT-02 | Phase 2 | Pending |
+| AUDIT-01 | Phase 2 | Complete |
+| AUDIT-02 | Phase 2 | Complete |
 | DASH-01 | Phase 3 | Pending |
 | DASH-02 | Phase 3 | Pending |
 | DASH-03 | Phase 3 | Pending |
