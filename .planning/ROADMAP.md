@@ -62,13 +62,14 @@ Plans:
   3. When the SSE connection drops, a visible "Connection lost — reconnecting..." banner appears within 20 seconds; SSE heartbeats keep the Nginx connection alive
   4. Slack receives an alert for each alertable condition (mismatch detected, auto-update success/failure, low liquidity, postponed/cancelled event, API retries exhausted); a maximum of 1 alert per event per condition type fires within any 5-minute window (Redis TTL deduplication)
   5. When alert-only mode is enabled via admin config, the system detects mismatches and sends alerts but makes no write calls to the ProphetX API; toggling this flag requires no code deployment
-**Plans**: 4 plans
+**Plans**: 5 plans
 
 Plans:
 - [ ] 03-01-PLAN.md — React SPA scaffold (Vite+shadcn+TanStack Query+Zustand+React Router+axios), Login page, EventsTable with mismatch highlighting, MarketsTable with liquidity highlighting, SystemHealth indicator, SseProvider + useSse hook
 - [ ] 03-02-PLAN.md — SSE backend endpoint (sse-starlette + Redis pub/sub), verify_token_from_query dep, worker heartbeats, Redis publish in poll workers, Slack alerting (slack-sdk + SETNX dedup), alert_only_mode guard in update_event_status
 - [ ] 03-03-PLAN.md — Notifications backend API (list + mark-read), NotificationCenter component (bell icon + Sheet panel + unread badge)
 - [ ] 03-04-PLAN.md — Frontend Dockerfile (multi-stage), frontend/nginx.conf (SPA fallback), docker-compose frontend service, nginx/nginx.conf SSE location block (proxy_buffering off), end-to-end smoke test checkpoint
+- [ ] 03-05-PLAN.md — Gap closure: send_alerts wiring in update_event_status, SSE reconnect banner timeout fix, notification entity navigation links, last_prophetx_poll field name correction
 
 ## Progress
 
@@ -79,4 +80,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-02-25 |
 | 2. Monitoring Engine | 3/3 | Complete   | 2026-02-25 |
-| 3. Dashboard and Alerts | 4/4 | Complete   | 2026-02-26 |
+| 3. Dashboard and Alerts | 4/5 | Gap closure in progress | 2026-02-26 |
