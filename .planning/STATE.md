@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 3 complete — all 4 plans executed
+**Current focus:** Phase 3 complete — all 5 plans executed (including gap closure 03-05)
 
 ## Current Position
 
 Phase: 3 of 3 (Dashboard and Alerts) — COMPLETE
-Plan: 4 of 4 in current phase — COMPLETE
-Status: Phase 3 complete — all plans executed
-Last activity: 2026-02-26 — Completed Plan 03-04 (frontend Dockerfile, SPA nginx.conf, SSE-safe Nginx config, frontend service in docker-compose; full stack at http://localhost/)
+Plan: 5 of 5 in current phase — COMPLETE
+Status: Phase 3 complete — all plans executed including gap closure
+Last activity: 2026-02-26 — Completed Plan 03-05 (gap closure: send_alerts wired, SSE timeout-based banner, notification nav links, last_prophetx_poll field fix)
 
 Progress: [██████████] 100%
 
@@ -29,7 +29,7 @@ Progress: [██████████] 100%
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 43 min | 14.3 min |
 | 02-monitoring-engine | 3/5 | 16 min | 5.3 min |
-| 03-dashboard-and-alerts | 4/4 | 16 min | 4.0 min |
+| 03-dashboard-and-alerts | 5/5 | 18 min | 3.6 min |
 
 **Recent Trend:**
 - Last 5 plans: 15 min, 20 min, 5 min, 5 min, 5 min
@@ -42,6 +42,7 @@ Progress: [██████████] 100%
 | Phase 03-dashboard-and-alerts P02 | 4 | 2 tasks | 10 files |
 | Phase 03-dashboard-and-alerts P03 | 3 | 2 tasks | 8 files |
 | Phase 03-dashboard-and-alerts P04 | 5 | 2 tasks | 4 files |
+| Phase 03 P05 | 2min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,9 @@ Recent decisions affecting current work:
 - 03-04: frontend/nginx.conf handles SPA fallback internally — outer nginx just proxy_passes to frontend:80, keeping concerns separated
 - 03-04: SSE location block (/api/v1/stream) declared before /api/ block — most-specific match wins in Nginx location matching
 - 03-04: chunked_transfer_encoding off in SSE block prevents Nginx from re-chunking SSE frames, ensuring individual event delivery
+- [Phase 03]: 03-05: send_alerts import placed inside task body to avoid circular import — failure-path alert wrapped in its own try/except — Matches SystemConfig import pattern; prevents alert enqueue failure from blocking retry logic
+- [Phase 03]: 03-05: lastOpenRef initialized to Date.now() at mount so 15s grace starts from mount preventing false-positive banner — Browser SSE connects asynchronously; starting grace period from mount avoids immediate banner flash on first load
+- [Phase 03]: 03-05: Plain <a href> anchor used for notification nav (no useNavigate) — Hash URLs work without React Router for same-page scrolling; simpler than router dependency
 
 ### Pending Todos
 
@@ -104,5 +108,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 03-04-PLAN.md — frontend Dockerfile, SPA nginx.conf, SSE-safe Nginx config, frontend service in docker-compose; full stack at http://localhost/
-Resume file: None — Phase 3 complete, all plans executed
+Stopped at: Completed 03-05-PLAN.md — gap closure: send_alerts wired on success+failure paths, SSE timeout-based disconnect detection, notification nav links, last_prophetx_poll field fix
+Resume file: None — Phase 3 complete, all 5 plans executed including gap closure
