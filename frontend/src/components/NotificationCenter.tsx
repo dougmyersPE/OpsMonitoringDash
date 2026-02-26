@@ -82,9 +82,13 @@ export default function NotificationCenter() {
                   </p>
                   <p className="text-slate-700 mt-0.5">{n.message}</p>
                   {n.entity_type && n.entity_id && (
-                    <p className="text-slate-400 text-xs mt-1">
+                    <a
+                      href={n.entity_type === "market" ? "/#markets" : "/#events"}
+                      className="text-blue-500 text-xs mt-1 hover:text-blue-700 hover:underline block"
+                      title={`Go to ${n.entity_type}: ${n.entity_id}`}
+                    >
                       {n.entity_type}: {n.entity_id.slice(0, 8)}...
-                    </p>
+                    </a>
                   )}
                   <p className="text-slate-400 text-xs mt-1">
                     {format(new Date(n.created_at), "MMM d, HH:mm")}

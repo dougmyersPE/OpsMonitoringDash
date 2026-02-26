@@ -66,8 +66,8 @@ export default function EventsTable() {
                 <TableCell>{event.real_world_status ?? "—"}</TableCell>
                 <TableCell>{event.is_flagged ? "Yes" : "—"}</TableCell>
                 <TableCell className="text-slate-500 text-xs">
-                  {event.last_checked_at
-                    ? format(new Date(event.last_checked_at), "HH:mm:ss")
+                  {event.last_prophetx_poll
+                    ? format(new Date(event.last_prophetx_poll), "HH:mm:ss")
                     : "—"}
                 </TableCell>
                 {canSync && (

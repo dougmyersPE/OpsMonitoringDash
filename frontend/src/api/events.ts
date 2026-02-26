@@ -8,7 +8,7 @@ export interface EventRow {
   real_world_status: string | null;
   status_match: boolean;
   is_flagged: boolean;
-  last_checked_at: string | null;
+  last_prophetx_poll: string | null;
 }
 
 export async function fetchEvents(): Promise<EventRow[]> {
