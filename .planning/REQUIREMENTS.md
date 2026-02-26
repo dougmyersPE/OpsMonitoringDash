@@ -31,9 +31,9 @@
 
 ### Alerting
 
-- [ ] **ALERT-01**: System sends Slack webhook alerts for: status mismatch detected, auto-update success, auto-update failure, low liquidity breach, cancelled/postponed event detected, ProphetX API retries exhausted
-- [ ] **ALERT-02**: Alert deduplication — maximum 1 alert per event per condition type per 5 minutes (Redis TTL key pattern)
-- [ ] **ALERT-03**: Alert-only mode — when enabled via admin config, system detects mismatches and alerts but takes no automated write actions to ProphetX API
+- [x] **ALERT-01**: System sends Slack webhook alerts for: status mismatch detected, auto-update success, auto-update failure, low liquidity breach, cancelled/postponed event detected, ProphetX API retries exhausted
+- [x] **ALERT-02**: Alert deduplication — maximum 1 alert per event per condition type per 5 minutes (Redis TTL key pattern)
+- [x] **ALERT-03**: Alert-only mode — when enabled via admin config, system detects mismatches and alerts but takes no automated write actions to ProphetX API
 
 ### Notifications
 
@@ -100,9 +100,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DASH-02 | Phase 3 | Complete |
 | DASH-03 | Phase 3 | Complete |
 | DASH-04 | Phase 3 | Complete |
-| ALERT-01 | Phase 3 | Pending |
-| ALERT-02 | Phase 3 | Pending |
-| ALERT-03 | Phase 3 | Pending |
+| ALERT-01 | Phase 3 | Complete |
+| ALERT-02 | Phase 3 | Complete |
+| ALERT-03 | Phase 3 | Complete |
 | NOTIF-01 | Phase 3 | Pending |
 
 **Coverage:**

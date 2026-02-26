@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 3 in progress — Plan 01 (React SPA Dashboard) complete
+**Current focus:** Phase 3 in progress — Plan 02 (SSE Backend + Slack Alerting) complete
 
 ## Current Position
 
 Phase: 3 of 3 (Dashboard and Alerts) — IN PROGRESS
-Plan: 1 of 4 in current phase — COMPLETE
-Status: Phase 3 Plan 01 complete
-Last activity: 2026-02-26 — Completed Plan 03-01 (React SPA scaffold, auth store, EventsTable, MarketsTable, SystemHealth, SSE hook)
+Plan: 2 of 4 in current phase — COMPLETE
+Status: Phase 3 Plan 02 complete
+Last activity: 2026-02-26 — Completed Plan 03-02 (SSE endpoint, query-param auth, worker heartbeats, Slack alerting with SETNX dedup, alert_only_mode guard)
 
-Progress: [███████░░░] 67%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -29,7 +29,7 @@ Progress: [███████░░░] 67%
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 43 min | 14.3 min |
 | 02-monitoring-engine | 3/5 | 16 min | 5.3 min |
-| 03-dashboard-and-alerts | 1/4 | 4 min | 4 min |
+| 03-dashboard-and-alerts | 2/4 | 8 min | 4 min |
 
 **Recent Trend:**
 - Last 5 plans: 8 min, 15 min, 20 min, 5 min, 5 min
@@ -96,5 +96,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 03-01-PLAN.md — React SPA scaffold (Vite+Tailwind+shadcn), auth store+axios interceptor, EventsTable/MarketsTable/SystemHealth/SseProvider components, npm run build passes
-Resume file: None — clean state, ready for 03-02
+Stopped at: Completed 03-02-PLAN.md — SSE endpoint + query-param auth, worker heartbeats, Slack alerting with SETNX dedup, alert_only_mode guard in update_event_status
+Resume file: None — clean state, ready for 03-03
