@@ -49,8 +49,8 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — DB models (Event, Market, EventIDMapping, AuditLog, Notification), Alembic migration 002, and EventMatcher with confidence scoring + Redis cache
-- [ ] 02-02-PLAN.md — Full poll workers (ProphetX + SportsDataIO), mismatch detector, and liquidity monitor pure functions with unit tests
-- [ ] 02-03-PLAN.md — update_event_status action worker (distributed lock + idempotent), send_alerts stub, events/markets/audit API endpoints, router wiring
+- [x] 02-02-PLAN.md — Full poll workers (ProphetX + SportsDataIO), mismatch detector, and liquidity monitor pure functions with unit tests
+- [x] 02-03-PLAN.md — update_event_status action worker (distributed lock + idempotent), send_alerts stub, events/markets/audit API endpoints, router wiring
 
 ### Phase 3: Dashboard and Alerts
 **Goal**: Operators see all events and markets in a real-time dashboard that updates via SSE within 30 seconds of any change, receive Slack alerts with deduplication, can toggle alert-only mode for safe rollout, and have an in-app notification center with read/unread state
@@ -62,12 +62,13 @@ Plans:
   3. When the SSE connection drops, a visible "Connection lost — reconnecting..." banner appears within 20 seconds; SSE heartbeats keep the Nginx connection alive
   4. Slack receives an alert for each alertable condition (mismatch detected, auto-update success/failure, low liquidity, postponed/cancelled event, API retries exhausted); a maximum of 1 alert per event per condition type fires within any 5-minute window (Redis TTL deduplication)
   5. When alert-only mode is enabled via admin config, the system detects mismatches and sends alerts but makes no write calls to the ProphetX API; toggling this flag requires no code deployment
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 03-01: React dashboard shell, login page, EventsTable and MarketsTable with SSE integration and mismatch/liquidity highlighting
-- [ ] 03-02: Slack alerting worker with deduplication, alert-only mode flag, system health indicator, in-app notification center, and admin config panel
-- [ ] 03-03: Production hardening: Nginx SSE config, SSE heartbeat + reconnect banner, Docker Compose production settings, and end-to-end smoke test
+- [ ] 03-01-PLAN.md — React SPA scaffold (Vite+shadcn+TanStack Query+Zustand+React Router+axios), Login page, EventsTable with mismatch highlighting, MarketsTable with liquidity highlighting, SystemHealth indicator, SseProvider + useSse hook
+- [ ] 03-02-PLAN.md — SSE backend endpoint (sse-starlette + Redis pub/sub), verify_token_from_query dep, worker heartbeats, Redis publish in poll workers, Slack alerting (slack-sdk + SETNX dedup), alert_only_mode guard in update_event_status
+- [ ] 03-03-PLAN.md — Notifications backend API (list + mark-read), NotificationCenter component (bell icon + Sheet panel + unread badge)
+- [ ] 03-04-PLAN.md — Frontend Dockerfile (multi-stage), frontend/nginx.conf (SPA fallback), docker-compose frontend service, nginx/nginx.conf SSE location block (proxy_buffering off), end-to-end smoke test checkpoint
 
 ## Progress
 
@@ -78,4 +79,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-02-25 |
 | 2. Monitoring Engine | 3/3 | Complete   | 2026-02-25 |
-| 3. Dashboard and Alerts | 0/3 | Not started | - |
+| 3. Dashboard and Alerts | 0/4 | Not started | - |
