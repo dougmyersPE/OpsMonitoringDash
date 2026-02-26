@@ -11,6 +11,7 @@ celery_app = Celery(
     include=[
         "app.workers.poll_prophetx",
         "app.workers.poll_sports_data",
+        "app.workers.poll_odds_api",
     ],
 )
 
@@ -42,6 +43,10 @@ celery_app.conf.update(
         "poll-sports-data": {
             "task": "app.workers.poll_sports_data.run",
             "schedule": 30.0,
+        },
+        "poll-odds-api": {
+            "task": "app.workers.poll_odds_api.run",
+            "schedule": 600.0,  # 10 minutes — conserves free tier credits (500/month)
         },
     },
 )
