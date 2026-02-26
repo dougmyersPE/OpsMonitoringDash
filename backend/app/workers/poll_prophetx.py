@@ -56,8 +56,40 @@ def run(self):
         async def _fetch():
             async with ProphetXClient() as px:
                 events = await px.get_events_raw()
-                markets = await px.get_markets_raw()
-                return events, markets
+
+                # ProphetX requires event_id — fetch markets per event then flatten
+                # Response shape: {"data": {"sport_events": [...]}}
+                _data = events.get("data", events) if isinstance(events, dict) else events
+                if isinstance(_data, dict):
+                    _data = _data.get("sport_events", _data.get("events", []))
+                events_list = _data if isinstance(_data, list) else []
+                event_ids = [
+                    str(e.get("event_id") or e.get("id"))
+                    for e in events_list
+                    if isinstance(e, dict) and (e.get("event_id") or e.get("id"))
+                ]
+
+                all_markets: list = []
+                for eid in event_ids:
+                    try:
+                        m = await px.get_markets_raw(event_id=eid)
+                        # Response: {"data": {"event_id": ..., "markets": [...]}}
+                        m_data = m.get("data", m) if isinstance(m, dict) else m
+                        if isinstance(m_data, dict):
+                            m_list = m_data.get("markets", [])
+                        elif isinstance(m_data, list):
+                            m_list = m_data
+                        else:
+                            m_list = []
+                        # Inject event_id into each market (not present in individual market objects)
+                        for market in m_list:
+                            if isinstance(market, dict) and not market.get("event_id"):
+                                market["event_id"] = eid
+                        all_markets.extend(m_list)
+                    except Exception as market_exc:
+                        log.warning("prophetx_markets_fetch_failed_for_event", event_id=eid, error=str(market_exc))
+
+                return events, all_markets
 
         raw_events, raw_markets = asyncio.run(_fetch())
 
@@ -77,10 +109,11 @@ def run(self):
     if isinstance(raw_events, list):
         events_list = raw_events
     elif isinstance(raw_events, dict):
-        # ProphetX may wrap list under "data" key — handle both shapes
-        events_list = raw_events.get("data", raw_events.get("events", [raw_events]))
-        if isinstance(events_list, dict):
-            events_list = [events_list]
+        # ProphetX response shape: {"data": {"sport_events": [...]}}
+        _lvl1 = raw_events.get("data", raw_events.get("events", raw_events))
+        if isinstance(_lvl1, dict):
+            _lvl1 = _lvl1.get("sport_events", _lvl1.get("events", [_lvl1]))
+        events_list = _lvl1 if isinstance(_lvl1, list) else [_lvl1]
     else:
         events_list = []
 
@@ -166,7 +199,7 @@ def run(self):
             if existing is None:
                 event = Event(
                     prophetx_event_id=prophetx_event_id,
-                    sport=str(raw_event.get("sport") or raw_event.get("league_name") or "unknown"),
+                    sport=str(raw_event.get("sport") or raw_event.get("sport_name") or raw_event.get("league_name") or "unknown"),
                     name=str(raw_event.get("name") or raw_event.get("title") or prophetx_event_id),
                     home_team=raw_event.get("home_team") or raw_event.get("home"),
                     away_team=raw_event.get("away_team") or raw_event.get("away"),
@@ -177,7 +210,7 @@ def run(self):
                 session.add(event)
             else:
                 existing.sport = str(
-                    raw_event.get("sport") or raw_event.get("league_name") or existing.sport
+                    raw_event.get("sport") or raw_event.get("sport_name") or raw_event.get("league_name") or existing.sport
                 )
                 existing.name = str(
                     raw_event.get("name") or raw_event.get("title") or existing.name
