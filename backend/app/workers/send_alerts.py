@@ -6,11 +6,15 @@ ALERT-02: Redis SETNX pattern: SET alert_dedup:{alert_type}:{entity_id} 1 NX EX 
            — only one alert per event per condition type per 5 minutes fires.
 """
 
+import uuid as _uuid
+
 import redis as sync_redis
 import structlog
 from slack_sdk.webhook import WebhookClient
 
 from app.core.config import settings
+from app.db.sync_session import SyncSessionLocal
+from app.models.notification import Notification as NotificationModel
 from app.workers.celery_app import celery_app
 
 log = structlog.get_logger()
@@ -52,6 +56,18 @@ def run(
         entity_type=entity_type,
         message=message,
     )
+
+    # NOTIF-01: Write Notification row so in-app center reflects the alert
+    # Done before Slack guard so notifications appear even without Slack configured
+    with SyncSessionLocal() as _session:
+        _session.add(NotificationModel(
+            type=alert_type,
+            entity_type=entity_type,
+            entity_id=_uuid.UUID(entity_id) if entity_id else None,
+            message=message,
+            is_read=False,
+        ))
+        _session.commit()
 
     if not settings.SLACK_WEBHOOK_URL:
         log.warning(
