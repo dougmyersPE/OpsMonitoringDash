@@ -168,9 +168,21 @@ def run(self):
                 or raw_event.get("state")
             )
 
+            # Extract home/away from competitors array (ProphetX structure)
+            competitors = raw_event.get("competitors") or []
+            home_team = next(
+                (c.get("name") or c.get("display_name") for c in competitors if c.get("side") == "home"),
+                raw_event.get("home_team") or raw_event.get("home"),
+            )
+            away_team = next(
+                (c.get("name") or c.get("display_name") for c in competitors if c.get("side") == "away"),
+                raw_event.get("away_team") or raw_event.get("away"),
+            )
+
             # Parse scheduled start — accept ISO string or unix timestamp
             scheduled_raw = (
-                raw_event.get("scheduled_start")
+                raw_event.get("scheduled")
+                or raw_event.get("scheduled_start")
                 or raw_event.get("start_time")
                 or raw_event.get("starts_at")
             )
@@ -201,8 +213,8 @@ def run(self):
                     prophetx_event_id=prophetx_event_id,
                     sport=str(raw_event.get("sport") or raw_event.get("sport_name") or raw_event.get("league_name") or "unknown"),
                     name=str(raw_event.get("name") or raw_event.get("title") or prophetx_event_id),
-                    home_team=raw_event.get("home_team") or raw_event.get("home"),
-                    away_team=raw_event.get("away_team") or raw_event.get("away"),
+                    home_team=home_team,
+                    away_team=away_team,
                     scheduled_start=scheduled_start,
                     prophetx_status=status_value,
                     last_prophetx_poll=now,
@@ -215,12 +227,8 @@ def run(self):
                 existing.name = str(
                     raw_event.get("name") or raw_event.get("title") or existing.name
                 )
-                existing.home_team = (
-                    raw_event.get("home_team") or raw_event.get("home") or existing.home_team
-                )
-                existing.away_team = (
-                    raw_event.get("away_team") or raw_event.get("away") or existing.away_team
-                )
+                existing.home_team = home_team or existing.home_team
+                existing.away_team = away_team or existing.away_team
                 if scheduled_start is not None:
                     existing.scheduled_start = scheduled_start
                 existing.prophetx_status = status_value
