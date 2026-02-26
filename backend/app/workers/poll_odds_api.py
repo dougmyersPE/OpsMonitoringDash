@@ -80,7 +80,7 @@ def run(self):
             for prophetx_sport, sport_keys in SPORT_KEY_MAP.items():
                 for sport_key in sport_keys:
                     try:
-                        games = await client.get_scores(sport_key, days_from=1)
+                        games = await client.get_scores(sport_key, days_from=3)
                         for g in games:
                             g["_prophetx_sport"] = prophetx_sport
                         results.extend(games)

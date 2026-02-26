@@ -178,6 +178,13 @@ def run(self):
                 (c.get("name") or c.get("display_name") for c in competitors if c.get("side") == "away"),
                 raw_event.get("away_team") or raw_event.get("away"),
             )
+            # Fallback: parse "Away at Home" from event name when competitors array is empty
+            if not home_team and not away_team:
+                event_name = raw_event.get("name") or raw_event.get("display_name") or ""
+                if " at " in event_name:
+                    parts = event_name.split(" at ", 1)
+                    away_team = parts[0].strip()
+                    home_team = parts[1].strip()
 
             # Parse scheduled start — accept ISO string or unix timestamp
             scheduled_raw = (
