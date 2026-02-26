@@ -46,5 +46,8 @@ class Settings(BaseSettings):
     ADMIN_EMAIL: str
     ADMIN_PASSWORD: str
 
+    # Alerting
+    SLACK_WEBHOOK_URL: str | None = None  # Optional: Slack incoming webhook URL
+
 
 settings = Settings()

@@ -95,16 +95,39 @@ def run(self, event_id: str, target_status: str | None, actor: str = "system"):
             # e. Record before_state
             before_state = {"prophetx_status": event.prophetx_status}
 
-            # f. Call ProphetX status update — stub (ProphetX write endpoint unconfirmed)
-            # TODO: Wire real ProphetX write endpoint when confirmed
-            # Expected: PATCH /mm/update_sport_event_status or similar
-            # For now: log the intended action; do NOT call ProphetX API
-            log.info(
-                "update_event_status_stub_would_call_prophetx",
-                prophetx_event_id=event.prophetx_event_id,
-                target_status=effective_target,
+            # ALERT-03: Check alert_only_mode — if enabled, skip ProphetX write
+            # Read from system_config table; default to False if not set
+            from app.models.config import SystemConfig
+            from sqlalchemy import select as _select
+
+            alert_only_cfg = session.execute(
+                _select(SystemConfig).where(SystemConfig.key == "alert_only_mode")
+            ).scalar_one_or_none()
+            alert_only_mode = (
+                alert_only_cfg is not None and alert_only_cfg.value.lower() == "true"
             )
-            px_success = True  # Stub: assume success
+
+            if alert_only_mode:
+                log.info(
+                    "update_event_status_alert_only_mode",
+                    event_id=event_id,
+                    target_status=effective_target,
+                    actor=actor,
+                    note="alert_only_mode=true: skipping ProphetX write, audit log still written",
+                )
+                # Fall through to audit log and send_alerts — do NOT return here
+                px_success = True  # no-op in alert_only_mode
+            else:
+                # f. Call ProphetX status update — stub (ProphetX write endpoint unconfirmed)
+                # TODO: Wire real ProphetX write endpoint when confirmed
+                # Expected: PATCH /mm/update_sport_event_status or similar
+                # For now: log the intended action; do NOT call ProphetX API
+                log.info(
+                    "update_event_status_stub_would_call_prophetx",
+                    prophetx_event_id=event.prophetx_event_id,
+                    target_status=effective_target,
+                )
+                px_success = True  # Stub: assume success
 
             # g. Update local DB
             event.prophetx_status = effective_target
@@ -116,7 +139,10 @@ def run(self, event_id: str, target_status: str | None, actor: str = "system"):
                 entity_type="event",
                 entity_id=event.id,
                 before_state=before_state,
-                after_state={"prophetx_status": effective_target},
+                after_state={
+                    "prophetx_status": effective_target,
+                    "alert_only_mode": alert_only_mode,
+                },
                 result="success",
             )
             session.add(audit_entry)

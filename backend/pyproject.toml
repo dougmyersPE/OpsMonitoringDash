@@ -21,6 +21,7 @@ dependencies = [
     "celery-redbeat>=2.0",
     "rapidfuzz>=3.14.3",
     "sse-starlette>=3.2.0",
+    "slack-sdk>=3.40.1",
 ]
 
 [project.optional-dependencies]
