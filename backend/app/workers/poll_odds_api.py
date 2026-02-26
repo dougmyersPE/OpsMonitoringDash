@@ -29,6 +29,28 @@ log = structlog.get_logger()
 
 FUZZY_THRESHOLD = 0.80  # Both team names must average at or above this to count as a match
 
+# ProphetX status → canonical form
+_PX_CANONICAL = {
+    "not_started": "scheduled",
+    "live": "inprogress",
+    "settled": "final",
+    "suspended": "inprogress",
+    "ended": "final",
+}
+# Odds API status → canonical form
+_RW_CANONICAL = {
+    "Scheduled": "scheduled",
+    "InProgress": "inprogress",
+    "Final": "final",
+}
+
+
+def _statuses_match(px: str | None, rw: str | None) -> bool:
+    """Return True if both statuses agree, or if either is unknown (can't flag yet)."""
+    if px is None or rw is None:
+        return True
+    return _PX_CANONICAL.get(px, px.lower()) == _RW_CANONICAL.get(rw, rw.lower())
+
 
 def _similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, a.lower().strip(), b.lower().strip()).ratio()
@@ -165,6 +187,7 @@ def run(self):
 
             if best_match and best_score >= FUZZY_THRESHOLD:
                 best_match.real_world_status = real_status
+                best_match.status_match = _statuses_match(best_match.prophetx_status, real_status)
                 best_match.last_real_world_poll = now
                 updated += 1
                 _publish_update(str(best_match.id))
