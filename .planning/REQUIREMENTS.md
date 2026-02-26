@@ -24,10 +24,10 @@
 
 ### Dashboard
 
-- [ ] **DASH-01**: Real-time dashboard shows all ProphetX events with current ProphetX status vs. real-world status; mismatches highlighted visually
-- [ ] **DASH-02**: Real-time dashboard shows all markets with current liquidity vs. configured threshold; below-threshold markets highlighted
-- [ ] **DASH-03**: Dashboard updates via Server-Sent Events (SSE) within 30 seconds of any status or liquidity change
-- [ ] **DASH-04**: Dashboard shows system health indicator: polling workers active/stopped, last-checked timestamps per event
+- [x] **DASH-01**: Real-time dashboard shows all ProphetX events with current ProphetX status vs. real-world status; mismatches highlighted visually
+- [x] **DASH-02**: Real-time dashboard shows all markets with current liquidity vs. configured threshold; below-threshold markets highlighted
+- [x] **DASH-03**: Dashboard updates via Server-Sent Events (SSE) within 30 seconds of any status or liquidity change
+- [x] **DASH-04**: Dashboard shows system health indicator: polling workers active/stopped, last-checked timestamps per event
 
 ### Alerting
 
@@ -96,10 +96,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIQ-02 | Phase 2 | Complete |
 | AUDIT-01 | Phase 2 | Complete |
 | AUDIT-02 | Phase 2 | Complete |
-| DASH-01 | Phase 3 | Pending |
-| DASH-02 | Phase 3 | Pending |
-| DASH-03 | Phase 3 | Pending |
-| DASH-04 | Phase 3 | Pending |
+| DASH-01 | Phase 3 | Complete |
+| DASH-02 | Phase 3 | Complete |
+| DASH-03 | Phase 3 | Complete |
+| DASH-04 | Phase 3 | Complete |
 | ALERT-01 | Phase 3 | Pending |
 | ALERT-02 | Phase 3 | Pending |
 | ALERT-03 | Phase 3 | Pending |

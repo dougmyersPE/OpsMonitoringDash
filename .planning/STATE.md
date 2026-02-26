@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 2 in progress — Plan 03 (Action Worker, Alert Wiring, API Endpoints) complete
+**Current focus:** Phase 3 in progress — Plan 01 (React SPA Dashboard) complete
 
 ## Current Position
 
-Phase: 2 of 3 (Monitoring Engine) — IN PROGRESS
-Plan: 3 of 5 in current phase — COMPLETE
-Status: Phase 2 Plan 03 complete
-Last activity: 2026-02-25 — Completed Plan 02-03 (update_event_status, send_alerts, events/markets/audit-log API endpoints)
+Phase: 3 of 3 (Dashboard and Alerts) — IN PROGRESS
+Plan: 1 of 4 in current phase — COMPLETE
+Status: Phase 3 Plan 01 complete
+Last activity: 2026-02-26 — Completed Plan 03-01 (React SPA scaffold, auth store, EventsTable, MarketsTable, SystemHealth, SSE hook)
 
-Progress: [██████░░░░] 60%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -29,6 +29,7 @@ Progress: [██████░░░░] 60%
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 43 min | 14.3 min |
 | 02-monitoring-engine | 3/5 | 16 min | 5.3 min |
+| 03-dashboard-and-alerts | 1/4 | 4 min | 4 min |
 
 **Recent Trend:**
 - Last 5 plans: 8 min, 15 min, 20 min, 5 min, 5 min
@@ -37,6 +38,8 @@ Progress: [██████░░░░] 60%
 *Updated after each plan completion*
 | Phase 02-monitoring-engine P02 | 5 | 2 tasks | 7 files |
 | Phase 02-monitoring-engine P03 | 6 | 2 tasks | 12 files |
+| Phase 03-dashboard-and-alerts P01 | 4 | 3 tasks | 17 files |
+| Phase 03-dashboard-and-alerts P02 | 4 | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -70,6 +73,14 @@ Recent decisions affecting current work:
 - [Phase 02-monitoring-engine]: poll_sports_data polls NBA/MLB/NHL/Soccer only — NFL/NCAAB/NCAAF excluded per 404 from RESEARCH.md
 - [Phase 02-monitoring-engine]: ProphetX write endpoint stubbed in update_event_status — log-only until endpoint path confirmed; expected PATCH /mm/update_sport_event_status
 - [Phase 02-monitoring-engine]: RoleEnum.readonly (no underscore) used in API routers — plan used 'read_only' string but enum definition has no underscore; using enum avoids string drift
+- 03-01: shadcn/ui v3 requires paths alias in root tsconfig.json (not tsconfig.app.json) for Vite init flow to detect the alias
+- 03-01: Tailwind v4 uses CSS @import "tailwindcss" with @tailwindcss/vite plugin — no tailwind.config.ts file needed
+- 03-01: useSse hook mounted once at DashboardPage level (in SseProvider) — never inside sub-components to prevent duplicate EventSource connections
+- 03-01: TanStack Query cache key convention established: ["events"], ["markets"], ["worker-health"], ["notifications"]
+- [Phase 03-dashboard-and-alerts]: SSE auth uses ?token= query param — EventSource API cannot send Authorization headers
+- [Phase 03-dashboard-and-alerts]: Worker heartbeat via Redis key TTL (90s) not Celery inspect — simpler and more reliable
+- [Phase 03-dashboard-and-alerts]: Alert deduplication: SETNX alert_dedup:{type}:{id} with 300s TTL prevents duplicate Slack alerts within 5 minutes
+- [Phase 03-dashboard-and-alerts]: alert_only_mode read fresh from system_config DB at task start — not cached — real-time config changes take effect immediately
 
 ### Pending Todos
 
@@ -84,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-25
-Stopped at: Completed 02-03-PLAN.md — update_event_status worker, send_alerts stub, alert wiring (SYNC-01/SYNC-02/LIQ-02), events/markets/audit-log API endpoints, 4 unit tests passing
-Resume file: None — clean state, ready for 02-04
+Last session: 2026-02-26
+Stopped at: Completed 03-01-PLAN.md — React SPA scaffold (Vite+Tailwind+shadcn), auth store+axios interceptor, EventsTable/MarketsTable/SystemHealth/SseProvider components, npm run build passes
+Resume file: None — clean state, ready for 03-02
