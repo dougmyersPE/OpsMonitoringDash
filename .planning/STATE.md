@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 3 in progress — Plan 02 (SSE Backend + Slack Alerting) complete
+**Current focus:** Phase 3 in progress — Plan 03 (Notification Center) complete
 
 ## Current Position
 
 Phase: 3 of 3 (Dashboard and Alerts) — IN PROGRESS
-Plan: 2 of 4 in current phase — COMPLETE
-Status: Phase 3 Plan 02 complete
-Last activity: 2026-02-26 — Completed Plan 03-02 (SSE endpoint, query-param auth, worker heartbeats, Slack alerting with SETNX dedup, alert_only_mode guard)
+Plan: 3 of 4 in current phase — COMPLETE
+Status: Phase 3 Plan 03 complete
+Last activity: 2026-02-26 — Completed Plan 03-03 (notifications backend API, send_alerts DB write, NotificationCenter React component with Bell icon and Sheet panel)
 
-Progress: [████████░░] 75%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
@@ -29,7 +29,7 @@ Progress: [████████░░] 75%
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 43 min | 14.3 min |
 | 02-monitoring-engine | 3/5 | 16 min | 5.3 min |
-| 03-dashboard-and-alerts | 2/4 | 8 min | 4 min |
+| 03-dashboard-and-alerts | 3/4 | 11 min | 3.7 min |
 
 **Recent Trend:**
 - Last 5 plans: 8 min, 15 min, 20 min, 5 min, 5 min
@@ -40,6 +40,7 @@ Progress: [████████░░] 75%
 | Phase 02-monitoring-engine P03 | 6 | 2 tasks | 12 files |
 | Phase 03-dashboard-and-alerts P01 | 4 | 3 tasks | 17 files |
 | Phase 03-dashboard-and-alerts P02 | 4 | 2 tasks | 10 files |
+| Phase 03-dashboard-and-alerts P03 | 3 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Recent decisions affecting current work:
 - [Phase 03-dashboard-and-alerts]: Worker heartbeat via Redis key TTL (90s) not Celery inspect — simpler and more reliable
 - [Phase 03-dashboard-and-alerts]: Alert deduplication: SETNX alert_dedup:{type}:{id} with 300s TTL prevents duplicate Slack alerts within 5 minutes
 - [Phase 03-dashboard-and-alerts]: alert_only_mode read fresh from system_config DB at task start — not cached — real-time config changes take effect immediately
+- [Phase 03-dashboard-and-alerts]: PATCH /mark-all-read route declared before PATCH /{notification_id}/read to prevent FastAPI path conflict where string 'mark-all-read' would be interpreted as UUID
+- [Phase 03-dashboard-and-alerts]: Notification DB write placed before Slack guard in send_alerts.py — in-app notifications appear even without SLACK_WEBHOOK_URL configured
 
 ### Pending Todos
 
@@ -96,5 +99,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 03-02-PLAN.md — SSE endpoint + query-param auth, worker heartbeats, Slack alerting with SETNX dedup, alert_only_mode guard in update_event_status
-Resume file: None — clean state, ready for 03-03
+Stopped at: Completed 03-03-PLAN.md — notifications backend API (list + mark-read), send_alerts DB write, NotificationCenter React component with Bell icon and Sheet panel
+Resume file: None — clean state, ready for 03-04

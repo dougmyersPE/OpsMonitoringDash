@@ -37,7 +37,7 @@
 
 ### Notifications
 
-- [ ] **NOTIF-01**: In-app notification center (bell icon + sliding panel) shows all system events with read/unread state; clicking a notification navigates to the relevant event or market
+- [x] **NOTIF-01**: In-app notification center (bell icon + sliding panel) shows all system events with read/unread state; clicking a notification navigates to the relevant event or market
 
 ### Auth & Access
 
@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ALERT-01 | Phase 3 | Complete |
 | ALERT-02 | Phase 3 | Complete |
 | ALERT-03 | Phase 3 | Complete |
-| NOTIF-01 | Phase 3 | Pending |
+| NOTIF-01 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 21 total
