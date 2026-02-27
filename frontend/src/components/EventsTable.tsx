@@ -66,14 +66,17 @@ function PxStatusPill({
 
 function SourceStatus({ status }: { status: string | null | undefined }) {
   if (!status) {
-    return <span className="text-zinc-700 text-xs italic select-none">Not Listed</span>;
+    return <span className="text-zinc-600 text-xs italic select-none">Not Listed</span>;
   }
   const display = normalizeStatus(status);
   if (display === "Live")
     return <span className="text-emerald-400 text-xs font-medium">Live</span>;
   if (display === "Ended")
-    return <span className="text-zinc-600 text-xs">Ended</span>;
-  return <span className="text-zinc-500 text-xs">Not Started</span>;
+    return <span className="text-zinc-400 text-xs">Ended</span>;
+  if (display === "Not Started")
+    return <span className="text-sky-400 text-xs">Not Started</span>;
+  // Flag-worthy statuses (Canceled, Postponed, etc.) — show raw value in amber
+  return <span className="text-amber-400 text-xs font-medium">{display}</span>;
 }
 
 function FlaggedBadge({ flagged }: { flagged: boolean }) {

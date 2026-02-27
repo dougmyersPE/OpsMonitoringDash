@@ -25,7 +25,7 @@ from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
 from app.models.event_id_mapping import EventIDMapping
 from app.monitoring.event_matcher import EventMatcher
-from app.monitoring.mismatch_detector import compute_status_match, get_expected_px_status, is_flag_only, is_mismatch
+from app.monitoring.mismatch_detector import compute_is_flagged, compute_status_match, get_expected_px_status, is_mismatch
 from app.workers.celery_app import celery_app
 from app.workers.send_alerts import run as send_alerts_task
 from app.workers.update_event_status import run as update_status_task
@@ -332,33 +332,28 @@ def run(self):
                     px_event.sdio_status,
                 )
 
-            # Flag-only detection (SYNC-02: flag and alert, no write action for Postponed/Canceled etc.)
-            if is_flag_only(sdio_status):
-                if not px_event.is_flagged:
-                    # Only flag+alert on the first detection — dedup prevents re-alerting within 5 min
-                    px_event.is_flagged = True
-                    log.warning(
-                        "event_flag_only_status",
-                        event_id=str(px_event.id),
-                        prophetx_event_id=str(px_event.prophetx_event_id),
-                        sdio_status=sdio_status,
-                    )
-                    send_alerts_task.delay(
-                        alert_type="flag_event",
-                        entity_type="event",
-                        entity_id=str(px_event.id),
-                        message=f"Event {px_event.prophetx_event_id} flagged: SportsDataIO status '{sdio_status}' requires manual review",
-                    )
-                    flagged_count += 1
-            elif px_event.is_flagged and is_confirmed:
-                # SDIO status has returned to a normal value — clear the flag automatically
-                px_event.is_flagged = False
-                log.info(
-                    "event_flag_cleared_status_normalized",
+            # Flag detection: derived from current source statuses each cycle.
+            # Clears automatically when no source reports a flag-worthy status (SYNC-02).
+            was_flagged = px_event.is_flagged
+            px_event.is_flagged = compute_is_flagged(
+                px_event.sdio_status,
+                px_event.sports_api_status,
+            )
+            if px_event.is_flagged and not was_flagged:
+                log.warning(
+                    "event_flagged",
                     event_id=str(px_event.id),
                     prophetx_event_id=str(px_event.prophetx_event_id),
-                    sdio_status=sdio_status,
+                    sdio_status=px_event.sdio_status,
+                    sports_api_status=px_event.sports_api_status,
                 )
+                send_alerts_task.delay(
+                    alert_type="flag_event",
+                    entity_type="event",
+                    entity_id=str(px_event.id),
+                    message=f"Event {px_event.prophetx_event_id} flagged: status requires manual review (sdio={px_event.sdio_status}, sports_api={px_event.sports_api_status})",
+                )
+                flagged_count += 1
 
             px_event.last_real_world_poll = now
 

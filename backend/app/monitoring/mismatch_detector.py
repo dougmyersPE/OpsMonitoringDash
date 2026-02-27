@@ -44,6 +44,14 @@ FLAG_ONLY_STATUSES: set[str] = {
     "NotNecessary",
 }
 
+# Sports API (api-sports.io) status codes that require human review
+_SPORTS_API_FLAG_STATUSES: set[str] = {
+    "CANC",  # Cancelled
+    "PSP",   # Postponed
+    "SUSP",  # Suspended
+    "ABD",   # Abandoned
+}
+
 # Mapping from SportsDataIO status to expected ProphetX status.
 # IMPORTANT: All ProphetX values are UNCONFIRMED — must be validated against
 # live API response logged by poll_prophetx "prophetx_status_values_observed".
@@ -107,6 +115,22 @@ def is_flag_only(sdio_status: str) -> bool:
     SYNC-02: system must flag but never take write action for these statuses.
     """
     return sdio_status in FLAG_ONLY_STATUSES
+
+
+def compute_is_flagged(
+    sdio_status: str | None,
+    sports_api_status: str | None,
+) -> bool:
+    """Return True when any source currently reports a flag-worthy status.
+
+    Derived live from current source columns — updates automatically each poll
+    cycle without manual clearing. Clears itself when no source reports a
+    flag-worthy status (e.g. game rescheduled, or source had no data).
+    """
+    return (
+        bool(sdio_status and sdio_status in FLAG_ONLY_STATUSES)
+        or bool(sports_api_status and sports_api_status in _SPORTS_API_FLAG_STATUSES)
+    )
 
 
 # ---------------------------------------------------------------------------

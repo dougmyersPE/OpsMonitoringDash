@@ -24,7 +24,7 @@ from app.clients.sports_api import SportsApiClient, PX_TO_API_SPORTS
 from app.core.config import settings
 from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
-from app.monitoring.mismatch_detector import compute_status_match, get_expected_px_status
+from app.monitoring.mismatch_detector import compute_is_flagged, compute_status_match, get_expected_px_status
 from app.workers.celery_app import celery_app
 from app.workers.send_alerts import run as send_alerts_task
 from app.workers.update_event_status import run as update_status_task
@@ -142,7 +142,7 @@ def _publish_update(entity_id: str) -> None:
 
 def _write_heartbeat() -> None:
     r = _sync_redis.from_url(settings.REDIS_URL)
-    r.set("worker:heartbeat:poll_sports_api", "1", ex=1800)  # 30-min TTL matches schedule
+    r.set("worker:heartbeat:poll_sports_api", "1", ex=settings.POLL_INTERVAL_SPORTS_API * 3)
 
 
 @celery_app.task(name="app.workers.poll_sports_api.run", bind=True, max_retries=3)
@@ -283,6 +283,24 @@ def run(self):
                 )
                 best_match.status_match = new_status_match
                 best_match.last_real_world_poll = now
+                # Recompute flag from current source statuses
+                was_flagged = best_match.is_flagged
+                best_match.is_flagged = compute_is_flagged(
+                    best_match.sdio_status,
+                    best_match.sports_api_status,
+                )
+                if best_match.is_flagged and not was_flagged:
+                    log.warning(
+                        "event_flagged",
+                        event_id=str(best_match.id),
+                        sports_api_status=status_short,
+                    )
+                    send_alerts_task.delay(
+                        alert_type="flag_event",
+                        entity_type="event",
+                        entity_id=str(best_match.id),
+                        message=f"Event {best_match.prophetx_event_id} flagged: Sports API status '{status_short}' requires manual review",
+                    )
                 updated += 1
                 _publish_update(str(best_match.id))
                 if not new_status_match:
