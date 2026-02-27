@@ -4,6 +4,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useAuthStore } from "./stores/auth";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import MarketsPage from "./pages/MarketsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/markets"
+            element={
+              <ProtectedRoute>
+                <MarketsPage />
               </ProtectedRoute>
             }
           />
