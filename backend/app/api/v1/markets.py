@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_role
 from app.core.constants import RoleEnum
 from app.db.session import get_async_session
+from app.models.event import Event
 from app.models.market import Market
 from app.schemas.market import MarketConfigUpdate, MarketListResponse, MarketResponse
 
@@ -19,12 +20,19 @@ router = APIRouter(prefix="/markets", tags=["markets"])
     dependencies=[Depends(require_role(RoleEnum.readonly, RoleEnum.operator, RoleEnum.admin))],
 )
 async def list_markets(session: AsyncSession = Depends(get_async_session)):
-    """Return all markets with current liquidity and threshold settings."""
+    """Return all markets with current liquidity, threshold settings, and event name."""
     total_q = await session.execute(select(func.count()).select_from(Market))
     total = total_q.scalar_one()
-    rows_q = await session.execute(select(Market).order_by(Market.name.asc()))
-    markets = rows_q.scalars().all()
-    return MarketListResponse(total=total, markets=markets)
+    rows_q = await session.execute(
+        select(Market, Event.name.label("event_name"))
+        .outerjoin(Event, Market.event_id == Event.id)
+        .order_by(Event.name.asc(), Market.name.asc())
+    )
+    markets_out = [
+        MarketResponse.model_validate(market).model_copy(update={"event_name": event_name})
+        for market, event_name in rows_q.all()
+    ]
+    return MarketListResponse(total=total, markets=markets_out)
 
 
 @router.patch(

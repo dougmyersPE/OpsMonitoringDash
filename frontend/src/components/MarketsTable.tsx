@@ -40,6 +40,7 @@ export default function MarketsTable() {
         <Table>
           <TableHeader>
             <TableRow className="border-zinc-800 hover:bg-transparent">
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Event</TableHead>
               <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Market</TableHead>
               <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Liquidity</TableHead>
               <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Threshold</TableHead>
@@ -57,12 +58,15 @@ export default function MarketsTable() {
                     : "hover:bg-zinc-800/30"
                 )}
               >
+                <TableCell className="text-zinc-400 text-sm">
+                  {market.event_name ?? <span className="text-zinc-700">—</span>}
+                </TableCell>
                 <TableCell className="text-zinc-200 font-medium text-sm">{market.name}</TableCell>
                 <TableCell className="font-mono text-xs text-zinc-300">
                   {market.current_liquidity ?? <span className="text-zinc-700">—</span>}
                 </TableCell>
                 <TableCell className="font-mono text-xs text-zinc-500">
-                  {market.liquidity_threshold ?? <span className="text-zinc-600">Global default</span>}
+                  {market.min_liquidity_threshold ?? <span className="text-zinc-600">Global default</span>}
                 </TableCell>
                 <TableCell>
                   {market.below_threshold ? (
@@ -82,7 +86,7 @@ export default function MarketsTable() {
 
             {markets.length === 0 && (
               <TableRow className="hover:bg-transparent border-0">
-                <TableCell colSpan={4} className="text-center text-zinc-600 py-12 text-sm">
+                <TableCell colSpan={5} className="text-center text-zinc-600 py-12 text-sm">
                   No markets yet
                 </TableCell>
               </TableRow>

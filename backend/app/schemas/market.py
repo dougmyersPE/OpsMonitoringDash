@@ -9,6 +9,7 @@ class MarketResponse(BaseModel):
     id: UUID
     prophetx_market_id: str
     event_id: UUID
+    event_name: str | None = None
     name: str
     current_liquidity: Decimal
     min_liquidity_threshold: Decimal | None  # None = use global default
