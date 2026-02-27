@@ -6,7 +6,7 @@ Steps:
 2. Build a sport+date index of existing Events in DB
 3. Fuzzy-match each game to an Event by team names + date
 4. Update sports_api_status and recompute status_match on matched events
-5. Enqueue send_alerts when a mismatch is detected
+5. Enqueue send_alerts and update_event_status when a mismatch is detected
 6. Publish SSE updates, write heartbeat
 """
 
@@ -24,9 +24,10 @@ from app.clients.sports_api import SportsApiClient, PX_TO_API_SPORTS
 from app.core.config import settings
 from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
-from app.monitoring.mismatch_detector import compute_status_match
+from app.monitoring.mismatch_detector import compute_status_match, get_expected_px_status
 from app.workers.celery_app import celery_app
 from app.workers.send_alerts import run as send_alerts_task
+from app.workers.update_event_status import run as update_status_task
 
 log = structlog.get_logger()
 
@@ -53,8 +54,12 @@ _MASCOT_WORDS = {
     "highlanders","lakers","leopards","lions","mavericks","monarchs","patriots",
     "penguins","pilots","quakers","rams","rattlers","red foxes","retrievers",
     "riverhawks","scorpions","seawolves","spiders","statesmen","toreros",
+    # Additional mascots confirmed missing from Sports API data
+    "boilermakers","bison","braves","catamounts","dolphins","dragons","gamecocks",
+    "grizzlies","hilltoppers","jackrabbits","keydets","knights","leathernecks",
+    "matadors","miners","phoenix","rainbow warriors","redhawks","roos","texans",
+    "tommies","trailblazers","vandals","warriors","warhawks",
 }
-
 
 def _similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, a.lower().strip(), b.lower().strip()).ratio()
@@ -78,15 +83,52 @@ def _strip_mascot(name: str) -> str:
 
 
 def _best_similarity(db_name: str, api_name: str) -> float:
-    """Return highest similarity between full name match and mascot-stripped fallback."""
+    """Return highest similarity score across multiple matching strategies.
+
+    Sports API often returns only the school name without the mascot
+    (e.g. "Montana" for "Montana Grizzlies", "Western Kentucky" for
+    "Western Kentucky Hilltoppers"). Three strategies handle this:
+
+    1. Full name direct similarity
+    2. Mascot-stripped DB name vs API name
+    3. Prefix: API name is a word-boundary prefix of DB name
+    4. Token containment: every word of the API name appears in the DB name
+       — naturally prevents same-mascot cross-matching because all tokens
+       must match ("Yale Bulldogs" won't match "Bryant Bulldogs" since
+       "yale" is absent from {"bryant", "bulldogs"}).
+
+    Sports API appends "W" for women's teams; that suffix is ignored.
+    """
     full = _similarity(db_name, api_name)
     if full >= FUZZY_THRESHOLD:
         return full
-    # Fallback: strip mascot from the DB name (ProphetX includes mascots, Sports API often doesn't)
+
+    best = full
+
+    # Strategy 2: strip known mascot word from DB name then compare
     stripped = _strip_mascot(db_name)
     if stripped != db_name:
-        return max(full, _similarity(stripped, api_name))
-    return full
+        best = max(best, _similarity(stripped, api_name))
+        if best >= FUZZY_THRESHOLD:
+            return best
+
+    db_lower = db_name.lower().strip()
+    api_lower = api_name.lower().strip()
+
+    # Strategy 3: prefix match
+    if len(api_lower) >= 4 and db_lower.startswith(api_lower + " "):
+        return 1.0
+
+    # Strategy 4: token containment
+    # Strip trailing periods and the Sports API women's suffix ("W") before comparing.
+    api_tokens = [t.rstrip(".'") for t in api_lower.split() if t not in ("w",)]
+    db_tokens = {t.rstrip(".'") for t in db_lower.split()}
+    # Require at least one substantial token to avoid single-letter false positives.
+    if api_tokens and any(len(t) >= 4 for t in api_tokens):
+        if all(t in db_tokens for t in api_tokens):
+            return 1.0
+
+    return best
 
 
 def _normalize_sport(sport: str) -> str:
@@ -254,6 +296,13 @@ def run(self):
                             f"({best_match.away_team} @ {best_match.home_team})"
                         ),
                     )
+                    expected_px_status = get_expected_px_status(status_short)
+                    if expected_px_status is not None:
+                        update_status_task.delay(
+                            event_id=str(best_match.id),
+                            target_status=expected_px_status,
+                            actor="system",
+                        )
                 log.debug(
                     "sports_api_event_matched",
                     event_id=str(best_match.id),

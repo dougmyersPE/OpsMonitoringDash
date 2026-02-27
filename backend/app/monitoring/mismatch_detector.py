@@ -49,7 +49,7 @@ FLAG_ONLY_STATUSES: set[str] = {
 # live API response logged by poll_prophetx "prophetx_status_values_observed".
 # Update every value with real ProphetX status strings before Plan 02-03 begins.
 SDIO_TO_PX_STATUS: dict[str, str] = {
-    "Scheduled": "upcoming",  # UNCONFIRMED ProphetX value
+    "Scheduled": "not_started",  # confirmed via prophetx_status_values_observed logs
     "InProgress": "live",  # UNCONFIRMED ProphetX value
     "Final": "ended",  # UNCONFIRMED ProphetX value
     "F/OT": "ended",  # UNCONFIRMED ProphetX value
