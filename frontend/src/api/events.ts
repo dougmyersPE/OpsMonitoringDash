@@ -2,6 +2,7 @@ import apiClient from "./client";
 
 export interface EventRow {
   id: string;
+  prophetx_event_id: string;
   name: string;
   sport: string;
   prophetx_status: string | null;

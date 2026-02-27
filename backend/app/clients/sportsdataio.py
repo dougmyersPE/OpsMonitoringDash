@@ -7,6 +7,13 @@ log = structlog.get_logger()
 
 SPORTSDATAIO_BASE_URL = "https://api.sportsdata.io/v3"
 
+# SportsDataIO URL path segment differs from the logical sport name for some sports.
+# e.g. college basketball is /cbb/ not /ncaab/, college football is /cfb/ not /ncaaf/
+SPORT_PATH_MAP: dict[str, str] = {
+    "ncaab": "cbb",
+    "ncaaf": "cfb",
+}
+
 
 class SportsDataIOClient(BaseAPIClient):
     def __init__(self, api_key: str | None = None):
@@ -19,13 +26,14 @@ class SportsDataIOClient(BaseAPIClient):
     async def get_games_by_date_raw(self, sport: str, game_date: str | None = None) -> list:
         """
         Fetch raw games for a sport on a given date (default: today).
-        sport: e.g. "nfl", "nba", "mlb", "nhl"
+        sport: logical sport name e.g. "ncaab", "nba", "mlb", "nhl"
         game_date: YYYY-MM-DD format; defaults to today
         """
         if game_date is None:
             game_date = date.today().isoformat()
+        path_sport = SPORT_PATH_MAP.get(sport, sport)
         raw = await self._get(
-            f"/{sport}/scores/json/GamesByDate/{game_date}",
+            f"/{path_sport}/scores/json/GamesByDate/{game_date}",
             headers=self._headers,
         )
         log.info(
@@ -36,6 +44,22 @@ class SportsDataIOClient(BaseAPIClient):
         )
         log.debug("sportsdataio_games_full_response", sport=sport, response=raw)
         return raw
+
+    async def get_team_names(self, sport: str) -> dict[str, str]:
+        """Return {abbreviation: 'School Mascot'} for all teams in a sport.
+
+        Used for college sports where GamesByDate returns short codes (e.g. 'TROY')
+        instead of full names. Result should be cached by the caller.
+        """
+        path_sport = SPORT_PATH_MAP.get(sport, sport)
+        raw = await self._get(f"/{path_sport}/scores/json/Teams", headers=self._headers)
+        if not isinstance(raw, list):
+            return {}
+        return {
+            t["Key"]: f"{t['School']} {t['Name']}"
+            for t in raw
+            if isinstance(t, dict) and t.get("Key") and t.get("School") and t.get("Name")
+        }
 
     async def probe_subscription_coverage(self) -> dict[str, int]:
         """

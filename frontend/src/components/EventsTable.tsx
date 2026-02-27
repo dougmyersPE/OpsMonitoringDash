@@ -39,6 +39,7 @@ export default function EventsTable() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>PX Event ID</TableHead>
               <TableHead>Event</TableHead>
               <TableHead>Sport</TableHead>
               <TableHead>ProphetX Status</TableHead>
@@ -59,6 +60,7 @@ export default function EventsTable() {
                   !event.status_match && "bg-red-50 border-l-4 border-l-red-500"
                 )}
               >
+                <TableCell className="font-mono text-xs text-slate-500">{event.prophetx_event_id}</TableCell>
                 <TableCell className="font-medium">{event.name}</TableCell>
                 <TableCell>{event.sport}</TableCell>
                 <TableCell>
@@ -92,7 +94,7 @@ export default function EventsTable() {
             ))}
             {events.length === 0 && (
               <TableRow>
-                <TableCell colSpan={canSync ? 10 : 9} className="text-center text-slate-400 py-8">
+                <TableCell colSpan={canSync ? 11 : 10} className="text-center text-slate-400 py-8">
                   No events yet
                 </TableCell>
               </TableRow>

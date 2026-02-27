@@ -23,6 +23,7 @@ from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
 from app.models.market import Market
 from app.monitoring.liquidity_monitor import is_below_threshold
+from app.monitoring.mismatch_detector import compute_status_match
 from app.workers.celery_app import celery_app
 from app.workers.send_alerts import run as send_alerts_task
 
@@ -143,7 +144,13 @@ def run(self):
     events_upserted = 0
     markets_upserted = 0
     liquidity_alerts = 0
+    events_marked_ended = 0
     now = datetime.now(timezone.utc)
+
+    # Track which ProphetX event IDs appear in this poll response.
+    # Events missing from the response that were previously live/upcoming are
+    # assumed ended — ProphetX only returns active events via get_sport_events.
+    polled_px_ids: set[str] = set()
 
     with SyncSessionLocal() as session:
         # -- Upsert events --
@@ -241,6 +248,7 @@ def run(self):
                 existing.prophetx_status = status_value
                 existing.last_prophetx_poll = now
 
+            polled_px_ids.add(prophetx_event_id)
             events_upserted += 1
             # Publish SSE update after event upsert
             _publish_update("event_updated", str(prophetx_event_id))
@@ -356,6 +364,48 @@ def run(self):
                 )
                 liquidity_alerts += 1
 
+        # -- Mark stale events as ended --
+        # ProphetX only returns active (live/upcoming) events. If an event was
+        # previously live or upcoming, is no longer in the response, and its
+        # scheduled_start is in the past, it has ended on ProphetX but we never
+        # received the update because it silently dropped off the response.
+        from datetime import timedelta
+        from sqlalchemy import and_
+
+        ACTIVE_STATUSES = {"live", "upcoming", "not_started", "pre-event"}
+        stale_cutoff = now - timedelta(hours=3)  # must be > 3h past scheduled_start
+
+        stale_events = session.execute(
+            select(Event).where(
+                and_(
+                    Event.scheduled_start <= stale_cutoff,
+                )
+            )
+        ).scalars().all()
+
+        for event in stale_events:
+            if (
+                str(event.prophetx_event_id) not in polled_px_ids
+                and (event.prophetx_status or "").lower() in ACTIVE_STATUSES
+            ):
+                log.info(
+                    "prophetx_event_marked_ended",
+                    prophetx_event_id=event.prophetx_event_id,
+                    previous_status=event.prophetx_status,
+                    scheduled_start=str(event.scheduled_start),
+                )
+                event.prophetx_status = "ended"
+                event.last_prophetx_poll = now
+                event.status_match = compute_status_match(
+                    "ended",
+                    event.odds_api_status,
+                    event.sports_api_status,
+                    event.sdio_status,
+                    event.espn_status,
+                )
+                events_marked_ended += 1
+                _publish_update("event_updated", str(event.prophetx_event_id))
+
         session.commit()
 
     # Write heartbeat key — read by /health/workers to confirm worker is alive
@@ -366,4 +416,5 @@ def run(self):
         events=events_upserted,
         markets=markets_upserted,
         liquidity_alerts=liquidity_alerts,
+        events_marked_ended=events_marked_ended,
     )

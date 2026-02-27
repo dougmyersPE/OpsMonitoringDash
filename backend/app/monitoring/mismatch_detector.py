@@ -115,6 +115,7 @@ def is_flag_only(sdio_status: str) -> bool:
 
 _PX_CANONICAL: dict[str, str] = {
     "not_started": "scheduled",
+    "upcoming": "scheduled",
     "live": "inprogress",
     "settled": "final",
     "suspended": "inprogress",
@@ -207,7 +208,7 @@ def compute_status_match(
     ]
 
     for source_status, canonical_map in checks:
-        if source_status is None:
+        if not source_status:  # None or empty string — no data from this source
             continue
         source_canonical = canonical_map.get(source_status, source_status.lower())
         if px_canonical != source_canonical:

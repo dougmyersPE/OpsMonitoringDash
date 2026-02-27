@@ -49,10 +49,21 @@ def _write_heartbeat(worker_name: str) -> None:
     r = _sync_redis.from_url(settings.REDIS_URL)
     r.set(f"worker:heartbeat:{worker_name}", "1", ex=90)
 
-# Sports to poll — list reflects confirmed SportsDataIO subscription coverage.
-# NFL/NCAAB/NCAAF return 404 (different URL format per RESEARCH.md); excluded here.
-# Update this list after validating additional sport endpoints.
-SUPPORTED_SPORTS = ["nba", "mlb", "nhl", "soccer"]
+# Sports to poll — must match the subscription on the configured SPORTSDATAIO_API_KEY.
+# URL path mapping (ncaab→cbb etc.) is handled in SportsDataIOClient.
+# Extend this list only after confirming subscription coverage for each sport.
+SUPPORTED_SPORTS = ["ncaab"]
+
+# College/non-pro sports where SDIO returns team abbreviation codes (e.g. "TROY")
+# rather than full names — team names are resolved via get_team_names() before matching.
+ABBREV_SPORTS: set[str] = {"ncaab", "ncaaf"}
+
+# Map SDIO logical sport names to ProphetX sport field values.
+# ProphetX uses broad categories ("Basketball") for both pro and college.
+SDIO_TO_PX_SPORT: dict[str, str] = {
+    "ncaab": "basketball",
+    "ncaaf": "american football",
+}
 
 
 @celery_app.task(name="app.workers.poll_sports_data.run", bind=True, max_retries=3)
@@ -69,12 +80,34 @@ def run(self):
                 games: list[dict] = []
                 sport_counts: dict[str, int] = {}
 
+                # Pre-fetch team name lookups for college sports (abbreviation → full name)
+                team_name_lookups: dict[str, dict[str, str]] = {}
+                for sport in SUPPORTED_SPORTS:
+                    if sport in ABBREV_SPORTS:
+                        try:
+                            team_name_lookups[sport] = await sdio.get_team_names(sport)
+                            log.info("sdio_team_names_loaded", sport=sport, count=len(team_name_lookups[sport]))
+                        except Exception as e:
+                            log.warning("sdio_team_names_failed", sport=sport, error=str(e))
+
                 for sport in SUPPORTED_SPORTS:
                     count = 0
                     for game_date in [today, yesterday]:
                         try:
                             result = await sdio.get_games_by_date_raw(sport, game_date)
                             if isinstance(result, list):
+                                # Tag each game with our logical sport name and, for college
+                                # sports, resolve team abbreviations to full names so
+                                # EventMatcher can fuzzy-match against ProphetX team names.
+                                lookup = team_name_lookups.get(sport, {})
+                                for g in result:
+                                    if isinstance(g, dict):
+                                        g["_sdio_sport"] = sport
+                                        if lookup:
+                                            home_abbr = str(g.get("HomeTeam") or "")
+                                            away_abbr = str(g.get("AwayTeam") or "")
+                                            g["_home_team_full"] = lookup.get(home_abbr, home_abbr)
+                                            g["_away_team_full"] = lookup.get(away_abbr, away_abbr)
                                 games.extend(result)
                                 count += len(result)
                         except Exception as e:
@@ -153,25 +186,37 @@ def run(self):
             if not sdio_game_id:
                 continue
 
-            # SportsDataIO uses "HomeTeam"/"AwayTeam" for most sports
+            # For college sports, use full team names resolved from abbreviations.
+            # For pro sports, HomeTeam/AwayTeam are already full names.
             home_team = (
-                game.get("HomeTeam")
+                game.get("_home_team_full")
+                or game.get("HomeTeam")
                 or game.get("home_team")
                 or game.get("home")
                 or ""
             )
             away_team = (
-                game.get("AwayTeam")
+                game.get("_away_team_full")
+                or game.get("AwayTeam")
                 or game.get("away_team")
                 or game.get("away")
                 or ""
             )
-            sport = str(game.get("sport") or game.get("League") or "unknown").lower()
+            # Use tagged logical sport, then map to ProphetX's sport convention
+            # (e.g. "ncaab" → "basketball" to match ProphetX's "Basketball" events).
+            sdio_sport = str(
+                game.get("_sdio_sport")
+                or game.get("sport")
+                or game.get("League")
+                or "unknown"
+            ).lower()
+            sport = SDIO_TO_PX_SPORT.get(sdio_sport, sdio_sport)
 
-            # Parse start time
+            # Parse start time — prefer DateTimeUTC (explicit UTC) over DateTime
+            # (local time, varies by sport/timezone) to match ProphetX UTC timestamps.
             start_raw = (
-                game.get("DateTime")
-                or game.get("DateTimeUTC")
+                game.get("DateTimeUTC")
+                or game.get("DateTime")
                 or game.get("scheduled_start")
                 or game.get("start_time")
             )
