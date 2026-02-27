@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuthStore } from "../stores/auth";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -36,22 +35,67 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md w-96 space-y-4">
-        <h1 className="text-2xl font-bold text-slate-900">Prophet Monitor</h1>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+    <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+      {/* Subtle radial gradient behind the card */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_oklch(0.59_0.25_263_/_0.06)_0%,_transparent_70%)] pointer-events-none" />
+
+      <div className="relative w-full max-w-sm px-4">
+        {/* Logo mark */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/20">
+            <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6">
+              <path d="M12 3L21 19H3L12 3Z" fill="white" fillOpacity="0.9" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-semibold text-zinc-100 tracking-tight">Prophet Monitor</h1>
+          <p className="text-zinc-500 text-sm mt-1">Sign in to your workspace</p>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </div>
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Signing in..." : "Sign in"}
-        </Button>
-      </form>
+
+        {/* Form card */}
+        <form
+          onSubmit={handleSubmit}
+          className="bg-zinc-900 border border-zinc-800 rounded-2xl p-7 space-y-5 shadow-xl shadow-black/30"
+        >
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3.5 py-2.5">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-zinc-400 text-xs font-medium">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="you@company.com"
+              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-500/60 h-10"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-zinc-400 text-xs font-medium">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="bg-zinc-800 border-zinc-700 text-zinc-100 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-500/60 h-10"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-10 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+          >
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

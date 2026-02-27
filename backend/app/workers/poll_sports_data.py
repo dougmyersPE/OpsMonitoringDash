@@ -44,10 +44,10 @@ def _publish_update(update_type: str, entity_id: str) -> None:
 
 
 def _write_heartbeat(worker_name: str) -> None:
-    """Write worker heartbeat key with 90s TTL — read by /health/workers."""
+    """Write worker heartbeat key — TTL is 3x poll interval so health check survives slight delays."""
     from app.core.config import settings
     r = _sync_redis.from_url(settings.REDIS_URL)
-    r.set(f"worker:heartbeat:{worker_name}", "1", ex=90)
+    r.set(f"worker:heartbeat:{worker_name}", "1", ex=settings.POLL_INTERVAL_SPORTS_DATA * 3)
 
 # Sports to poll — must match the subscription on the configured SPORTSDATAIO_API_KEY.
 # URL path mapping (ncaab→cbb etc.) is handled in SportsDataIOClient.
@@ -334,21 +334,31 @@ def run(self):
 
             # Flag-only detection (SYNC-02: flag and alert, no write action for Postponed/Canceled etc.)
             if is_flag_only(sdio_status):
-                px_event.is_flagged = True
-                log.warning(
-                    "event_flag_only_status",
+                if not px_event.is_flagged:
+                    # Only flag+alert on the first detection — dedup prevents re-alerting within 5 min
+                    px_event.is_flagged = True
+                    log.warning(
+                        "event_flag_only_status",
+                        event_id=str(px_event.id),
+                        prophetx_event_id=str(px_event.prophetx_event_id),
+                        sdio_status=sdio_status,
+                    )
+                    send_alerts_task.delay(
+                        alert_type="flag_event",
+                        entity_type="event",
+                        entity_id=str(px_event.id),
+                        message=f"Event {px_event.prophetx_event_id} flagged: SportsDataIO status '{sdio_status}' requires manual review",
+                    )
+                    flagged_count += 1
+            elif px_event.is_flagged and is_confirmed:
+                # SDIO status has returned to a normal value — clear the flag automatically
+                px_event.is_flagged = False
+                log.info(
+                    "event_flag_cleared_status_normalized",
                     event_id=str(px_event.id),
                     prophetx_event_id=str(px_event.prophetx_event_id),
                     sdio_status=sdio_status,
                 )
-                # SYNC-02: enqueue send_alerts for flag-only events
-                send_alerts_task.delay(
-                    alert_type="flag_event",
-                    entity_type="event",
-                    entity_id=str(px_event.id),
-                    message=f"Event {px_event.prophetx_event_id} flagged: SportsDataIO status '{sdio_status}' requires manual review",
-                )
-                flagged_count += 1
 
             px_event.last_real_world_poll = now
 

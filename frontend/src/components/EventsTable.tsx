@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { fetchEvents } from "../api/events";
+import { GripVertical } from "lucide-react";
+import { fetchEvents, type EventRow } from "../api/events";
 import { useAuthStore } from "../stores/auth";
 import { cn } from "@/lib/utils";
+import { normalizeStatus } from "@/lib/statusDisplay";
 import {
   Table,
   TableBody,
@@ -12,9 +14,78 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { syncEventStatus } from "../api/events";
+
+/* ─── Status pill components ─── */
+
+function PxStatusPill({
+  status,
+  isMismatch,
+}: {
+  status: string | null | undefined;
+  isMismatch: boolean;
+}) {
+  const display = normalizeStatus(status);
+
+  if (isMismatch) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+        <span className="h-1.5 w-1.5 rounded-full bg-red-400 shrink-0" />
+        {display}
+      </span>
+    );
+  }
+
+  if (display === "Live") {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+        Live
+      </span>
+    );
+  }
+
+  if (display === "Ended") {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-zinc-800/80 text-zinc-500 border border-zinc-700/50">
+        Ended
+      </span>
+    );
+  }
+
+  if (display === "—") {
+    return <span className="text-zinc-700">—</span>;
+  }
+
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-zinc-800/80 text-zinc-400 border border-zinc-700/50">
+      {display}
+    </span>
+  );
+}
+
+function SourceStatus({ status }: { status: string | null | undefined }) {
+  if (!status) {
+    return <span className="text-zinc-700 text-xs italic select-none">Not Listed</span>;
+  }
+  const display = normalizeStatus(status);
+  if (display === "Live")
+    return <span className="text-emerald-400 text-xs font-medium">Live</span>;
+  if (display === "Ended")
+    return <span className="text-zinc-600 text-xs">Ended</span>;
+  return <span className="text-zinc-500 text-xs">Not Started</span>;
+}
+
+function FlaggedBadge({ flagged }: { flagged: boolean }) {
+  if (!flagged) return <span className="text-zinc-700 select-none">—</span>;
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+      ⚑ Flag
+    </span>
+  );
+}
+
+/* ─── Toggle filter button ─── */
 
 function ToggleButton({
   active,
@@ -26,16 +97,146 @@ function ToggleButton({
   children: React.ReactNode;
 }) {
   return (
-    <Button
-      size="sm"
-      variant={active ? "default" : "outline"}
+    <button
       onClick={onClick}
-      className="h-7 px-2.5 text-xs"
+      className={cn(
+        "h-7 px-3 rounded-lg text-xs font-medium border transition-colors",
+        active
+          ? "bg-indigo-600/20 text-indigo-300 border-indigo-500/40"
+          : "bg-zinc-900 text-zinc-500 border-zinc-700 hover:text-zinc-300 hover:border-zinc-600"
+      )}
     >
       {children}
-    </Button>
+    </button>
   );
 }
+
+/* ─── Status group order chip ─── */
+
+const STATUS_CHIP_STYLES: Record<string, string> = {
+  "Live":        "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
+  "Not Started": "bg-zinc-800/60 text-zinc-400 border-zinc-700",
+  "Ended":       "bg-zinc-900 text-zinc-600 border-zinc-700/50",
+};
+
+const STATUS_DOT_STYLES: Record<string, string> = {
+  "Live":        "bg-emerald-400 animate-pulse",
+  "Not Started": "bg-zinc-500",
+  "Ended":       "bg-zinc-700",
+};
+
+const ALL_STATUS_GROUPS = ["Live", "Not Started", "Ended"];
+
+function GroupOrderControl({
+  order,
+  onChange,
+}: {
+  order: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  function onDragStart(idx: number) {
+    setDragFrom(idx);
+  }
+
+  function onDragOver(e: React.DragEvent, idx: number) {
+    e.preventDefault();
+    setDragOver(idx);
+  }
+
+  function onDrop(idx: number) {
+    if (dragFrom !== null && dragFrom !== idx) {
+      const next = [...order];
+      const [item] = next.splice(dragFrom, 1);
+      next.splice(idx, 0, item);
+      onChange(next);
+    }
+    setDragFrom(null);
+    setDragOver(null);
+  }
+
+  function onDragEnd() {
+    setDragFrom(null);
+    setDragOver(null);
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] font-medium text-zinc-600 uppercase tracking-wider mr-0.5">
+        Group order
+      </span>
+      {order.map((status, idx) => (
+        <div
+          key={status}
+          draggable
+          onDragStart={() => onDragStart(idx)}
+          onDragOver={(e) => onDragOver(e, idx)}
+          onDrop={() => onDrop(idx)}
+          onDragEnd={onDragEnd}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border cursor-grab active:cursor-grabbing select-none transition-all",
+            STATUS_CHIP_STYLES[status] ?? "bg-zinc-800 text-zinc-400 border-zinc-700",
+            dragFrom === idx && "opacity-30",
+            dragOver === idx && dragFrom !== idx && "ring-1 ring-inset ring-indigo-400/50"
+          )}
+        >
+          <GripVertical className="h-3 w-3 opacity-40 shrink-0" />
+          <span
+            className={cn(
+              "h-1.5 w-1.5 rounded-full shrink-0",
+              STATUS_DOT_STYLES[status] ?? "bg-zinc-600"
+            )}
+          />
+          <span className="text-[11px]">{status}</span>
+          <span className="text-[9px] opacity-40 ml-0.5">{idx + 1}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Sort logic ─── */
+
+function sortEvents(events: EventRow[], statusOrder: string[]): EventRow[] {
+  const now = Date.now();
+
+  // Bucket by normalized status
+  const buckets = new Map<string, EventRow[]>();
+  const other: EventRow[] = [];
+
+  for (const ev of events) {
+    const display = normalizeStatus(ev.prophetx_status);
+    if (statusOrder.includes(display)) {
+      if (!buckets.has(display)) buckets.set(display, []);
+      buckets.get(display)!.push(ev);
+    } else {
+      other.push(ev);
+    }
+  }
+
+  // Within each group: sort by closest scheduled_start to now
+  const byClosestStart = (a: EventRow, b: EventRow) => {
+    const aMs = a.scheduled_start
+      ? Math.abs(new Date(a.scheduled_start).getTime() - now)
+      : Number.MAX_SAFE_INTEGER;
+    const bMs = b.scheduled_start
+      ? Math.abs(new Date(b.scheduled_start).getTime() - now)
+      : Number.MAX_SAFE_INTEGER;
+    return aMs - bMs;
+  };
+
+  const result: EventRow[] = [];
+  for (const status of statusOrder) {
+    result.push(...(buckets.get(status) ?? []).sort(byClosestStart));
+  }
+  result.push(...other.sort(byClosestStart));
+
+  return result;
+}
+
+/* ─── Main component ─── */
 
 export default function EventsTable() {
   const queryClient = useQueryClient();
@@ -52,11 +253,11 @@ export default function EventsTable() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["events"] }),
   });
 
-  // --- filter state ---
-  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
-  const [sportFilter, setSportFilter] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState("");
+  const [sportFilter, setSportFilter] = useState("");
   const [mismatchOnly, setMismatchOnly] = useState(false);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [statusOrder, setStatusOrder] = useState<string[]>(ALL_STATUS_GROUPS);
 
   const availableStatuses = useMemo(
     () =>
@@ -69,160 +270,172 @@ export default function EventsTable() {
     [events]
   );
 
-  function toggleSet(set: Set<string>, value: string): Set<string> {
-    const next = new Set(set);
-    next.has(value) ? next.delete(value) : next.add(value);
-    return next;
-  }
-
   const filtered = useMemo(() => {
     return events.filter((e) => {
-      if (statusFilter.size > 0 && !statusFilter.has(e.prophetx_status ?? "")) return false;
-      if (sportFilter.size > 0 && !sportFilter.has(e.sport)) return false;
+      if (statusFilter && e.prophetx_status !== statusFilter) return false;
+      if (sportFilter && e.sport !== sportFilter) return false;
       if (mismatchOnly && e.status_match !== false) return false;
       if (flaggedOnly && !e.is_flagged) return false;
       return true;
     });
   }, [events, statusFilter, sportFilter, mismatchOnly, flaggedOnly]);
 
-  if (isLoading) return <p className="text-slate-500">Loading events...</p>;
-  if (error) return <p className="text-red-600">Failed to load events.</p>;
+  const sorted = useMemo(
+    () => sortEvents(filtered, statusOrder),
+    [filtered, statusOrder]
+  );
 
-  const hasActiveFilters =
-    statusFilter.size > 0 || sportFilter.size > 0 || mismatchOnly || flaggedOnly;
+  const hasActiveFilters = !!statusFilter || !!sportFilter || mismatchOnly || flaggedOnly;
+
+  const selectClass =
+    "h-7 rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/20 cursor-pointer appearance-none";
+
+  if (isLoading)
+    return (
+      <section>
+        <SectionHeader title="Events" count={null} />
+        <p className="text-zinc-600 text-sm py-8 text-center">Loading…</p>
+      </section>
+    );
+
+  if (error)
+    return (
+      <section>
+        <SectionHeader title="Events" count={null} />
+        <p className="text-red-400 text-sm py-8 text-center">Failed to load events.</p>
+      </section>
+    );
 
   return (
     <section>
-      <h2 className="text-lg font-semibold text-slate-800 mb-3">Events</h2>
+      <SectionHeader
+        title="Events"
+        count={hasActiveFilters ? `${sorted.length} / ${events.length}` : `${events.length}`}
+      />
 
-      {/* Filters */}
+      {/* Filter + sort controls */}
       <div className="mb-3 space-y-2">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          {/* PX Status */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-medium text-slate-500 shrink-0">Status</span>
-            <div className="flex gap-1">
-              {availableStatuses.map((s) => (
-                <ToggleButton
-                  key={s}
-                  active={statusFilter.has(s)}
-                  onClick={() => setStatusFilter(toggleSet(statusFilter, s))}
-                >
-                  {s}
-                </ToggleButton>
-              ))}
-            </div>
-          </div>
+        {/* Row 1: filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={selectClass}>
+            <option value="">All Statuses</option>
+            {availableStatuses.map((s) => (
+              <option key={s} value={s}>{normalizeStatus(s)}</option>
+            ))}
+          </select>
 
-          {/* Sport */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-medium text-slate-500 shrink-0">Sport</span>
-            <div className="flex flex-wrap gap-1">
-              {availableSports.map((s) => (
-                <ToggleButton
-                  key={s}
-                  active={sportFilter.has(s)}
-                  onClick={() => setSportFilter(toggleSet(sportFilter, s))}
-                >
-                  {s}
-                </ToggleButton>
-              ))}
-            </div>
-          </div>
+          <select value={sportFilter} onChange={(e) => setSportFilter(e.target.value)} className={selectClass}>
+            <option value="">All Sports</option>
+            {availableSports.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
 
-          {/* Mismatch / Flagged */}
-          <div className="flex items-center gap-1">
-            <ToggleButton active={mismatchOnly} onClick={() => setMismatchOnly((v) => !v)}>
-              Mismatches
-            </ToggleButton>
-            <ToggleButton active={flaggedOnly} onClick={() => setFlaggedOnly((v) => !v)}>
-              Flagged
-            </ToggleButton>
-          </div>
+          <div className="h-4 w-px bg-zinc-800" />
 
-          {/* Clear */}
+          <ToggleButton active={mismatchOnly} onClick={() => setMismatchOnly((v) => !v)}>
+            Mismatches
+          </ToggleButton>
+          <ToggleButton active={flaggedOnly} onClick={() => setFlaggedOnly((v) => !v)}>
+            Flagged
+          </ToggleButton>
+
           {hasActiveFilters && (
             <button
-              className="text-xs text-slate-400 hover:text-slate-600 underline"
+              className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors ml-1"
               onClick={() => {
-                setStatusFilter(new Set());
-                setSportFilter(new Set());
+                setStatusFilter("");
+                setSportFilter("");
                 setMismatchOnly(false);
                 setFlaggedOnly(false);
               }}
             >
-              Clear filters
+              Clear
             </button>
           )}
         </div>
 
-        {hasActiveFilters && (
-          <p className="text-xs text-slate-500">
-            Showing {filtered.length} of {events.length} events
-          </p>
-        )}
+        {/* Row 2: group order */}
+        <GroupOrderControl order={statusOrder} onChange={setStatusOrder} />
       </div>
 
-      <div className="rounded-lg border bg-white overflow-hidden">
+      {/* Table */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>PX Event ID</TableHead>
-              <TableHead>Event</TableHead>
-              <TableHead>Sport</TableHead>
-              <TableHead>ProphetX Status</TableHead>
-              <TableHead>Odds API</TableHead>
-              <TableHead>Sports API</TableHead>
-              <TableHead>SDIO</TableHead>
-              <TableHead>ESPN</TableHead>
-              <TableHead>Flagged</TableHead>
-              <TableHead>Last Checked</TableHead>
-              {canSync && <TableHead>Action</TableHead>}
+            <TableRow className="border-zinc-800 hover:bg-transparent">
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider px-3">PX ID</TableHead>
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Event</TableHead>
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Sport</TableHead>
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Starts</TableHead>
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">ProphetX</TableHead>
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Odds API</TableHead>
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Sports API</TableHead>
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">SDIO</TableHead>
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">ESPN</TableHead>
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Flag</TableHead>
+              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Checked</TableHead>
+              {canSync && <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider" />}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((event) => (
+            {sorted.map((event) => (
               <TableRow
                 key={event.id}
                 className={cn(
-                  !event.status_match && "bg-red-50 border-l-4 border-l-red-500"
+                  "border-zinc-800/60 transition-colors",
+                  event.status_match === false
+                    ? "bg-red-500/5 border-l-2 border-l-red-500 hover:bg-red-500/8"
+                    : event.is_flagged
+                    ? "bg-amber-500/5 hover:bg-amber-500/8"
+                    : "hover:bg-zinc-800/30"
                 )}
               >
-                <TableCell className="font-mono text-xs text-slate-500">{event.prophetx_event_id}</TableCell>
-                <TableCell className="font-medium">{event.name}</TableCell>
-                <TableCell>{event.sport}</TableCell>
-                <TableCell>
-                  <Badge variant={event.status_match ? "secondary" : "destructive"}>
-                    {event.prophetx_status ?? "—"}
-                  </Badge>
+                <TableCell className="px-3 font-mono text-[11px] text-zinc-600 whitespace-nowrap">
+                  {event.prophetx_event_id}
                 </TableCell>
-                <TableCell>{event.odds_api_status ?? "—"}</TableCell>
-                <TableCell>{event.sports_api_status ?? "—"}</TableCell>
-                <TableCell>{event.sdio_status ?? "—"}</TableCell>
-                <TableCell>{event.espn_status ?? "—"}</TableCell>
-                <TableCell>{event.is_flagged ? "Yes" : "—"}</TableCell>
-                <TableCell className="text-slate-500 text-xs">
+                <TableCell className="text-zinc-200 font-medium text-sm">
+                  {event.name}
+                </TableCell>
+                <TableCell className="text-zinc-400 text-xs">{event.sport}</TableCell>
+                <TableCell className="font-mono text-[11px] text-zinc-500 whitespace-nowrap">
+                  {event.scheduled_start
+                    ? format(new Date(event.scheduled_start), "MM/dd HH:mm")
+                    : <span className="text-zinc-700">—</span>}
+                </TableCell>
+                <TableCell>
+                  <PxStatusPill status={event.prophetx_status} isMismatch={event.status_match === false} />
+                </TableCell>
+                <TableCell><SourceStatus status={event.odds_api_status} /></TableCell>
+                <TableCell><SourceStatus status={event.sports_api_status} /></TableCell>
+                <TableCell><SourceStatus status={event.sdio_status} /></TableCell>
+                <TableCell><SourceStatus status={event.espn_status} /></TableCell>
+                <TableCell><FlaggedBadge flagged={event.is_flagged} /></TableCell>
+                <TableCell className="font-mono text-[11px] text-zinc-600 whitespace-nowrap">
                   {event.last_prophetx_poll
                     ? format(new Date(event.last_prophetx_poll), "HH:mm:ss")
-                    : "—"}
+                    : <span className="text-zinc-700">—</span>}
                 </TableCell>
                 {canSync && (
                   <TableCell>
-                    <Button
-                      size="sm"
-                      variant="outline"
+                    <button
                       onClick={() => syncMutation.mutate(event.id)}
                       disabled={syncMutation.isPending}
+                      className="h-6 px-2.5 rounded text-[11px] font-medium border border-zinc-700 text-zinc-500 hover:text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       Sync
-                    </Button>
+                    </button>
                   </TableCell>
                 )}
               </TableRow>
             ))}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={canSync ? 11 : 10} className="text-center text-slate-400 py-8">
+
+            {sorted.length === 0 && (
+              <TableRow className="hover:bg-transparent border-0">
+                <TableCell
+                  colSpan={canSync ? 12 : 11}
+                  className="text-center text-zinc-600 py-12 text-sm"
+                >
                   {hasActiveFilters ? "No events match the current filters" : "No events yet"}
                 </TableCell>
               </TableRow>
@@ -231,5 +444,19 @@ export default function EventsTable() {
         </Table>
       </div>
     </section>
+  );
+}
+
+/* ─── Section header ─── */
+
+function SectionHeader({ title, count }: { title: string; count: string | null }) {
+  return (
+    <div className="flex items-center gap-3 mb-3">
+      <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider shrink-0">{title}</h2>
+      <div className="flex-1 h-px bg-zinc-800" />
+      {count !== null && (
+        <span className="text-xs text-zinc-600 shrink-0">{count}</span>
+      )}
+    </div>
   );
 }
