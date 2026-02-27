@@ -2,12 +2,11 @@
 ProphetX poll worker — runs every 30 seconds via Celery Beat (RedBeat).
 
 Steps:
-1. Fetch events and markets from ProphetX API
+1. Fetch events from ProphetX API
 2. Log observed status values (CRITICAL: enables SDIO_TO_PX_STATUS calibration)
 3. Upsert events to DB
-4. Upsert markets to DB
-5. Detect liquidity breaches per market (logs WARNING; does not alert yet — Plan 02-03)
-6. Commit and log summary
+4. Mark stale events as ended
+5. Commit and log summary
 """
 
 import asyncio
@@ -21,11 +20,8 @@ from sqlalchemy import select
 from app.clients.prophetx import ProphetXClient
 from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
-from app.models.market import Market
-from app.monitoring.liquidity_monitor import is_below_threshold
 from app.monitoring.mismatch_detector import compute_status_match
 from app.workers.celery_app import celery_app
-from app.workers.send_alerts import run as send_alerts_task
 
 log = structlog.get_logger()
 
@@ -49,7 +45,7 @@ def _write_heartbeat(worker_name: str) -> None:
 
 @celery_app.task(name="app.workers.poll_prophetx.run", bind=True, max_retries=3)
 def run(self):
-    """Fetch ProphetX events + markets, upsert to DB, detect liquidity breaches."""
+    """Fetch ProphetX events, upsert to DB, mark stale events ended."""
     try:
         # ------------------------------------------------------------------ #
         # 1. Fetch from ProphetX API (async client, run in sync Celery task)  #
@@ -57,42 +53,9 @@ def run(self):
         async def _fetch():
             async with ProphetXClient() as px:
                 events = await px.get_events_raw()
+                return events
 
-                # ProphetX requires event_id — fetch markets per event then flatten
-                # Response shape: {"data": {"sport_events": [...]}}
-                _data = events.get("data", events) if isinstance(events, dict) else events
-                if isinstance(_data, dict):
-                    _data = _data.get("sport_events", _data.get("events", []))
-                events_list = _data if isinstance(_data, list) else []
-                event_ids = [
-                    str(e.get("event_id") or e.get("id"))
-                    for e in events_list
-                    if isinstance(e, dict) and (e.get("event_id") or e.get("id"))
-                ]
-
-                all_markets: list = []
-                for eid in event_ids:
-                    try:
-                        m = await px.get_markets_raw(event_id=eid)
-                        # Response: {"data": {"event_id": ..., "markets": [...]}}
-                        m_data = m.get("data", m) if isinstance(m, dict) else m
-                        if isinstance(m_data, dict):
-                            m_list = m_data.get("markets", [])
-                        elif isinstance(m_data, list):
-                            m_list = m_data
-                        else:
-                            m_list = []
-                        # Inject event_id into each market (not present in individual market objects)
-                        for market in m_list:
-                            if isinstance(market, dict) and not market.get("event_id"):
-                                market["event_id"] = eid
-                        all_markets.extend(m_list)
-                    except Exception as market_exc:
-                        log.warning("prophetx_markets_fetch_failed_for_event", event_id=eid, error=str(market_exc))
-
-                return events, all_markets
-
-        raw_events, raw_markets = asyncio.run(_fetch())
+        raw_events = asyncio.run(_fetch())
 
     except Exception as exc:
         log.error(
@@ -125,25 +88,10 @@ def run(self):
     }
     log.info("prophetx_status_values_observed", statuses=sorted(statuses))
 
-    if isinstance(raw_markets, list):
-        markets_list = raw_markets
-    elif isinstance(raw_markets, dict):
-        markets_list = raw_markets.get("data", raw_markets.get("markets", [raw_markets]))
-        if isinstance(markets_list, dict):
-            markets_list = [markets_list]
-    else:
-        markets_list = []
-
-    if markets_list:
-        first_market = markets_list[0] if isinstance(markets_list[0], dict) else {}
-        log.info("prophetx_market_fields", fields=list(first_market.keys()))
-
     # ------------------------------------------------------------------ #
-    # 3–5. Upsert events, upsert markets, detect liquidity breaches        #
+    # 3–4. Upsert events, mark stale events ended                         #
     # ------------------------------------------------------------------ #
     events_upserted = 0
-    markets_upserted = 0
-    liquidity_alerts = 0
     events_marked_ended = 0
     now = datetime.now(timezone.utc)
 
@@ -264,115 +212,6 @@ def run(self):
             events_upserted += 1
             _publish_update("event_updated", str(prophetx_event_id))
 
-        # Flush events before upserting markets (FK lookup needs event rows)
-        session.flush()
-
-        # -- Upsert markets --
-        for raw_market in markets_list:
-            if not isinstance(raw_market, dict):
-                continue
-
-            prophetx_market_id = raw_market.get("id") or raw_market.get("market_id")
-            if not prophetx_market_id:
-                log.warning(
-                    "prophetx_market_missing_id",
-                    raw_keys=list(raw_market.keys()),
-                )
-                continue
-
-            prophetx_market_id = str(prophetx_market_id)
-
-            # Resolve parent event FK
-            event_prophetx_id = (
-                raw_market.get("event_id")
-                or raw_market.get("sport_event_id")
-            )
-            event_db_id = None
-            if event_prophetx_id:
-                parent = session.execute(
-                    select(Event).where(
-                        Event.prophetx_event_id == str(event_prophetx_id)
-                    )
-                ).scalar_one_or_none()
-                if parent:
-                    event_db_id = parent.id
-
-            if event_db_id is None:
-                log.warning(
-                    "prophetx_market_no_parent_event",
-                    market_id=prophetx_market_id,
-                    event_prophetx_id=event_prophetx_id,
-                )
-                continue
-
-            # Identify liquidity field — log uncertainty if not found
-            liquidity_raw = (
-                raw_market.get("liquidity")
-                or raw_market.get("current_liquidity")
-                or raw_market.get("available_liquidity")
-                or raw_market.get("volume")
-            )
-            if liquidity_raw is None:
-                log.warning(
-                    "prophetx_market_liquidity_field_not_found",
-                    market_id=prophetx_market_id,
-                    available_fields=list(raw_market.keys()),
-                )
-
-            from decimal import Decimal
-
-            try:
-                liquidity_value = Decimal(str(liquidity_raw)) if liquidity_raw is not None else Decimal("0")
-            except Exception:
-                liquidity_value = Decimal("0")
-
-            market_name = str(
-                raw_market.get("name") or raw_market.get("title") or prophetx_market_id
-            )
-            market_status = str(raw_market.get("status") or "active")
-
-            existing_market = session.execute(
-                select(Market).where(Market.prophetx_market_id == prophetx_market_id)
-            ).scalar_one_or_none()
-
-            if existing_market is None:
-                market = Market(
-                    prophetx_market_id=prophetx_market_id,
-                    event_id=event_db_id,
-                    name=market_name,
-                    current_liquidity=liquidity_value,
-                    status=market_status,
-                    last_polled=now,
-                )
-                session.add(market)
-                session.flush()
-                market_obj = market
-            else:
-                existing_market.name = market_name
-                existing_market.current_liquidity = liquidity_value
-                existing_market.status = market_status
-                existing_market.last_polled = now
-                market_obj = existing_market
-
-            markets_upserted += 1
-
-            # 5. Liquidity breach check — enqueue alert (LIQ-02)
-            if is_below_threshold(market_obj, session):
-                log.warning(
-                    "liquidity_breach_detected",
-                    market_id=str(market_obj.id),
-                    prophetx_market_id=prophetx_market_id,
-                    current_liquidity=str(market_obj.current_liquidity),
-                    event_id=str(event_db_id),
-                )
-                send_alerts_task.delay(
-                    alert_type="liquidity_alert",
-                    entity_type="market",
-                    entity_id=str(market_obj.id),
-                    message=f"Market {market_obj.name} liquidity {market_obj.current_liquidity} below threshold",
-                )
-                liquidity_alerts += 1
-
         # -- Mark stale events as ended --
         # ProphetX only returns active (live/upcoming) events. If an event was
         # previously live or upcoming, is no longer in the response, and its
@@ -433,17 +272,11 @@ def run(self):
 
         session.commit()
 
-    # Publish a single SSE update for all market changes this cycle
-    if markets_upserted:
-        _publish_update("market_updated", "all")
-
     # Write heartbeat key — read by /health/workers to confirm worker is alive
     _write_heartbeat("poll_prophetx")
 
     log.info(
         "poll_prophetx_complete",
         events=events_upserted,
-        markets=markets_upserted,
-        liquidity_alerts=liquidity_alerts,
         events_marked_ended=events_marked_ended,
     )
