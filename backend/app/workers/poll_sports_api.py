@@ -32,9 +32,61 @@ log = structlog.get_logger()
 
 FUZZY_THRESHOLD = 0.80
 
+# Common college mascot words to strip when doing fallback matching.
+# Sports API often drops the mascot ("Michigan" vs "Michigan Wolverines").
+_MASCOT_WORDS = {
+    "aggies","aztecs","bearcats","bears","bengals","bobcats","broncos","broncs",
+    "bruins","buckeyes","bulldogs","bulls","cardinals","cavaliers","chanticleers",
+    "colonels","cougars","crimson tide","cyclones","ducks","eagles","falcons",
+    "fighting illini","flyers","gators","golden eagles","golden flashes",
+    "golden gophers","hawkeyes","hokies","hoosiers","hornets","hurricanes",
+    "huskies","jayhawks","jaspers","longhorns","lumberjacks","mocs","monarchs",
+    "mountaineers","mustangs","owls","panthers","peacocks","pioneers","ramblers",
+    "razorbacks","red storm","roadrunners","rockets","runnin bulldogs","saints",
+    "scarlet knights","seahawks","seminoles","sooners","spartans","tar heels",
+    "terrapins","tigers","titans","trojans","volunteers","vulcans","wildcats",
+    "wolfpack","wolverines","yellow jackets","zips","gaels","friars","dons",
+    "tritons","sycamores","billikens","musketeers","beacons","skyhawks",
+    "running bulldogs","blue devils","demon deacons","golden bears","fighting irish",
+    "anteaters","banana slugs","blue hens","camels","cardinals","colonials",
+    "comets","crusaders","explorers","flyers","friars","greyhounds","hatters",
+    "highlanders","lakers","leopards","lions","mavericks","monarchs","patriots",
+    "penguins","pilots","quakers","rams","rattlers","red foxes","retrievers",
+    "riverhawks","scorpions","seawolves","spiders","statesmen","toreros",
+}
+
 
 def _similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, a.lower().strip(), b.lower().strip()).ratio()
+
+
+def _strip_mascot(name: str) -> str:
+    """Return team name with trailing mascot word(s) removed.
+
+    'Michigan Wolverines' -> 'Michigan'
+    'Gardner-Webb Runnin Bulldogs' -> 'Gardner-Webb'
+    Falls back to original name if no mascot word found.
+    """
+    lower = name.lower().strip()
+    # Try multi-word mascots first (longest match wins)
+    for mascot in sorted(_MASCOT_WORDS, key=len, reverse=True):
+        if lower.endswith(mascot):
+            stripped = name[:-(len(mascot))].strip().rstrip("-").strip()
+            if stripped:
+                return stripped
+    return name
+
+
+def _best_similarity(db_name: str, api_name: str) -> float:
+    """Return highest similarity between full name match and mascot-stripped fallback."""
+    full = _similarity(db_name, api_name)
+    if full >= FUZZY_THRESHOLD:
+        return full
+    # Fallback: strip mascot from the DB name (ProphetX includes mascots, Sports API often doesn't)
+    stripped = _strip_mascot(db_name)
+    if stripped != db_name:
+        return max(full, _similarity(stripped, api_name))
+    return full
 
 
 def _normalize_sport(sport: str) -> str:
@@ -172,8 +224,8 @@ def run(self):
             best_score = 0.0
 
             for event in match_candidates:
-                home_sim = _similarity(event.home_team or "", home)
-                away_sim = _similarity(event.away_team or "", away)
+                home_sim = _best_similarity(event.home_team or "", home)
+                away_sim = _best_similarity(event.away_team or "", away)
                 score = (home_sim + away_sim) / 2
                 if score > best_score:
                     best_score = score

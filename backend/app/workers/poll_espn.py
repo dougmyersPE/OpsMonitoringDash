@@ -1,0 +1,274 @@
+"""
+ESPN poll worker — runs every 10 minutes via Celery Beat (RedBeat).
+
+Covers Golf (PGA), Tennis (ATP/WTA), and MMA/UFC — sports not supported by
+The Odds API scores endpoint or API-Sports free tier.
+
+Steps:
+1. Identify which ESPN sports are relevant based on events in DB
+2. Fetch scoreboards from ESPN unofficial API (no auth required)
+3. Match each ESPN record to a ProphetX event:
+   - Tennis/MMA: fuzzy match by competitor names + date
+   - Golf: fuzzy match by tournament name
+4. Update espn_status and recompute status_match on matched events
+5. Enqueue send_alerts when a mismatch is detected
+6. Publish SSE updates, write heartbeat
+"""
+
+import asyncio
+import json as _json
+from collections import defaultdict
+from datetime import date, datetime, timedelta, timezone
+from difflib import SequenceMatcher
+
+import redis as _sync_redis
+import structlog
+from sqlalchemy import select
+
+from app.clients.espn_api import EspnApiClient, PX_TO_ESPN
+from app.core.config import settings
+from app.db.sync_session import SyncSessionLocal
+from app.models.event import Event
+from app.monitoring.mismatch_detector import compute_status_match
+from app.workers.celery_app import celery_app
+from app.workers.send_alerts import run as send_alerts_task
+
+log = structlog.get_logger()
+
+FUZZY_THRESHOLD = 0.75  # Slightly lower than Sports API — athlete names vary more
+
+
+def _similarity(a: str, b: str) -> float:
+    return SequenceMatcher(None, a.lower().strip(), b.lower().strip()).ratio()
+
+
+def _normalize_sport(sport: str) -> str:
+    return sport.strip().lower()
+
+
+def _publish_update(entity_id: str) -> None:
+    r = _sync_redis.from_url(settings.REDIS_URL)
+    r.publish("prophet:updates", _json.dumps({"type": "event_updated", "entity_id": entity_id}))
+
+
+def _write_heartbeat() -> None:
+    r = _sync_redis.from_url(settings.REDIS_URL)
+    r.set("worker:heartbeat:poll_espn", "1", ex=600)  # 10-min TTL matches schedule
+
+
+@celery_app.task(name="app.workers.poll_espn.run", bind=True, max_retries=3)
+def run(self):
+    """Fetch ESPN scoreboards and update espn_status on matched events."""
+    now = datetime.now(timezone.utc)
+    today = now.date()
+    yesterday = today - timedelta(days=1)
+
+    # ------------------------------------------------------------------ #
+    # 1. Determine which ESPN sports are needed from DB events             #
+    # ------------------------------------------------------------------ #
+    with SyncSessionLocal() as session:
+        events_in_db = session.execute(
+            select(Event).where(Event.sport.isnot(None))
+        ).scalars().all()
+
+    if not events_in_db:
+        _write_heartbeat()
+        return
+
+    # Collect ESPN endpoint keys for sports that have events in the DB
+    needed_endpoints: set[str] = set()
+    for ev in events_in_db:
+        normalized = _normalize_sport(ev.sport or "")
+        for endpoint_key in PX_TO_ESPN.get(normalized, []):
+            needed_endpoints.add(endpoint_key)
+
+    if not needed_endpoints:
+        log.info("poll_espn_no_mapped_sports")
+        _write_heartbeat()
+        return
+
+    # ------------------------------------------------------------------ #
+    # 2. Fetch scoreboards from ESPN                                       #
+    # ------------------------------------------------------------------ #
+    async def _fetch_all() -> list[dict]:
+        results: list[dict] = []
+        async with EspnApiClient() as client:
+            for endpoint_key in needed_endpoints:
+                records = await client.get_scoreboard(endpoint_key)
+                results.extend(records)
+        return results
+
+    try:
+        all_records = asyncio.run(_fetch_all())
+    except Exception as exc:
+        log.error("poll_espn_fetch_failed", error=str(exc), retry=self.request.retries)
+        raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+
+    log.info("espn_records_fetched", total=len(all_records))
+
+    if not all_records:
+        _write_heartbeat()
+        return
+
+    # ------------------------------------------------------------------ #
+    # 3. Match records to events and update espn_status                   #
+    # ------------------------------------------------------------------ #
+    updated = 0
+    unmatched = 0
+
+    with SyncSessionLocal() as session:
+        candidates = session.execute(
+            select(Event).where(Event.sport.isnot(None))
+        ).scalars().all()
+
+        # Index by (normalized_sport, date) for head-to-head sports
+        index: dict[tuple[str, date], list[Event]] = defaultdict(list)
+        for event in candidates:
+            if event.scheduled_start:
+                key = (_normalize_sport(event.sport), event.scheduled_start.date())
+                index[key].append(event)
+
+        for record in all_records:
+            endpoint = record.get("endpoint", "")
+            status_state = record.get("status_state", "pre")
+            event_date_str = record.get("date", "")
+            is_tournament = record.get("is_tournament", False)
+
+            if not event_date_str:
+                continue
+
+            try:
+                record_date = date.fromisoformat(event_date_str)
+            except Exception:
+                continue
+
+            # Determine which ProphetX sport names map to this endpoint
+            px_sports = [px for px, endpoints in PX_TO_ESPN.items() if endpoint in endpoints]
+
+            tournament_matches: list[Event] = []
+
+            if is_tournament:
+                # Golf: match by tournament name against event.name.
+                # ProphetX creates multiple events per tournament (one per market type), e.g.:
+                #   "2026 Cognizant Classic in The Palm Beaches - Tournament Winner"
+                #   "2026 Cognizant Classic in The Palm Beaches - Top 5 Finish"
+                # ESPN returns just the tournament name:
+                #   "Cognizant Classic in The Palm Beaches"
+                # Update ALL ProphetX events whose name contains the ESPN tournament name.
+                event_name = record.get("event_name", "")
+                if not event_name:
+                    continue
+
+                espn_lower = event_name.lower()
+                tournament_matches: list[Event] = []
+                fuzzy_best: Event | None = None
+                fuzzy_best_score = 0.0
+
+                for event in candidates:
+                    if _normalize_sport(event.sport or "") not in px_sports:
+                        continue
+                    px_lower = (event.name or "").lower()
+                    if espn_lower in px_lower:
+                        tournament_matches.append(event)
+                    else:
+                        score = _similarity(event.name, event_name)
+                        if score > fuzzy_best_score:
+                            fuzzy_best_score = score
+                            fuzzy_best = event
+
+                # Prefer substring matches; fall back to fuzzy best
+                if tournament_matches:
+                    best_match = tournament_matches[0]  # used for alert/log
+                    best_score = 1.0
+                else:
+                    best_match = fuzzy_best
+                    best_score = fuzzy_best_score
+
+                match_threshold = FUZZY_THRESHOLD
+            else:
+                # Tennis / MMA: match by competitor names + date
+                home = record.get("home_name", "")
+                away = record.get("away_name", "")
+                if not home or not away:
+                    continue
+
+                date_candidates: list[Event] = []
+                for px_sport in px_sports:
+                    for delta in (-1, 0, 1):
+                        check_date = record_date + timedelta(days=delta)
+                        date_candidates.extend(index.get((px_sport, check_date), []))
+
+                best_match = None
+                best_score = 0.0
+
+                for event in date_candidates:
+                    if not event.home_team or not event.away_team:
+                        continue
+                    home_sim = _similarity(event.home_team, home)
+                    away_sim = _similarity(event.away_team, away)
+                    score = (home_sim + away_sim) / 2
+                    if score > best_score:
+                        best_score = score
+                        best_match = event
+
+                match_threshold = FUZZY_THRESHOLD
+
+            # Build list of events to update — golf can match multiple markets per tournament
+            if best_score >= match_threshold and best_match:
+                to_update: list[Event] = tournament_matches if is_tournament and tournament_matches else [best_match]
+            else:
+                to_update = []
+
+            if to_update:
+                for event in to_update:
+                    event.espn_status = status_state
+                    new_status_match = compute_status_match(
+                        event.prophetx_status,
+                        event.odds_api_status,
+                        event.sports_api_status,
+                        event.sdio_status,
+                        status_state,
+                    )
+                    event.status_match = new_status_match
+                    event.last_real_world_poll = now
+                    updated += 1
+                    _publish_update(str(event.id))
+                    if not new_status_match:
+                        send_alerts_task.delay(
+                            alert_type="status_mismatch",
+                            entity_type="event",
+                            entity_id=str(event.id),
+                            message=(
+                                f"Status mismatch: ProphetX={event.prophetx_status}, "
+                                f"ESPN={status_state} "
+                                f"({record.get('home_name') or record.get('event_name')})"
+                            ),
+                        )
+                log.debug(
+                    "espn_event_matched",
+                    event_ids=[str(e.id) for e in to_update],
+                    endpoint=endpoint,
+                    status=status_state,
+                    match_score=round(best_score, 3),
+                )
+            else:
+                unmatched += 1
+                log.debug(
+                    "espn_event_unmatched",
+                    home=record.get("home_name", ""),
+                    away=record.get("away_name", ""),
+                    event_name=record.get("event_name", ""),
+                    endpoint=endpoint,
+                    best_score=round(best_score, 3) if best_match else 0.0,
+                )
+
+        session.commit()
+
+    _write_heartbeat()
+
+    log.info(
+        "poll_espn_complete",
+        records_fetched=len(all_records),
+        events_updated=updated,
+        unmatched=unmatched,
+    )

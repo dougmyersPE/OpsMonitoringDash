@@ -13,6 +13,7 @@ celery_app = Celery(
         "app.workers.poll_sports_data",
         "app.workers.poll_odds_api",
         "app.workers.poll_sports_api",
+        "app.workers.poll_espn",
     ],
 )
 
@@ -52,6 +53,10 @@ celery_app.conf.update(
         "poll-sports-api": {
             "task": "app.workers.poll_sports_api.run",
             "schedule": 1800.0,  # 30 minutes — conserves free tier daily quota
+        },
+        "poll-espn": {
+            "task": "app.workers.poll_espn.run",
+            "schedule": 600.0,  # 10 minutes — no quota, covers Golf/Tennis/MMA
         },
     },
 )

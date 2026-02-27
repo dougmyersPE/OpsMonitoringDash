@@ -45,6 +45,7 @@ export default function EventsTable() {
               <TableHead>Odds API</TableHead>
               <TableHead>Sports API</TableHead>
               <TableHead>SDIO</TableHead>
+              <TableHead>ESPN</TableHead>
               <TableHead>Flagged</TableHead>
               <TableHead>Last Checked</TableHead>
               {canSync && <TableHead>Action</TableHead>}
@@ -68,6 +69,7 @@ export default function EventsTable() {
                 <TableCell>{event.odds_api_status ?? "—"}</TableCell>
                 <TableCell>{event.sports_api_status ?? "—"}</TableCell>
                 <TableCell>{event.sdio_status ?? "—"}</TableCell>
+                <TableCell>{event.espn_status ?? "—"}</TableCell>
                 <TableCell>{event.is_flagged ? "Yes" : "—"}</TableCell>
                 <TableCell className="text-slate-500 text-xs">
                   {event.last_prophetx_poll
@@ -90,7 +92,7 @@ export default function EventsTable() {
             ))}
             {events.length === 0 && (
               <TableRow>
-                <TableCell colSpan={canSync ? 9 : 8} className="text-center text-slate-400 py-8">
+                <TableCell colSpan={canSync ? 10 : 9} className="text-center text-slate-400 py-8">
                   No events yet
                 </TableCell>
               </TableRow>

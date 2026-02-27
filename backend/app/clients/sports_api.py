@@ -26,19 +26,19 @@ SPORT_CONFIGS: dict[str, dict] = {
         "response_key": "response",
     },
     "basketball": {
-        "base_url": "https://v2.basketball.api-sports.io",
+        "base_url": "https://v1.basketball.api-sports.io",
         "endpoint": "/games",
         "date_param": "date",
         "response_key": "response",
     },
     "hockey": {
-        "base_url": "https://v2.hockey.api-sports.io",
+        "base_url": "https://v1.hockey.api-sports.io",
         "endpoint": "/games",
         "date_param": "date",
         "response_key": "response",
     },
     "baseball": {
-        "base_url": "https://v2.baseball.api-sports.io",
+        "base_url": "https://v1.baseball.api-sports.io",
         "endpoint": "/games",
         "date_param": "date",
         "response_key": "response",
@@ -64,6 +64,8 @@ PX_TO_API_SPORTS: dict[str, str] = {
     "mlb": "baseball",
     "nfl": "american-football",
     "mls": "soccer",
+    "ice hockey": "hockey",
+    "american football": "american-football",
 }
 
 

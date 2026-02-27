@@ -30,6 +30,7 @@ class Event(Base):
     odds_api_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     sports_api_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     sdio_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    espn_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status_match: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_prophetx_poll: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

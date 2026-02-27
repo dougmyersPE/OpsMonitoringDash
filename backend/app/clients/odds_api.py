@@ -9,7 +9,7 @@ BASE_URL = "https://api.the-odds-api.com"
 
 # ProphetX sport_name (lowercase) → Odds API sport_keys to query
 SPORT_KEY_MAP: dict[str, list[str]] = {
-    "basketball": ["basketball_nba"],
+    "basketball": ["basketball_nba", "basketball_ncaab"],
     "ice hockey": ["icehockey_nhl"],
     "mma": ["mma_mixed_martial_arts"],
     "baseball": ["baseball_mlb"],

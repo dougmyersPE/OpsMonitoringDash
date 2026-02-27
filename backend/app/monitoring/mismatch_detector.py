@@ -135,6 +135,13 @@ _SDIO_CANONICAL: dict[str, str] = {
     "F/SO": "final",
 }
 
+# ESPN unofficial API status states (Golf/Tennis/MMA)
+_ESPN_CANONICAL: dict[str, str] = {
+    "pre": "scheduled",
+    "in": "inprogress",
+    "post": "final",
+}
+
 # Sports API status codes (api-sports.io — shared across soccer, basketball, hockey, baseball, NFL)
 _SPORTS_API_CANONICAL: dict[str, str] = {
     # Not started
@@ -179,6 +186,7 @@ def compute_status_match(
     odds_api_status: str | None,
     sports_api_status: str | None,
     sdio_status: str | None,
+    espn_status: str | None = None,
 ) -> bool:
     """Return False if any source with data disagrees with ProphetX status.
 
@@ -195,6 +203,7 @@ def compute_status_match(
         (odds_api_status, _ODDS_API_CANONICAL),
         (sports_api_status, _SPORTS_API_CANONICAL),
         (sdio_status, _SDIO_CANONICAL),
+        (espn_status, _ESPN_CANONICAL),
     ]
 
     for source_status, canonical_map in checks:
