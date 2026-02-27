@@ -222,10 +222,13 @@ def run(self):
                 select(Event).where(Event.prophetx_event_id == prophetx_event_id)
             ).scalar_one_or_none()
 
+            tournament_name = raw_event.get("tournament_name")
+
             if existing is None:
                 event = Event(
                     prophetx_event_id=prophetx_event_id,
                     sport=str(raw_event.get("sport") or raw_event.get("sport_name") or raw_event.get("league_name") or "unknown"),
+                    league=tournament_name,
                     name=str(raw_event.get("name") or raw_event.get("title") or prophetx_event_id),
                     home_team=home_team,
                     away_team=away_team,
@@ -238,6 +241,8 @@ def run(self):
                 existing.sport = str(
                     raw_event.get("sport") or raw_event.get("sport_name") or raw_event.get("league_name") or existing.sport
                 )
+                if tournament_name:
+                    existing.league = tournament_name
                 existing.name = str(
                     raw_event.get("name") or raw_event.get("title") or existing.name
                 )

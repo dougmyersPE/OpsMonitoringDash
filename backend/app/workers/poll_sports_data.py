@@ -75,14 +75,30 @@ SDIO_TO_PX_SPORT: dict[str, str] = {
 _TEAM_NAMES_REDIS_KEY = "sdio:team_names:{sport}"
 _TEAM_NAMES_TTL = 86400  # 24 hours
 
-# Redis key for cached soccer competition list (competition IDs change very rarely).
-_SOCCER_COMPETITIONS_REDIS_KEY = "sdio:soccer_competitions"
+# Redis key for cached SDIO soccer competition data (id + name, 24h TTL).
+# Format: [{"id": int, "name": str}, ...]
+_SOCCER_COMPETITIONS_REDIS_KEY = "sdio:soccer_competition_data"
 _SOCCER_COMPETITIONS_TTL = 86400  # 24 hours
 
 
 @celery_app.task(name="app.workers.poll_sports_data.run", bind=True, max_retries=3)
 def run(self):
     """Fetch SDIO games, run EventMatcher, detect mismatches and flag-only events."""
+    # Query active ProphetX soccer tournament names so we can filter SDIO
+    # competition queries to only competitions that ProphetX currently serves.
+    px_soccer_leagues: set[str] = set()
+    try:
+        with SyncSessionLocal() as pre_session:
+            rows = pre_session.execute(
+                select(Event.league)
+                .where(Event.sport == "Soccer")
+                .where(Event.league.isnot(None))
+                .distinct()
+            ).scalars().all()
+            px_soccer_leagues = set(rows)
+    except Exception as _e:
+        log.warning("sdio_px_soccer_leagues_query_failed", error=str(_e))
+
     # ------------------------------------------------------------------ #
     # 1–2. Fetch SportsDataIO games for yesterday, today, and tomorrow    #
     # ------------------------------------------------------------------ #
@@ -125,24 +141,48 @@ def run(self):
                             except Exception as e:
                                 log.warning("sdio_team_names_failed", sport=sport, error=str(e))
 
-                # Load soccer competition IDs (cached 24h) for per-competition queries
+                # Load SDIO soccer competition data (id + name, cached 24h), then
+                # filter to only competitions matching active ProphetX tournament names.
+                # This reduces 32 × 3 = 96 API calls/cycle to ~3 × 3 = 9.
                 soccer_competition_ids: list[int] = []
                 if "soccer" in SUPPORTED_SPORTS:
+                    sdio_comp_data: list[dict] = []  # [{"id": int, "name": str}, ...]
                     cached_comps = _r.get(_SOCCER_COMPETITIONS_REDIS_KEY)
                     if cached_comps:
-                        soccer_competition_ids = _json.loads(cached_comps)
-                        log.debug("sdio_soccer_competitions_cache_hit", count=len(soccer_competition_ids))
+                        sdio_comp_data = _json.loads(cached_comps)
+                        log.debug("sdio_soccer_competitions_cache_hit", count=len(sdio_comp_data))
                     else:
                         try:
                             comps = await sdio_soccer.get_soccer_competitions()
-                            soccer_competition_ids = [
-                                c["CompetitionId"] for c in comps
+                            sdio_comp_data = [
+                                {"id": c["CompetitionId"], "name": c.get("Name", "")}
+                                for c in comps
                                 if isinstance(c, dict) and c.get("CompetitionId")
                             ]
-                            _r.set(_SOCCER_COMPETITIONS_REDIS_KEY, _json.dumps(soccer_competition_ids), ex=_SOCCER_COMPETITIONS_TTL)
-                            log.info("sdio_soccer_competitions_loaded", count=len(soccer_competition_ids))
+                            _r.set(_SOCCER_COMPETITIONS_REDIS_KEY, _json.dumps(sdio_comp_data), ex=_SOCCER_COMPETITIONS_TTL)
+                            log.info("sdio_soccer_competitions_loaded", count=len(sdio_comp_data))
                         except Exception as e:
                             log.warning("sdio_soccer_competitions_failed", error=str(e))
+
+                    if px_soccer_leagues and sdio_comp_data:
+                        # Match ProphetX tournament names to SDIO competition names.
+                        # Normalize: lowercase, alphanumeric only — handles spacing
+                        # differences like "LaLiga" vs "La Liga".
+                        def _norm(s: str) -> str:
+                            return "".join(c for c in s.lower() if c.isalnum())
+
+                        norm_px = {_norm(name) for name in px_soccer_leagues}
+                        for comp in sdio_comp_data:
+                            if _norm(comp["name"]) in norm_px:
+                                soccer_competition_ids.append(comp["id"])
+                        log.info(
+                            "sdio_soccer_competitions_filtered",
+                            px_leagues=sorted(px_soccer_leagues),
+                            matched_sdio_ids=sorted(soccer_competition_ids),
+                            total_available=len(sdio_comp_data),
+                        )
+                    elif not px_soccer_leagues:
+                        log.debug("sdio_soccer_skipped_no_active_px_leagues")
 
                 for sport in SUPPORTED_SPORTS:
                     count = 0
