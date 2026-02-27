@@ -272,6 +272,15 @@ def _handle_broadcast_event(event_name: str, data: str) -> None:
         else:
             event_data = payload_raw
 
+        # WS payload structure: {"id": "...", "info": {event fields}, "tournament_id": "..."}
+        # Flatten info to top level for _upsert_event compatibility.
+        # For op=d, info.event_id is 0 (empty) — use the top-level id instead.
+        info = event_data.get("info")
+        if info is not None:
+            flat = dict(info)
+            flat["event_id"] = str(info.get("event_id") or event_data.get("id") or "")
+            event_data = flat
+
         _upsert_event(event_data, op)
 
     except Exception:
