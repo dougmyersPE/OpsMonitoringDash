@@ -1,8 +1,10 @@
 """
 ESPN poll worker — runs every 10 minutes via Celery Beat (RedBeat).
 
-Covers Golf (PGA), Tennis (ATP/WTA), and MMA/UFC — sports not supported by
-The Odds API scores endpoint or API-Sports free tier.
+Covers all major sports via ESPN's unofficial scoreboard API (no auth required):
+  Team sports:   NBA, NFL, MLB, NHL, NCAAB, NCAAF
+  Soccer:        MLS, EPL, La Liga, Bundesliga, Serie A, Ligue 1, UCL, UEL
+  Individual:    Tennis (ATP/WTA), MMA (UFC), Golf (PGA)
 
 Steps:
 1. Identify which ESPN sports are relevant based on events in DB
@@ -53,7 +55,7 @@ def _publish_update(entity_id: str) -> None:
 
 def _write_heartbeat() -> None:
     r = _sync_redis.from_url(settings.REDIS_URL)
-    r.set("worker:heartbeat:poll_espn", "1", ex=600)  # 10-min TTL matches schedule
+    r.set("worker:heartbeat:poll_espn", "1", ex=settings.POLL_INTERVAL_ESPN * 3)
 
 
 @celery_app.task(name="app.workers.poll_espn.run", bind=True, max_retries=3)
@@ -62,6 +64,7 @@ def run(self):
     now = datetime.now(timezone.utc)
     today = now.date()
     yesterday = today - timedelta(days=1)
+    tomorrow = today + timedelta(days=1)
 
     # ------------------------------------------------------------------ #
     # 1. Determine which ESPN sports are needed from DB events             #
@@ -94,8 +97,10 @@ def run(self):
         results: list[dict] = []
         async with EspnApiClient() as client:
             for endpoint_key in needed_endpoints:
-                records = await client.get_scoreboard(endpoint_key)
-                results.extend(records)
+                for fetch_date in (yesterday, today, tomorrow):
+                    date_str = fetch_date.strftime("%Y%m%d")
+                    records = await client.get_scoreboard(endpoint_key, date=date_str)
+                    results.extend(records)
         return results
 
     try:

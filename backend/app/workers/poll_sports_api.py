@@ -155,6 +155,7 @@ def run(self):
     now = datetime.now(timezone.utc)
     today = now.date()
     yesterday = today - timedelta(days=1)
+    tomorrow = today + timedelta(days=1)
 
     # ------------------------------------------------------------------ #
     # 1. Determine which sports to poll based on events in DB             #
@@ -192,7 +193,7 @@ def run(self):
         results: list[dict] = []
         async with SportsApiClient(settings.SPORTS_API_KEY) as client:
             for api_sport in db_sports:
-                for game_date in (today, yesterday):
+                for game_date in (yesterday, today, tomorrow):
                     games = await client.get_games(api_sport, game_date)
                     results.extend(games)
         return results

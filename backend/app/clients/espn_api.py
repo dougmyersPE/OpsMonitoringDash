@@ -1,10 +1,8 @@
 """
 ESPN unofficial scoreboard API client.
 
-Covers Golf (PGA), Tennis (ATP/WTA), and MMA (UFC) — sports not covered by
-The Odds API scores endpoint or API-Sports free tier.
-
-No authentication required. No published rate limits; poll conservatively.
+Covers all major sports via ESPN's unofficial scoreboard endpoints.
+No authentication required. No published rate limits.
 Endpoints are unofficial but have been stable for several years.
 
 Status state values:
@@ -20,17 +18,54 @@ log = structlog.get_logger()
 
 # Unofficial ESPN scoreboard endpoints by sport key
 ENDPOINTS: dict[str, str] = {
-    "golf": "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard",
-    "tennis_atp": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard",
-    "tennis_wta": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard",
-    "mma": "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard",
+    # Individual / tournament sports
+    "golf":        "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard",
+    "tennis_atp":  "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard",
+    "tennis_wta":  "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard",
+    "mma":         "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard",
+    # Team sports — pro
+    "basketball_nba":  "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
+    "football_nfl":    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard",
+    "baseball_mlb":    "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard",
+    "hockey_nhl":      "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard",
+    # Team sports — college
+    "basketball_ncaab": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard",
+    "football_ncaaf":   "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard",
+    # Soccer — major leagues
+    "soccer_mls":        "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard",
+    "soccer_epl":        "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard",
+    "soccer_laliga":     "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard",
+    "soccer_bundesliga": "https://site.api.espn.com/apis/site/v2/sports/soccer/ger.1/scoreboard",
+    "soccer_seriea":     "https://site.api.espn.com/apis/site/v2/sports/soccer/ita.1/scoreboard",
+    "soccer_ligue1":     "https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/scoreboard",
+    "soccer_ucl":        "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard",
+    "soccer_uel":        "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.europa/scoreboard",
 }
 
 # ProphetX sport name (lowercase) → ESPN endpoint keys to query
 PX_TO_ESPN: dict[str, list[str]] = {
+    # Individual / tournament
     "tennis": ["tennis_atp", "tennis_wta"],
-    "mma": ["mma"],
-    "golf": ["golf"],
+    "mma":    ["mma"],
+    "golf":   ["golf"],
+    # Basketball — pro + college share the same DB sport name
+    "basketball": ["basketball_nba", "basketball_ncaab"],
+    "nba":        ["basketball_nba"],
+    # American football — pro + college
+    "american-football": ["football_nfl", "football_ncaaf"],
+    "american football": ["football_nfl", "football_ncaaf"],
+    "nfl":               ["football_nfl"],
+    # Baseball
+    "baseball": ["baseball_mlb"],
+    "mlb":      ["baseball_mlb"],
+    # Hockey
+    "hockey":     ["hockey_nhl"],
+    "ice hockey": ["hockey_nhl"],
+    "nhl":        ["hockey_nhl"],
+    # Soccer — query all major leagues; unmatched records are silently skipped
+    "soccer": ["soccer_mls", "soccer_epl", "soccer_laliga", "soccer_bundesliga",
+               "soccer_seriea", "soccer_ligue1", "soccer_ucl", "soccer_uel"],
+    "mls":    ["soccer_mls"],
 }
 
 
@@ -120,8 +155,12 @@ class EspnApiClient:
     async def __aexit__(self, *_) -> None:
         await self._client.aclose()
 
-    async def get_scoreboard(self, endpoint_key: str) -> list[dict]:
+    async def get_scoreboard(self, endpoint_key: str, date: str | None = None) -> list[dict]:
         """Fetch and parse the scoreboard for a given ESPN endpoint key.
+
+        Args:
+            date: Optional date string in YYYYMMDD format (e.g. "20260228").
+                  Defaults to today when omitted.
 
         Returns list of normalised match dicts (see _parse_events).
         Returns empty list on any error so callers can safely continue.
@@ -131,8 +170,9 @@ class EspnApiClient:
             log.warning("espn_unknown_endpoint", endpoint_key=endpoint_key)
             return []
 
+        params = {"dates": date} if date else {}
         try:
-            resp = await self._client.get(url)
+            resp = await self._client.get(url, params=params)
             resp.raise_for_status()
             data = resp.json()
         except Exception as exc:
