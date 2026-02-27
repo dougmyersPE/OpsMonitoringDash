@@ -27,7 +27,9 @@ class Event(Base):
     )
     # UNCONFIRMED — must be validated against live API in 02-02
     prophetx_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    real_world_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    odds_api_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    sports_api_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    sdio_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status_match: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_prophetx_poll: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

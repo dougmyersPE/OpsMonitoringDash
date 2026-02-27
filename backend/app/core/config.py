@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     PROPHETX_SECRET_KEY: str
     SPORTSDATAIO_API_KEY: str
     ODDS_API_KEY: str | None = None
+    SPORTS_API_KEY: str | None = None
 
     # Admin seed
     ADMIN_EMAIL: str

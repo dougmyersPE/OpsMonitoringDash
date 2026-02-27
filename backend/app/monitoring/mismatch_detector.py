@@ -107,3 +107,101 @@ def is_flag_only(sdio_status: str) -> bool:
     SYNC-02: system must flag but never take write action for these statuses.
     """
     return sdio_status in FLAG_ONLY_STATUSES
+
+
+# ---------------------------------------------------------------------------
+# Canonical status mapping — shared by all three real-world source workers
+# ---------------------------------------------------------------------------
+
+_PX_CANONICAL: dict[str, str] = {
+    "not_started": "scheduled",
+    "live": "inprogress",
+    "settled": "final",
+    "suspended": "inprogress",
+    "ended": "final",
+}
+
+_ODDS_API_CANONICAL: dict[str, str] = {
+    "Scheduled": "scheduled",
+    "InProgress": "inprogress",
+    "Final": "final",
+}
+
+_SDIO_CANONICAL: dict[str, str] = {
+    "Scheduled": "scheduled",
+    "InProgress": "inprogress",
+    "Final": "final",
+    "F/OT": "final",
+    "F/SO": "final",
+}
+
+# Sports API status codes (api-sports.io — shared across soccer, basketball, hockey, baseball, NFL)
+_SPORTS_API_CANONICAL: dict[str, str] = {
+    # Not started
+    "NS": "scheduled",
+    "TBD": "scheduled",
+    # Soccer in-play
+    "1H": "inprogress",
+    "HT": "inprogress",
+    "2H": "inprogress",
+    "ET": "inprogress",
+    "BT": "inprogress",
+    "P": "inprogress",
+    "INT": "inprogress",
+    "LIVE": "inprogress",
+    # Basketball quarters / overtime
+    "Q1": "inprogress",
+    "Q2": "inprogress",
+    "Q3": "inprogress",
+    "Q4": "inprogress",
+    "OT": "inprogress",
+    # Hockey periods
+    "P1": "inprogress",
+    "P2": "inprogress",
+    "P3": "inprogress",
+    "AP": "inprogress",
+    "SO": "inprogress",
+    # Baseball innings handled generically below
+    # Finished
+    "FT": "final",
+    "AET": "final",
+    "PEN": "final",
+    "AOT": "final",
+    "POST": "final",
+    "CANC": "final",  # Cancelled — treat as terminal for status_match purposes
+    "AWD": "final",
+    "WO": "final",
+}
+
+
+def compute_status_match(
+    px_status: str | None,
+    odds_api_status: str | None,
+    sports_api_status: str | None,
+    sdio_status: str | None,
+) -> bool:
+    """Return False if any source with data disagrees with ProphetX status.
+
+    Uses canonical form (scheduled/inprogress/final) for comparison so that
+    different string representations of the same state don't cause false mismatches.
+    Returns True when ProphetX status is unknown or all sources agree.
+    """
+    if px_status is None:
+        return True
+
+    px_canonical = _PX_CANONICAL.get(px_status, px_status.lower())
+
+    checks: list[tuple[str | None, dict[str, str]]] = [
+        (odds_api_status, _ODDS_API_CANONICAL),
+        (sports_api_status, _SPORTS_API_CANONICAL),
+        (sdio_status, _SDIO_CANONICAL),
+    ]
+
+    for source_status, canonical_map in checks:
+        if source_status is None:
+            continue
+        source_canonical = canonical_map.get(source_status, source_status.lower())
+        if px_canonical != source_canonical:
+            return False
+
+    return True

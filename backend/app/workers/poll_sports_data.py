@@ -6,7 +6,7 @@ Steps:
 2. Deduplicate by sdio_game_id, log per-sport counts
 3. Load all ProphetX events from DB
 4. Run EventMatcher for each ProphetX event against the SDIO game list
-5. Upsert event_id_mappings; update Event.real_world_status, status_match, is_flagged
+5. Upsert event_id_mappings; update Event.sdio_status, status_match, is_flagged
 6. Detect mismatches (log WARNING); flag postponed/canceled (SYNC-02 — no write action)
 7. Commit and log summary
 """
@@ -25,7 +25,7 @@ from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
 from app.models.event_id_mapping import EventIDMapping
 from app.monitoring.event_matcher import EventMatcher
-from app.monitoring.mismatch_detector import get_expected_px_status, is_flag_only, is_mismatch
+from app.monitoring.mismatch_detector import compute_status_match, get_expected_px_status, is_flag_only, is_mismatch
 from app.workers.celery_app import celery_app
 from app.workers.send_alerts import run as send_alerts_task
 from app.workers.update_event_status import run as update_status_task
@@ -252,9 +252,9 @@ def run(self):
                 existing_mapping.is_confirmed = is_confirmed
                 existing_mapping.is_flagged = is_flagged_match
 
-            # Update real_world_status from matched SDIO game
+            # Update sdio_status from matched SDIO game
             if is_confirmed and matched_game:
-                px_event.real_world_status = sdio_status
+                px_event.sdio_status = sdio_status
 
             # Mismatch detection
             px_status = str(px_event.prophetx_status or "")
@@ -280,7 +280,12 @@ def run(self):
                             actor="system",
                         )
             else:
-                px_event.status_match = True
+                px_event.status_match = compute_status_match(
+                    px_event.prophetx_status,
+                    px_event.odds_api_status,
+                    px_event.sports_api_status,
+                    px_event.sdio_status,
+                )
 
             # Flag-only detection (SYNC-02: flag and alert, no write action for Postponed/Canceled etc.)
             if is_flag_only(sdio_status):

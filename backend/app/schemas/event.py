@@ -14,7 +14,9 @@ class EventResponse(BaseModel):
     away_team: str | None
     scheduled_start: datetime | None
     prophetx_status: str | None
-    real_world_status: str | None
+    odds_api_status: str | None
+    sports_api_status: str | None
+    sdio_status: str | None
     status_match: bool
     is_flagged: bool
     last_prophetx_poll: datetime | None
