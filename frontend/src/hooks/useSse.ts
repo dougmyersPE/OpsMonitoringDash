@@ -6,6 +6,7 @@ export function useSse() {
   const queryClient = useQueryClient();
   const token = useAuthStore((s) => s.token);
   const esRef = useRef<EventSource | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -15,9 +16,12 @@ export function useSse() {
     esRef.current = es;
 
     es.addEventListener("update", () => {
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      queryClient.invalidateQueries({ queryKey: ["markets"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["events"] });
+        queryClient.invalidateQueries({ queryKey: ["markets"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      }, 300);
     });
 
     // onerror: browser auto-reconnects per SSE spec; SseProvider shows banner
@@ -28,6 +32,7 @@ export function useSse() {
     return () => {
       es.close();
       esRef.current = null;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [token, queryClient]);
 

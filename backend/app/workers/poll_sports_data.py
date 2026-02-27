@@ -51,8 +51,7 @@ def _write_heartbeat(worker_name: str) -> None:
 
 # Sports to poll — must match the subscription on the configured SPORTSDATAIO_API_KEY.
 # URL path mapping (ncaab→cbb etc.) is handled in SportsDataIOClient.
-# Extend this list only after confirming subscription coverage for each sport.
-SUPPORTED_SPORTS = ["ncaab"]
+SUPPORTED_SPORTS = ["nba", "nfl", "mlb", "nhl", "ncaab", "ncaaf", "soccer"]
 
 # College/non-pro sports where SDIO returns team abbreviation codes (e.g. "TROY")
 # rather than full names — team names are resolved via get_team_names() before matching.
@@ -61,66 +60,136 @@ ABBREV_SPORTS: set[str] = {"ncaab", "ncaaf"}
 # Map SDIO logical sport names to ProphetX sport field values.
 # ProphetX uses broad categories ("Basketball") for both pro and college.
 SDIO_TO_PX_SPORT: dict[str, str] = {
+    "nba":   "basketball",
+    "nfl":   "american football",
+    "mlb":   "baseball",
+    "nhl":   "ice hockey",
     "ncaab": "basketball",
     "ncaaf": "american football",
+    "soccer": "soccer",
 }
+
+# Redis key pattern for cached team name lookups.
+# Teams don't change mid-season — stored with a 24h TTL so all worker
+# processes share one fetch per day instead of fetching every 30 seconds.
+_TEAM_NAMES_REDIS_KEY = "sdio:team_names:{sport}"
+_TEAM_NAMES_TTL = 86400  # 24 hours
+
+# Redis key for cached soccer competition list (competition IDs change very rarely).
+_SOCCER_COMPETITIONS_REDIS_KEY = "sdio:soccer_competitions"
+_SOCCER_COMPETITIONS_TTL = 86400  # 24 hours
 
 
 @celery_app.task(name="app.workers.poll_sports_data.run", bind=True, max_retries=3)
 def run(self):
     """Fetch SDIO games, run EventMatcher, detect mismatches and flag-only events."""
     # ------------------------------------------------------------------ #
-    # 1–2. Fetch SportsDataIO games for today AND yesterday               #
+    # 1–2. Fetch SportsDataIO games for yesterday, today, and tomorrow    #
     # ------------------------------------------------------------------ #
     try:
         async def _fetch():
-            async with SportsDataIOClient() as sdio:
-                today = date.today().isoformat()
-                yesterday = (date.today() - timedelta(days=1)).isoformat()
-                games: list[dict] = []
-                sport_counts: dict[str, int] = {}
+            from contextlib import AsyncExitStack
+            from app.core.config import settings as _settings
+            _r = _sync_redis.from_url(_settings.REDIS_URL)
 
-                # Pre-fetch team name lookups for college sports (abbreviation → full name)
+            today = date.today()
+            yesterday = (today - timedelta(days=1)).isoformat()
+            today = today.isoformat()
+            tomorrow = (date.today() + timedelta(days=1)).isoformat()
+            games: list[dict] = []
+            sport_counts: dict[str, int] = {}
+
+            async with AsyncExitStack() as stack:
+                sdio = await stack.enter_async_context(SportsDataIOClient())
+                sdio_soccer = await stack.enter_async_context(
+                    SportsDataIOClient(api_key=_settings.SPORTSDATAIO_SOCCER_API_KEY)
+                ) if _settings.SPORTSDATAIO_SOCCER_API_KEY else sdio
+
+                # Resolve team name lookups for college sports (abbreviation → full name).
+                # Cached in Redis for 24h — team rosters don't change mid-season, and
+                # Redis ensures all fork worker processes share one fetch per day.
                 team_name_lookups: dict[str, dict[str, str]] = {}
                 for sport in SUPPORTED_SPORTS:
                     if sport in ABBREV_SPORTS:
+                        cache_key = _TEAM_NAMES_REDIS_KEY.format(sport=sport)
+                        cached_raw = _r.get(cache_key)
+                        if cached_raw:
+                            team_name_lookups[sport] = _json.loads(cached_raw)
+                            log.debug("sdio_team_names_cache_hit", sport=sport, count=len(team_name_lookups[sport]))
+                        else:
+                            try:
+                                fetched = await sdio.get_team_names(sport)
+                                _r.set(cache_key, _json.dumps(fetched), ex=_TEAM_NAMES_TTL)
+                                team_name_lookups[sport] = fetched
+                                log.info("sdio_team_names_loaded", sport=sport, count=len(fetched))
+                            except Exception as e:
+                                log.warning("sdio_team_names_failed", sport=sport, error=str(e))
+
+                # Load soccer competition IDs (cached 24h) for per-competition queries
+                soccer_competition_ids: list[int] = []
+                if "soccer" in SUPPORTED_SPORTS:
+                    cached_comps = _r.get(_SOCCER_COMPETITIONS_REDIS_KEY)
+                    if cached_comps:
+                        soccer_competition_ids = _json.loads(cached_comps)
+                        log.debug("sdio_soccer_competitions_cache_hit", count=len(soccer_competition_ids))
+                    else:
                         try:
-                            team_name_lookups[sport] = await sdio.get_team_names(sport)
-                            log.info("sdio_team_names_loaded", sport=sport, count=len(team_name_lookups[sport]))
+                            comps = await sdio_soccer.get_soccer_competitions()
+                            soccer_competition_ids = [
+                                c["CompetitionId"] for c in comps
+                                if isinstance(c, dict) and c.get("CompetitionId")
+                            ]
+                            _r.set(_SOCCER_COMPETITIONS_REDIS_KEY, _json.dumps(soccer_competition_ids), ex=_SOCCER_COMPETITIONS_TTL)
+                            log.info("sdio_soccer_competitions_loaded", count=len(soccer_competition_ids))
                         except Exception as e:
-                            log.warning("sdio_team_names_failed", sport=sport, error=str(e))
+                            log.warning("sdio_soccer_competitions_failed", error=str(e))
 
                 for sport in SUPPORTED_SPORTS:
                     count = 0
-                    for game_date in [today, yesterday]:
-                        try:
-                            result = await sdio.get_games_by_date_raw(sport, game_date)
-                            if isinstance(result, list):
-                                # Tag each game with our logical sport name and, for college
-                                # sports, resolve team abbreviations to full names so
-                                # EventMatcher can fuzzy-match against ProphetX team names.
-                                lookup = team_name_lookups.get(sport, {})
-                                for g in result:
-                                    if isinstance(g, dict):
-                                        g["_sdio_sport"] = sport
-                                        if lookup:
-                                            home_abbr = str(g.get("HomeTeam") or "")
-                                            away_abbr = str(g.get("AwayTeam") or "")
-                                            g["_home_team_full"] = lookup.get(home_abbr, home_abbr)
-                                            g["_away_team_full"] = lookup.get(away_abbr, away_abbr)
-                                games.extend(result)
-                                count += len(result)
-                        except Exception as e:
-                            log.warning(
-                                "sdio_fetch_failed",
-                                sport=sport,
-                                date=game_date,
-                                error=str(e),
-                            )
+                    if sport == "soccer":
+                        # Soccer requires per-competition queries
+                        for game_date in [yesterday, today, tomorrow]:
+                            for comp_id in soccer_competition_ids:
+                                try:
+                                    result = await sdio_soccer.get_soccer_games_by_date(comp_id, game_date)
+                                    for g in result:
+                                        if isinstance(g, dict):
+                                            g["_sdio_sport"] = "soccer"
+                                    games.extend(result)
+                                    count += len(result)
+                                except Exception as e:
+                                    log.debug("sdio_soccer_comp_fetch_failed", comp_id=comp_id, date=game_date, error=str(e))
+                    else:
+                        client = sdio
+                        for game_date in [yesterday, today, tomorrow]:
+                            try:
+                                result = await client.get_games_by_date_raw(sport, game_date)
+                                if isinstance(result, list):
+                                    # Tag each game with our logical sport name and, for college
+                                    # sports, resolve team abbreviations to full names so
+                                    # EventMatcher can fuzzy-match against ProphetX team names.
+                                    lookup = team_name_lookups.get(sport, {})
+                                    for g in result:
+                                        if isinstance(g, dict):
+                                            g["_sdio_sport"] = sport
+                                            if lookup:
+                                                home_abbr = str(g.get("HomeTeam") or "")
+                                                away_abbr = str(g.get("AwayTeam") or "")
+                                                g["_home_team_full"] = lookup.get(home_abbr, home_abbr)
+                                                g["_away_team_full"] = lookup.get(away_abbr, away_abbr)
+                                    games.extend(result)
+                                    count += len(result)
+                            except Exception as e:
+                                log.warning(
+                                    "sdio_fetch_failed",
+                                    sport=sport,
+                                    date=game_date,
+                                    error=str(e),
+                                )
                     sport_counts[sport] = count
 
-                log.info("sdio_games_fetched", sport_counts=sport_counts)
-                return games
+            log.info("sdio_games_fetched", sport_counts=sport_counts)
+            return games
 
         raw_games = asyncio.run(_fetch())
 
@@ -140,6 +209,7 @@ def run(self):
             continue
         gid = str(
             game.get("GameID")
+            or game.get("GameId")   # SDIO soccer uses GameId
             or game.get("game_id")
             or game.get("id")
             or ""
@@ -179,6 +249,7 @@ def run(self):
         for game in deduped_games:
             sdio_game_id = str(
                 game.get("GameID")
+                or game.get("GameId")   # SDIO soccer uses GameId
                 or game.get("game_id")
                 or game.get("id")
                 or ""
@@ -191,6 +262,7 @@ def run(self):
             home_team = (
                 game.get("_home_team_full")
                 or game.get("HomeTeam")
+                or game.get("HomeTeamName")   # SDIO soccer
                 or game.get("home_team")
                 or game.get("home")
                 or ""
@@ -198,6 +270,7 @@ def run(self):
             away_team = (
                 game.get("_away_team_full")
                 or game.get("AwayTeam")
+                or game.get("AwayTeamName")   # SDIO soccer
                 or game.get("away_team")
                 or game.get("away")
                 or ""
@@ -216,6 +289,7 @@ def run(self):
             # (local time, varies by sport/timezone) to match ProphetX UTC timestamps.
             start_raw = (
                 game.get("DateTimeUTC")
+                or game.get("DateTimeUtc")    # SDIO soccer
                 or game.get("DateTime")
                 or game.get("scheduled_start")
                 or game.get("start_time")

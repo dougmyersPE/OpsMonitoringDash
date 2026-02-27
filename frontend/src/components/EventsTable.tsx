@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { GripVertical } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, GripVertical } from "lucide-react";
 import { fetchEvents, type EventRow } from "../api/events";
 import { useAuthStore } from "../stores/auth";
 import { cn } from "@/lib/utils";
@@ -200,7 +200,100 @@ function GroupOrderControl({
   );
 }
 
-/* ─── Sort logic ─── */
+/* ─── Column sort ─── */
+
+type SortCol =
+  | "prophetx_event_id"
+  | "name"
+  | "sport"
+  | "scheduled_start"
+  | "prophetx_status"
+  | "odds_api_status"
+  | "sports_api_status"
+  | "sdio_status"
+  | "espn_status"
+  | "is_flagged"
+  | "last_prophetx_poll";
+
+const DATE_COLS = new Set<SortCol>(["scheduled_start", "last_prophetx_poll"]);
+const STATUS_COLS = new Set<SortCol>([
+  "prophetx_status",
+  "odds_api_status",
+  "sports_api_status",
+  "sdio_status",
+  "espn_status",
+]);
+
+function applySortCol(events: EventRow[], col: SortCol, dir: "asc" | "desc"): EventRow[] {
+  return [...events].sort((a, b) => {
+    const av = a[col as keyof EventRow];
+    const bv = b[col as keyof EventRow];
+
+    // Nulls always last regardless of direction
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+
+    let cmp: number;
+    if (DATE_COLS.has(col)) {
+      cmp = new Date(av as string).getTime() - new Date(bv as string).getTime();
+    } else if (col === "is_flagged") {
+      // Flagged first = asc
+      cmp = (bv ? 1 : 0) - (av ? 1 : 0);
+    } else if (STATUS_COLS.has(col)) {
+      cmp = normalizeStatus(av as string).localeCompare(normalizeStatus(bv as string));
+    } else {
+      cmp = String(av).localeCompare(String(bv));
+    }
+
+    return dir === "asc" ? cmp : -cmp;
+  });
+}
+
+/* ─── Sortable header cell ─── */
+
+function SortableHead({
+  col,
+  children,
+  sortCol,
+  sortDir,
+  onSort,
+  className,
+}: {
+  col: SortCol;
+  children: React.ReactNode;
+  sortCol: SortCol | null;
+  sortDir: "asc" | "desc";
+  onSort: (col: SortCol) => void;
+  className?: string;
+}) {
+  const active = sortCol === col;
+  return (
+    <TableHead
+      onClick={() => onSort(col)}
+      className={cn(
+        "text-[11px] font-medium uppercase tracking-wider cursor-pointer select-none group transition-colors",
+        active ? "text-zinc-300" : "text-zinc-500 hover:text-zinc-300",
+        className,
+      )}
+    >
+      <span className="inline-flex items-center gap-1">
+        {children}
+        {active ? (
+          sortDir === "asc" ? (
+            <ChevronUp className="h-3 w-3 text-indigo-400 shrink-0" />
+          ) : (
+            <ChevronDown className="h-3 w-3 text-indigo-400 shrink-0" />
+          )
+        ) : (
+          <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-30 transition-opacity" />
+        )}
+      </span>
+    </TableHead>
+  );
+}
+
+/* ─── Group sort logic ─── */
 
 function sortEvents(events: EventRow[], statusOrder: string[]): EventRow[] {
   const now = Date.now();
@@ -261,6 +354,17 @@ export default function EventsTable() {
   const [mismatchOnly, setMismatchOnly] = useState(false);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [statusOrder, setStatusOrder] = useState<string[]>(ALL_STATUS_GROUPS);
+  const [sortCol, setSortCol] = useState<SortCol | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function handleSort(col: SortCol) {
+    if (sortCol === col) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+    }
+  }
 
   const availableStatuses = useMemo(
     () =>
@@ -284,11 +388,20 @@ export default function EventsTable() {
   }, [events, statusFilter, sportFilter, mismatchOnly, flaggedOnly]);
 
   const sorted = useMemo(
-    () => sortEvents(filtered, statusOrder),
-    [filtered, statusOrder]
+    () => sortCol ? applySortCol(filtered, sortCol, sortDir) : sortEvents(filtered, statusOrder),
+    [filtered, statusOrder, sortCol, sortDir]
   );
 
-  const hasActiveFilters = !!statusFilter || !!sportFilter || mismatchOnly || flaggedOnly;
+  const hasActiveFilters = !!statusFilter || !!sportFilter || mismatchOnly || flaggedOnly || !!sortCol;
+
+  function clearAll() {
+    setStatusFilter("");
+    setSportFilter("");
+    setMismatchOnly(false);
+    setFlaggedOnly(false);
+    setSortCol(null);
+    setSortDir("asc");
+  }
 
   const selectClass =
     "h-7 rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/20 cursor-pointer appearance-none";
@@ -296,7 +409,7 @@ export default function EventsTable() {
   if (isLoading)
     return (
       <section>
-        <SectionHeader title="Events" count={null} />
+        <SectionHeader title="Events" count={null} hasActiveFilters={false} onClear={clearAll} />
         <p className="text-zinc-600 text-sm py-8 text-center">Loading…</p>
       </section>
     );
@@ -304,7 +417,7 @@ export default function EventsTable() {
   if (error)
     return (
       <section>
-        <SectionHeader title="Events" count={null} />
+        <SectionHeader title="Events" count={null} hasActiveFilters={false} onClear={clearAll} />
         <p className="text-red-400 text-sm py-8 text-center">Failed to load events.</p>
       </section>
     );
@@ -314,6 +427,8 @@ export default function EventsTable() {
       <SectionHeader
         title="Events"
         count={hasActiveFilters ? `${sorted.length} / ${events.length}` : `${events.length}`}
+        hasActiveFilters={hasActiveFilters}
+        onClear={clearAll}
       />
 
       {/* Filter + sort controls */}
@@ -343,19 +458,6 @@ export default function EventsTable() {
             Flagged
           </ToggleButton>
 
-          {hasActiveFilters && (
-            <button
-              className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors ml-1"
-              onClick={() => {
-                setStatusFilter("");
-                setSportFilter("");
-                setMismatchOnly(false);
-                setFlaggedOnly(false);
-              }}
-            >
-              Clear
-            </button>
-          )}
         </div>
 
         {/* Row 2: group order */}
@@ -367,17 +469,17 @@ export default function EventsTable() {
         <Table>
           <TableHeader>
             <TableRow className="border-zinc-800 hover:bg-transparent">
-              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider px-3">PX ID</TableHead>
-              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Event</TableHead>
-              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Sport</TableHead>
-              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Starts</TableHead>
-              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">ProphetX</TableHead>
-              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Odds API</TableHead>
-              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Sports API</TableHead>
-              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">SDIO</TableHead>
-              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">ESPN</TableHead>
-              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Flag</TableHead>
-              <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">Checked</TableHead>
+              <SortableHead col="prophetx_event_id" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} className="px-3">PX ID</SortableHead>
+              <SortableHead col="name" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Event</SortableHead>
+              <SortableHead col="sport" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Sport</SortableHead>
+              <SortableHead col="scheduled_start" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Starts</SortableHead>
+              <SortableHead col="prophetx_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>ProphetX</SortableHead>
+              <SortableHead col="odds_api_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Odds API</SortableHead>
+              <SortableHead col="sports_api_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Sports API</SortableHead>
+              <SortableHead col="sdio_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>SDIO</SortableHead>
+              <SortableHead col="espn_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>ESPN</SortableHead>
+              <SortableHead col="is_flagged" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Flag</SortableHead>
+              <SortableHead col="last_prophetx_poll" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Checked</SortableHead>
               {canSync && <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider" />}
             </TableRow>
           </TableHeader>
@@ -452,7 +554,17 @@ export default function EventsTable() {
 
 /* ─── Section header ─── */
 
-function SectionHeader({ title, count }: { title: string; count: string | null }) {
+function SectionHeader({
+  title,
+  count,
+  hasActiveFilters,
+  onClear,
+}: {
+  title: string;
+  count: string | null;
+  hasActiveFilters: boolean;
+  onClear: () => void;
+}) {
   return (
     <div className="flex items-center gap-3 mb-3">
       <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider shrink-0">{title}</h2>
@@ -460,6 +572,13 @@ function SectionHeader({ title, count }: { title: string; count: string | null }
       {count !== null && (
         <span className="text-xs text-zinc-600 shrink-0">{count}</span>
       )}
+      <button
+        onClick={onClear}
+        disabled={!hasActiveFilters}
+        className="h-6 px-2.5 rounded-md text-[11px] font-medium border transition-colors disabled:opacity-25 disabled:cursor-default border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800 disabled:hover:text-zinc-400 disabled:hover:border-zinc-700 disabled:hover:bg-transparent"
+      >
+        Clear filters
+      </button>
     </div>
   );
 }

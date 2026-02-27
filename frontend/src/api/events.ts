@@ -5,6 +5,7 @@ export interface EventRow {
   prophetx_event_id: string;
   name: string;
   sport: string;
+  scheduled_start: string | null;
   prophetx_status: string | null;
   odds_api_status: string | null;
   sports_api_status: string | null;

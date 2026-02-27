@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function LoginPage() {
       const { data } = await axios.post("/api/v1/auth/login", params, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
-      login(data.access_token, email, data.role ?? "operator");
+      login(data.access_token, email, data.role ?? "operator", rememberMe);
       navigate("/");
     } catch {
       setError("Invalid email or password");
@@ -87,10 +88,36 @@ export default function LoginPage() {
             />
           </div>
 
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={rememberMe}
+              onClick={() => setRememberMe((v) => !v)}
+              className={`h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+                rememberMe
+                  ? "bg-indigo-600 border-indigo-600"
+                  : "bg-transparent border-zinc-600 hover:border-zinc-400"
+              }`}
+            >
+              {rememberMe && (
+                <svg viewBox="0 0 12 12" fill="none" className="h-2.5 w-2.5">
+                  <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </button>
+            <label
+              onClick={() => setRememberMe((v) => !v)}
+              className="text-sm text-zinc-400 cursor-pointer select-none"
+            >
+              Remember me
+            </label>
+          </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-10 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+            className="w-full h-10 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>

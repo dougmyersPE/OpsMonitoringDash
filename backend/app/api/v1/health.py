@@ -23,15 +23,20 @@ async def health_check():
 
 @router.get("/health/workers")
 async def worker_health():
-    """Returns live/dead status for each poll worker based on Redis heartbeat keys.
-
-    Workers write 'worker:heartbeat:{name}' with 90s TTL on each successful run.
-    Key absence means worker has not run in the last 90 seconds (dead or stopped).
-    """
+    """Returns live/dead status for each poll worker based on Redis heartbeat keys."""
     redis = await get_redis_client()
-    px_alive = await redis.exists("worker:heartbeat:poll_prophetx") == 1
-    sdio_alive = await redis.exists("worker:heartbeat:poll_sports_data") == 1
+    keys = [
+        "worker:heartbeat:poll_prophetx",
+        "worker:heartbeat:poll_sports_data",
+        "worker:heartbeat:poll_odds_api",
+        "worker:heartbeat:poll_sports_api",
+        "worker:heartbeat:poll_espn",
+    ]
+    results = await redis.mget(*keys)
     return {
-        "poll_prophetx": px_alive,
-        "poll_sports_data": sdio_alive,
+        "poll_prophetx":    results[0] is not None,
+        "poll_sports_data": results[1] is not None,
+        "poll_odds_api":    results[2] is not None,
+        "poll_sports_api":  results[3] is not None,
+        "poll_espn":        results[4] is not None,
     }

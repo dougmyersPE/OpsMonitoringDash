@@ -257,7 +257,6 @@ def run(self):
 
             polled_px_ids.add(prophetx_event_id)
             events_upserted += 1
-            # Publish SSE update after event upsert
             _publish_update("event_updated", str(prophetx_event_id))
 
         # Flush events before upserting markets (FK lookup needs event rows)
@@ -351,8 +350,6 @@ def run(self):
                 market_obj = existing_market
 
             markets_upserted += 1
-            # Publish SSE update after market upsert
-            _publish_update("market_updated", str(market_obj.id))
 
             # 5. Liquidity breach check — enqueue alert (LIQ-02)
             if is_below_threshold(market_obj, session):
@@ -430,6 +427,10 @@ def run(self):
                 event.status_match = computed
 
         session.commit()
+
+    # Publish a single SSE update for all market changes this cycle
+    if markets_upserted:
+        _publish_update("market_updated", "all")
 
     # Write heartbeat key — read by /health/workers to confirm worker is alive
     _write_heartbeat("poll_prophetx")

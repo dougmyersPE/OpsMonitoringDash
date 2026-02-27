@@ -62,8 +62,7 @@ def _publish_update(entity_id: str) -> None:
 
 def _write_heartbeat() -> None:
     r = _sync_redis.from_url(settings.REDIS_URL)
-    # TTL matches poll interval (600s) so the key expires naturally between polls
-    r.set("worker:heartbeat:poll_odds_api", "1", ex=600)
+    r.set("worker:heartbeat:poll_odds_api", "1", ex=settings.POLL_INTERVAL_ODDS_API * 3)
 
 
 @celery_app.task(name="app.workers.poll_odds_api.run", bind=True, max_retries=3)

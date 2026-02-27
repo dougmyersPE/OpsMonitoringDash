@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     PROPHETX_ACCESS_KEY: str
     PROPHETX_SECRET_KEY: str
     SPORTSDATAIO_API_KEY: str
+    SPORTSDATAIO_SOCCER_API_KEY: str | None = None
     ODDS_API_KEY: str | None = None
     SPORTS_API_KEY: str | None = None
 
@@ -50,6 +51,13 @@ class Settings(BaseSettings):
 
     # Alerting
     SLACK_WEBHOOK_URL: str | None = None  # Optional: Slack incoming webhook URL
+
+    # Poll intervals (seconds) — lower during dev/testing, raise before production
+    POLL_INTERVAL_PROPHETX: int = 30
+    POLL_INTERVAL_SPORTS_DATA: int = 30
+    POLL_INTERVAL_ODDS_API: int = 600    # conserves free tier (500 calls/month)
+    POLL_INTERVAL_SPORTS_API: int = 1800  # conserves free tier daily quota
+    POLL_INTERVAL_ESPN: int = 600
 
 
 settings = Settings()

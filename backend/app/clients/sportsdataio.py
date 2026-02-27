@@ -45,6 +45,19 @@ class SportsDataIOClient(BaseAPIClient):
         log.debug("sportsdataio_games_full_response", sport=sport, response=raw)
         return raw
 
+    async def get_soccer_competitions(self) -> list[dict]:
+        """Return all available soccer competitions from SDIO."""
+        raw = await self._get("/soccer/scores/json/Competitions", headers=self._headers)
+        return raw if isinstance(raw, list) else []
+
+    async def get_soccer_games_by_date(self, competition_id: int | str, game_date: str) -> list:
+        """Fetch games for one soccer competition on a given date."""
+        raw = await self._get(
+            f"/soccer/scores/json/GamesByDate/{competition_id}/{game_date}",
+            headers=self._headers,
+        )
+        return raw if isinstance(raw, list) else []
+
     async def get_team_names(self, sport: str) -> dict[str, str]:
         """Return {abbreviation: 'School Mascot'} for all teams in a sport.
 

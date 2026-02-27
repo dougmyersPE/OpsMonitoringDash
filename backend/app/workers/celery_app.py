@@ -36,27 +36,27 @@ celery_app.conf.update(
     result_expires=3600,             # 1-hour TTL on task results in Redis
     task_ignore_result=True,         # Polling tasks don't need result storage
 
-    # Beat schedule — 30-second stub tasks (Phase 2 will replace log stubs with real logic)
+    # Beat schedule — intervals configured via POLL_INTERVAL_* env vars
     beat_schedule={
         "poll-prophetx": {
             "task": "app.workers.poll_prophetx.run",
-            "schedule": 30.0,
+            "schedule": float(settings.POLL_INTERVAL_PROPHETX),
         },
         "poll-sports-data": {
             "task": "app.workers.poll_sports_data.run",
-            "schedule": 30.0,
+            "schedule": float(settings.POLL_INTERVAL_SPORTS_DATA),
         },
         "poll-odds-api": {
             "task": "app.workers.poll_odds_api.run",
-            "schedule": 600.0,  # 10 minutes — conserves free tier credits (500/month)
+            "schedule": float(settings.POLL_INTERVAL_ODDS_API),
         },
         "poll-sports-api": {
             "task": "app.workers.poll_sports_api.run",
-            "schedule": 1800.0,  # 30 minutes — conserves free tier daily quota
+            "schedule": float(settings.POLL_INTERVAL_SPORTS_API),
         },
         "poll-espn": {
             "task": "app.workers.poll_espn.run",
-            "schedule": 600.0,  # 10 minutes — no quota, covers Golf/Tennis/MMA
+            "schedule": float(settings.POLL_INTERVAL_ESPN),
         },
     },
 )
