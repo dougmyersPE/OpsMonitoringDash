@@ -22,6 +22,7 @@ dependencies = [
     "rapidfuzz>=3.14.3",
     "sse-starlette>=3.2.0",
     "slack-sdk>=3.40.1",
+    "pysher>=1.0",
 ]
 
 [project.optional-dependencies]

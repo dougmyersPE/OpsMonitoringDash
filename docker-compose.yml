@@ -51,6 +51,17 @@ services:
       redis:
         condition: service_healthy
 
+  ws-consumer:
+    build: ./backend
+    command: python -m app.workers.ws_prophetx
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   frontend:
     build: ./frontend
     depends_on:

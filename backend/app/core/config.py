@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     SLACK_WEBHOOK_URL: str | None = None  # Optional: Slack incoming webhook URL
 
     # Poll intervals (seconds) — lower during dev/testing, raise before production
-    POLL_INTERVAL_PROPHETX: int = 30
+    POLL_INTERVAL_PROPHETX: int = 300  # reconciliation-only — ws-consumer handles real-time updates
     POLL_INTERVAL_SPORTS_DATA: int = 30
     POLL_INTERVAL_ODDS_API: int = 600    # conserves free tier (500 calls/month)
     POLL_INTERVAL_SPORTS_API: int = 1800  # conserves free tier daily quota
