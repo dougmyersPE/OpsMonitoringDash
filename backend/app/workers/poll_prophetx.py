@@ -41,10 +41,10 @@ def _publish_update(update_type: str, entity_id: str) -> None:
 
 
 def _write_heartbeat(worker_name: str) -> None:
-    """Write worker heartbeat key with 90s TTL — read by /health/workers."""
+    """Write worker heartbeat key — TTL is 3x poll interval so health check survives slight delays."""
     from app.core.config import settings
     r = _sync_redis.from_url(settings.REDIS_URL)
-    r.set(f"worker:heartbeat:{worker_name}", "1", ex=90)
+    r.set(f"worker:heartbeat:{worker_name}", "1", ex=settings.POLL_INTERVAL_PROPHETX * 3)
 
 
 @celery_app.task(name="app.workers.poll_prophetx.run", bind=True, max_retries=3)
@@ -247,6 +247,13 @@ def run(self):
                     existing.scheduled_start = scheduled_start
                 existing.prophetx_status = status_value
                 existing.last_prophetx_poll = now
+                existing.status_match = compute_status_match(
+                    status_value,
+                    existing.odds_api_status,
+                    existing.sports_api_status,
+                    existing.sdio_status,
+                    existing.espn_status,
+                )
 
             polled_px_ids.add(prophetx_event_id)
             events_upserted += 1
@@ -405,6 +412,22 @@ def run(self):
                 )
                 events_marked_ended += 1
                 _publish_update("event_updated", str(event.prophetx_event_id))
+
+        # Recompute status_match for all events from current source columns.
+        # Source workers only update status_match on events they match — events
+        # that fall out of a source's date window retain stale values forever
+        # without this pass.
+        all_events = session.execute(select(Event)).scalars().all()
+        for event in all_events:
+            computed = compute_status_match(
+                event.prophetx_status,
+                event.odds_api_status,
+                event.sports_api_status,
+                event.sdio_status,
+                event.espn_status,
+            )
+            if event.status_match != computed:
+                event.status_match = computed
 
         session.commit()
 

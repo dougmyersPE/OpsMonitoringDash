@@ -301,22 +301,22 @@ def run(self):
             if is_confirmed and matched_game:
                 px_event.sdio_status = sdio_status
 
-            # Mismatch detection
-            px_status = str(px_event.prophetx_status or "")
-            if is_mismatch(px_status, sdio_status):
-                px_event.status_match = False
-                log.warning(
-                    "status_mismatch_detected",
-                    event_id=str(px_event.id),
-                    prophetx_event_id=str(px_event.prophetx_event_id),
-                    px_status=px_status,
-                    sdio_status=sdio_status,
-                )
-                mismatches_found += 1
-                # Publish SSE update for mismatch
-                _publish_update("mismatch_detected", str(px_event.id))
-                # SYNC-01: enqueue status update task for confirmed mismatches
-                if is_confirmed:
+            # Mismatch detection — confirmed matches only.
+            # Low-confidence matches (team names match but time is off) can span
+            # different game days and must not affect status_match.
+            if is_confirmed:
+                px_status = str(px_event.prophetx_status or "")
+                if is_mismatch(px_status, sdio_status):
+                    px_event.status_match = False
+                    log.warning(
+                        "status_mismatch_detected",
+                        event_id=str(px_event.id),
+                        prophetx_event_id=str(px_event.prophetx_event_id),
+                        px_status=px_status,
+                        sdio_status=sdio_status,
+                    )
+                    mismatches_found += 1
+                    _publish_update("mismatch_detected", str(px_event.id))
                     expected_px_status = get_expected_px_status(sdio_status)
                     if expected_px_status is not None:
                         update_status_task.delay(
@@ -324,13 +324,14 @@ def run(self):
                             target_status=expected_px_status,
                             actor="system",
                         )
-            else:
-                px_event.status_match = compute_status_match(
-                    px_event.prophetx_status,
-                    px_event.odds_api_status,
-                    px_event.sports_api_status,
-                    px_event.sdio_status,
-                )
+                else:
+                    px_event.status_match = compute_status_match(
+                        px_event.prophetx_status,
+                        px_event.odds_api_status,
+                        px_event.sports_api_status,
+                        px_event.sdio_status,
+                        px_event.espn_status,
+                    )
 
             # Flag detection: derived from current source statuses each cycle.
             # Clears automatically when no source reports a flag-worthy status (SYNC-02).

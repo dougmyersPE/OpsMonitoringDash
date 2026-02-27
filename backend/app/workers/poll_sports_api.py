@@ -274,6 +274,22 @@ def run(self):
                     best_match = event
 
             if best_match and best_score >= FUZZY_THRESHOLD:
+                # Date-distance guard: reject matches where the Sports API game date is
+                # more than 24 hours from the ProphetX scheduled_start. The ±1-day index
+                # window handles timezone offsets (~max 12h), but without this check a
+                # finished game on day N can match a future event on day N+1.
+                if best_match.scheduled_start:
+                    game_midday = datetime(game_date.year, game_date.month, game_date.day, 12, 0, tzinfo=timezone.utc)
+                    if abs((best_match.scheduled_start - game_midday).total_seconds()) > 86400:  # 24h
+                        unmatched += 1
+                        log.debug(
+                            "sports_api_date_too_far",
+                            home=home, away=away,
+                            game_date=str(game_date),
+                            scheduled_start=str(best_match.scheduled_start),
+                        )
+                        continue
+
                 best_match.sports_api_status = status_short
                 new_status_match = compute_status_match(
                     best_match.prophetx_status,
