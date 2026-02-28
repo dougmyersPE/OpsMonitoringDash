@@ -25,7 +25,6 @@ from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
 from app.monitoring.mismatch_detector import compute_status_match
 from app.workers.celery_app import celery_app
-from app.workers.send_alerts import run as send_alerts_task
 
 log = structlog.get_logger()
 
@@ -176,17 +175,6 @@ def run(self):
                 best_match.last_real_world_poll = now
                 updated += 1
                 _publish_update(str(best_match.id))
-                if not new_status_match:
-                    send_alerts_task.delay(
-                        alert_type="status_mismatch",
-                        entity_type="event",
-                        entity_id=str(best_match.id),
-                        message=(
-                            f"Status mismatch: ProphetX={best_match.prophetx_status}, "
-                            f"Odds API={real_status} "
-                            f"({best_match.away_team} @ {best_match.home_team})"
-                        ),
-                    )
                 log.debug(
                     "odds_api_event_matched",
                     event_id=str(best_match.id),

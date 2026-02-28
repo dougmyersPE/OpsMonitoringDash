@@ -26,7 +26,6 @@ from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
 from app.monitoring.mismatch_detector import compute_is_flagged, compute_status_match, get_expected_px_status
 from app.workers.celery_app import celery_app
-from app.workers.send_alerts import run as send_alerts_task
 from app.workers.update_event_status import run as update_status_task
 
 log = structlog.get_logger()
@@ -312,25 +311,9 @@ def run(self):
                         event_id=str(best_match.id),
                         sports_api_status=status_short,
                     )
-                    send_alerts_task.delay(
-                        alert_type="flag_event",
-                        entity_type="event",
-                        entity_id=str(best_match.id),
-                        message=f"Event {best_match.prophetx_event_id} flagged: Sports API status '{status_short}' requires manual review",
-                    )
                 updated += 1
                 _publish_update(str(best_match.id))
                 if not new_status_match:
-                    send_alerts_task.delay(
-                        alert_type="status_mismatch",
-                        entity_type="event",
-                        entity_id=str(best_match.id),
-                        message=(
-                            f"Status mismatch: ProphetX={best_match.prophetx_status}, "
-                            f"Sports API={status_short} "
-                            f"({best_match.away_team} @ {best_match.home_team})"
-                        ),
-                    )
                     expected_px_status = get_expected_px_status(status_short)
                     if expected_px_status is not None:
                         update_status_task.delay(

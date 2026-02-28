@@ -158,19 +158,6 @@ def run(self, event_id: str, target_status: str | None, actor: str = "system"):
                 actor=actor,
             )
 
-            # Enqueue alert for auto-update success (ALERT-01)
-            from app.workers.send_alerts import run as send_alerts_task
-            send_alerts_task.delay(
-                alert_type="auto_update_success",
-                entity_id=event_id,
-                entity_type="event",
-                message=(
-                    f"Auto-update success: event {event_id} status changed "
-                    f"from {before_state['prophetx_status']!r} to {effective_target!r}"
-                    f"{' (alert-only mode — no ProphetX write)' if alert_only_mode else ''}"
-                ),
-            )
-
     except Exception as exc:
         log.error(
             "update_event_status_error",
@@ -199,16 +186,6 @@ def run(self, event_id: str, target_status: str | None, actor: str = "system"):
                 )
                 err_session.add(fail_entry)
                 err_session.commit()
-                try:
-                    from app.workers.send_alerts import run as send_alerts_task
-                    send_alerts_task.delay(
-                        alert_type="auto_update_failure",
-                        entity_id=event_id,
-                        entity_type="event",
-                        message=f"Auto-update failure: event {event_id} — {exc}",
-                    )
-                except Exception as alert_exc:
-                    log.warning("update_event_status_alert_enqueue_failed", error=str(alert_exc))
         except Exception as log_exc:
             log.error("update_event_status_audit_log_failed", error=str(log_exc))
 

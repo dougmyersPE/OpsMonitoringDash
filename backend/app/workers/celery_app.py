@@ -14,6 +14,7 @@ celery_app = Celery(
         "app.workers.poll_odds_api",
         "app.workers.poll_sports_api",
         "app.workers.poll_espn",
+        "app.workers.poll_critical_check",
     ],
 )
 
@@ -57,6 +58,10 @@ celery_app.conf.update(
         "poll-espn": {
             "task": "app.workers.poll_espn.run",
             "schedule": float(settings.POLL_INTERVAL_ESPN),
+        },
+        "poll-critical-check": {
+            "task": "app.workers.poll_critical_check.run",
+            "schedule": 60.0,
         },
     },
 )

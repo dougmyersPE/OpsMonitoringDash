@@ -27,7 +27,6 @@ from app.models.event_id_mapping import EventIDMapping
 from app.monitoring.event_matcher import EventMatcher
 from app.monitoring.mismatch_detector import compute_is_flagged, compute_status_match, get_expected_px_status, is_mismatch
 from app.workers.celery_app import celery_app
-from app.workers.send_alerts import run as send_alerts_task
 from app.workers.update_event_status import run as update_status_task
 
 log = structlog.get_logger()
@@ -481,12 +480,6 @@ def run(self):
                     prophetx_event_id=str(px_event.prophetx_event_id),
                     sdio_status=px_event.sdio_status,
                     sports_api_status=px_event.sports_api_status,
-                )
-                send_alerts_task.delay(
-                    alert_type="flag_event",
-                    entity_type="event",
-                    entity_id=str(px_event.id),
-                    message=f"Event {px_event.prophetx_event_id} flagged: status requires manual review (sdio={px_event.sdio_status}, sports_api={px_event.sports_api_status})",
                 )
                 flagged_count += 1
 
