@@ -544,7 +544,14 @@ export default function EventsTable() {
                     : <span className="text-zinc-700">—</span>}
                 </TableCell>
                 <TableCell>
-                  <PxStatusPill status={event.prophetx_status} isMismatch={event.status_match === false} isCritical={event.is_critical} />
+                  <div className="flex flex-col gap-0.5">
+                    <PxStatusPill status={event.prophetx_status} isMismatch={event.status_match === false} isCritical={event.is_critical} />
+                    {event.last_prophetx_poll && (
+                      <span className="font-mono text-[10px] text-zinc-700 leading-none">
+                        {format(new Date(event.last_prophetx_poll), "HH:mm:ss")}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell><SourceStatus status={event.odds_api_status} /></TableCell>
                 <TableCell><SourceStatus status={event.sports_api_status} /></TableCell>
