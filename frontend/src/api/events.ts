@@ -25,3 +25,7 @@ export async function fetchEvents(): Promise<EventRow[]> {
 export async function syncEventStatus(eventId: string): Promise<void> {
   await apiClient.post(`/events/${eventId}/sync-status`);
 }
+
+export async function refreshAllEvents(): Promise<void> {
+  await apiClient.post("/events/refresh-all");
+}

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, ChevronsUpDown, GripVertical } from "lucide-react";
-import { fetchEvents, type EventRow } from "../api/events";
+import { fetchEvents, refreshAllEvents, type EventRow } from "../api/events";
 import { useAuthStore } from "../stores/auth";
 import { cn } from "@/lib/utils";
 import { normalizeStatus } from "@/lib/statusDisplay";
@@ -14,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { syncEventStatus } from "../api/events";
 
 /* ─── Status pill components ─── */
 
@@ -351,16 +350,18 @@ function sortEvents(events: EventRow[], statusOrder: string[]): EventRow[] {
 export default function EventsTable() {
   const queryClient = useQueryClient();
   const role = useAuthStore((s) => s.role);
-  const canSync = role === "admin" || role === "operator";
+  const canRefresh = role === "admin" || role === "operator";
 
   const { data: events = [], isLoading, error } = useQuery({
     queryKey: ["events"],
     queryFn: fetchEvents,
   });
 
-  const syncMutation = useMutation({
-    mutationFn: syncEventStatus,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["events"] }),
+  const refreshMutation = useMutation({
+    mutationFn: refreshAllEvents,
+    onSuccess: () => {
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ["events"] }), 3000);
+    },
   });
 
   const [statusFilter, setStatusFilter] = useState("");
@@ -446,6 +447,8 @@ export default function EventsTable() {
         count={hasActiveFilters ? `${sorted.length} / ${events.length}` : `${events.length}`}
         hasActiveFilters={hasActiveFilters}
         onClear={clearAll}
+        onRefresh={canRefresh ? () => refreshMutation.mutate() : undefined}
+        refreshing={refreshMutation.isPending}
       />
 
       {/* Filter + sort controls */}
@@ -500,7 +503,6 @@ export default function EventsTable() {
               <SortableHead col="espn_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>ESPN</SortableHead>
               <SortableHead col="is_flagged" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Flag</SortableHead>
               <SortableHead col="last_prophetx_poll" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Checked</SortableHead>
-              {canSync && <TableHead className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -543,24 +545,13 @@ export default function EventsTable() {
                     ? format(new Date(event.last_prophetx_poll), "HH:mm:ss")
                     : <span className="text-zinc-700">—</span>}
                 </TableCell>
-                {canSync && (
-                  <TableCell>
-                    <button
-                      onClick={() => syncMutation.mutate(event.id)}
-                      disabled={syncMutation.isPending}
-                      className="h-6 px-2.5 rounded text-[11px] font-medium border border-zinc-700 text-zinc-500 hover:text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      Sync
-                    </button>
-                  </TableCell>
-                )}
               </TableRow>
             ))}
 
             {sorted.length === 0 && (
               <TableRow className="hover:bg-transparent border-0">
                 <TableCell
-                  colSpan={canSync ? 12 : 11}
+                  colSpan={11}
                   className="text-center text-zinc-600 py-12 text-sm"
                 >
                   {hasActiveFilters ? "No events match the current filters" : "No events yet"}
@@ -581,11 +572,15 @@ function SectionHeader({
   count,
   hasActiveFilters,
   onClear,
+  onRefresh,
+  refreshing,
 }: {
   title: string;
   count: string | null;
   hasActiveFilters: boolean;
   onClear: () => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }) {
   return (
     <div className="flex items-center gap-3 mb-3">
@@ -593,6 +588,25 @@ function SectionHeader({
       <div className="flex-1 h-px bg-zinc-800" />
       {count !== null && (
         <span className="text-xs text-zinc-600 shrink-0">{count}</span>
+      )}
+      {onRefresh && (
+        <button
+          onClick={onRefresh}
+          disabled={refreshing}
+          title="Refresh all sources"
+          className="h-6 w-6 rounded-md flex items-center justify-center border transition-colors disabled:opacity-40 disabled:cursor-not-allowed border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800"
+        >
+          <svg
+            viewBox="0 0 16 16"
+            fill="none"
+            className={cn("h-3.5 w-3.5", refreshing && "animate-spin")}
+          >
+            <path
+              d="M13.5 8A5.5 5.5 0 1 1 8 2.5a5.48 5.48 0 0 1 3.89 1.61L10 6h4V2l-1.46 1.46A7 7 0 1 0 15 8h-1.5Z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
       )}
       <button
         onClick={onClear}
