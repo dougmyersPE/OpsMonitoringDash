@@ -23,6 +23,7 @@ export default function LoginPage() {
       const params = new URLSearchParams();
       params.append("username", email); // field name is "username" per OAuth2 spec
       params.append("password", password);
+      params.append("remember_me", rememberMe ? "true" : "false");
       const { data } = await axios.post("/api/v1/auth/login", params, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
