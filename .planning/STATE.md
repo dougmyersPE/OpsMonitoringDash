@@ -108,5 +108,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Worker starvation fixed (concurrency=6). poll_odds_api confirmed executing every 10min. Odds API key returning 401 — needs key refresh in .env. All checkpoints closed.
+Stopped at: Critical alert tier shipped and deployed. All session work committed. Clean state.
 Resume file: None
