@@ -257,3 +257,43 @@ def compute_status_match(
             return False
 
     return True
+
+
+def compute_is_critical(
+    px_status: str | None,
+    odds_api_status: str | None,
+    sports_api_status: str | None,
+    sdio_status: str | None,
+    espn_status: str | None,
+) -> bool:
+    """True when any source reports the event as live but ProphetX does not.
+
+    Higher severity than a plain status_match=False: the game is live in the
+    real world but ProphetX still shows it as not started (or ended), meaning
+    markets on the platform are potentially stale and need immediate attention.
+    """
+    if not px_status:
+        return False
+
+    px_canonical = _PX_CANONICAL.get(px_status, px_status.lower())
+    if px_canonical == "inprogress":
+        return False  # ProphetX already shows live — not critical
+
+    sources: list[tuple[str | None, dict[str, str] | None]] = [
+        (odds_api_status, _ODDS_API_CANONICAL),
+        (sports_api_status, None),
+        (sdio_status, _SDIO_CANONICAL),
+        (espn_status, _ESPN_CANONICAL),
+    ]
+
+    for source_status, canonical_map in sources:
+        if not source_status:
+            continue
+        if canonical_map is None:
+            source_canonical = _sports_api_to_canonical(source_status)
+        else:
+            source_canonical = canonical_map.get(source_status, source_status.lower())
+        if source_canonical == "inprogress":
+            return True
+
+    return False

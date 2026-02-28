@@ -21,16 +21,27 @@ import { syncEventStatus } from "../api/events";
 function PxStatusPill({
   status,
   isMismatch,
+  isCritical,
 }: {
   status: string | null | undefined;
   isMismatch: boolean;
+  isCritical: boolean;
 }) {
   const display = normalizeStatus(status);
 
+  if (isCritical) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-red-600/20 text-red-400 border border-red-500/40">
+        <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+        {display}
+      </span>
+    );
+  }
+
   if (isMismatch) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
-        <span className="h-1.5 w-1.5 rounded-full bg-red-400 shrink-0" />
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
         {display}
       </span>
     );
@@ -298,21 +309,6 @@ function SortableHead({
 function sortEvents(events: EventRow[], statusOrder: string[]): EventRow[] {
   const now = Date.now();
 
-  // Bucket by normalized status
-  const buckets = new Map<string, EventRow[]>();
-  const other: EventRow[] = [];
-
-  for (const ev of events) {
-    const display = normalizeStatus(ev.prophetx_status);
-    if (statusOrder.includes(display)) {
-      if (!buckets.has(display)) buckets.set(display, []);
-      buckets.get(display)!.push(ev);
-    } else {
-      other.push(ev);
-    }
-  }
-
-  // Within each group: sort by closest scheduled_start to now
   const byClosestStart = (a: EventRow, b: EventRow) => {
     const aMs = a.scheduled_start
       ? Math.abs(new Date(a.scheduled_start).getTime() - now)
@@ -323,7 +319,25 @@ function sortEvents(events: EventRow[], statusOrder: string[]): EventRow[] {
     return aMs - bMs;
   };
 
-  const result: EventRow[] = [];
+  // Critical events always float to the top, sorted by closest start
+  const critical = events.filter((e) => e.is_critical).sort(byClosestStart);
+  const rest = events.filter((e) => !e.is_critical);
+
+  // Bucket remaining by normalized status
+  const buckets = new Map<string, EventRow[]>();
+  const other: EventRow[] = [];
+
+  for (const ev of rest) {
+    const display = normalizeStatus(ev.prophetx_status);
+    if (statusOrder.includes(display)) {
+      if (!buckets.has(display)) buckets.set(display, []);
+      buckets.get(display)!.push(ev);
+    } else {
+      other.push(ev);
+    }
+  }
+
+  const result: EventRow[] = [...critical];
   for (const status of statusOrder) {
     result.push(...(buckets.get(status) ?? []).sort(byClosestStart));
   }
@@ -351,6 +365,7 @@ export default function EventsTable() {
 
   const [statusFilter, setStatusFilter] = useState("");
   const [sportFilter, setSportFilter] = useState("");
+  const [criticalOnly, setCriticalOnly] = useState(false);
   const [mismatchOnly, setMismatchOnly] = useState(false);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [statusOrder, setStatusOrder] = useState<string[]>(ALL_STATUS_GROUPS);
@@ -381,22 +396,24 @@ export default function EventsTable() {
     return events.filter((e) => {
       if (statusFilter && e.prophetx_status !== statusFilter) return false;
       if (sportFilter && e.sport !== sportFilter) return false;
+      if (criticalOnly && !e.is_critical) return false;
       if (mismatchOnly && e.status_match !== false) return false;
       if (flaggedOnly && !e.is_flagged) return false;
       return true;
     });
-  }, [events, statusFilter, sportFilter, mismatchOnly, flaggedOnly]);
+  }, [events, statusFilter, sportFilter, criticalOnly, mismatchOnly, flaggedOnly]);
 
   const sorted = useMemo(
     () => sortCol ? applySortCol(filtered, sortCol, sortDir) : sortEvents(filtered, statusOrder),
     [filtered, statusOrder, sortCol, sortDir]
   );
 
-  const hasActiveFilters = !!statusFilter || !!sportFilter || mismatchOnly || flaggedOnly || !!sortCol;
+  const hasActiveFilters = !!statusFilter || !!sportFilter || criticalOnly || mismatchOnly || flaggedOnly || !!sortCol;
 
   function clearAll() {
     setStatusFilter("");
     setSportFilter("");
+    setCriticalOnly(false);
     setMismatchOnly(false);
     setFlaggedOnly(false);
     setSortCol(null);
@@ -451,6 +468,9 @@ export default function EventsTable() {
 
           <div className="h-4 w-px bg-zinc-800" />
 
+          <ToggleButton active={criticalOnly} onClick={() => setCriticalOnly((v) => !v)}>
+            Critical
+          </ToggleButton>
           <ToggleButton active={mismatchOnly} onClick={() => setMismatchOnly((v) => !v)}>
             Mismatches
           </ToggleButton>
@@ -489,8 +509,10 @@ export default function EventsTable() {
                 key={event.id}
                 className={cn(
                   "border-zinc-800/60 transition-colors",
-                  event.status_match === false
-                    ? "bg-red-500/5 border-l-2 border-l-red-500 hover:bg-red-500/8"
+                  event.is_critical
+                    ? "bg-red-600/10 border-l-2 border-l-red-500 hover:bg-red-600/15"
+                    : event.status_match === false
+                    ? "bg-amber-500/8 border-l-2 border-l-amber-500 hover:bg-amber-500/12"
                     : event.is_flagged
                     ? "bg-amber-500/5 hover:bg-amber-500/8"
                     : "hover:bg-zinc-800/30"
@@ -509,7 +531,7 @@ export default function EventsTable() {
                     : <span className="text-zinc-700">—</span>}
                 </TableCell>
                 <TableCell>
-                  <PxStatusPill status={event.prophetx_status} isMismatch={event.status_match === false} />
+                  <PxStatusPill status={event.prophetx_status} isMismatch={event.status_match === false} isCritical={event.is_critical} />
                 </TableCell>
                 <TableCell><SourceStatus status={event.odds_api_status} /></TableCell>
                 <TableCell><SourceStatus status={event.sports_api_status} /></TableCell>
