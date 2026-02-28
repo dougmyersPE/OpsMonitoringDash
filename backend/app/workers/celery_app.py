@@ -22,7 +22,7 @@ celery_app.conf.update(
     # RedBeat scheduler — stores schedule state in Redis (locked decision per STATE.md)
     beat_scheduler="redbeat.RedBeatScheduler",
     redbeat_redis_url=settings.REDBEAT_REDIS_URL,
-    redbeat_lock_timeout=300,  # 5 minutes; prevents duplicate Beat instances
+    redbeat_lock_timeout=900,  # 15 min — must be > beat_max_loop_interval (300s default) to avoid LockNotOwnedError
 
     # Task serialization
     task_serializer="json",
