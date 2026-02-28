@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
+const ET_DATE = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "2-digit", day: "2-digit", hour: "numeric", minute: "2-digit", hour12: true });
+const ET_TIME = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true });
 import { ChevronDown, ChevronUp, ChevronsUpDown, GripVertical } from "lucide-react";
 import { fetchEvents, refreshAllEvents, type EventRow } from "../api/events";
 import { useAuthStore } from "../stores/auth";
@@ -540,7 +541,7 @@ export default function EventsTable() {
                 <TableCell className="text-zinc-400 text-xs">{event.sport}</TableCell>
                 <TableCell className="font-mono text-[11px] text-zinc-500 whitespace-nowrap">
                   {event.scheduled_start
-                    ? format(new Date(event.scheduled_start), "MM/dd HH:mm")
+                    ? ET_DATE.format(new Date(event.scheduled_start))
                     : <span className="text-zinc-700">—</span>}
                 </TableCell>
                 <TableCell>
@@ -548,7 +549,7 @@ export default function EventsTable() {
                     <PxStatusPill status={event.prophetx_status} isMismatch={event.status_match === false} isCritical={event.is_critical} />
                     {event.last_prophetx_poll && (
                       <span className="font-mono text-[10px] text-zinc-700 leading-none">
-                        {format(new Date(event.last_prophetx_poll), "HH:mm:ss")}
+                        {ET_TIME.format(new Date(event.last_prophetx_poll))}
                       </span>
                     )}
                   </div>
@@ -560,7 +561,7 @@ export default function EventsTable() {
                 <TableCell><FlaggedBadge flagged={event.is_flagged} /></TableCell>
                 <TableCell className="font-mono text-[11px] text-zinc-600 whitespace-nowrap">
                   {event.last_real_world_poll
-                    ? format(new Date(event.last_real_world_poll), "HH:mm:ss")
+                    ? ET_TIME.format(new Date(event.last_real_world_poll))
                     : <span className="text-zinc-700">—</span>}
                 </TableCell>
               </TableRow>
