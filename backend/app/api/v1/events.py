@@ -1,7 +1,8 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_role
@@ -20,10 +21,18 @@ router = APIRouter(prefix="/events", tags=["events"])
     dependencies=[Depends(require_role(RoleEnum.readonly, RoleEnum.operator, RoleEnum.admin))],
 )
 async def list_events(session: AsyncSession = Depends(get_async_session)):
-    """Return all events with prophetx_status, real_world_status, status_match, and is_flagged."""
-    total_q = await session.execute(select(func.count()).select_from(Event))
+    """Return all events with prophetx_status, real_world_status, status_match, and is_flagged.
+
+    Ended events are hidden after 24 hours.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    visible = or_(
+        Event.prophetx_status != "ended",
+        Event.last_prophetx_poll >= cutoff,
+    )
+    total_q = await session.execute(select(func.count()).select_from(Event).where(visible))
     total = total_q.scalar_one()
-    rows_q = await session.execute(select(Event).order_by(Event.scheduled_start.asc()))
+    rows_q = await session.execute(select(Event).where(visible).order_by(Event.scheduled_start.asc()))
     events = rows_q.scalars().all()
     return EventListResponse(total=total, events=events)
 

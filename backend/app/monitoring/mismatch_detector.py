@@ -11,6 +11,7 @@ Key concepts:
 - is_flag_only(): returns True for statuses requiring human review (Postponed, Canceled, etc.)
 """
 
+import re
 from enum import Enum
 
 import structlog
@@ -193,7 +194,8 @@ _SPORTS_API_CANONICAL: dict[str, str] = {
     "P3": "inprogress",
     "AP": "inprogress",
     "SO": "inprogress",
-    # Baseball innings handled generically below
+    # Baseball innings: IN1, IN2, ... IN9, IN10, IN11 (extra innings)
+    # Handled via _sports_api_to_canonical() — no need to enumerate every number
     # Finished
     "FT": "final",
     "AET": "final",
@@ -204,6 +206,19 @@ _SPORTS_API_CANONICAL: dict[str, str] = {
     "AWD": "final",
     "WO": "final",
 }
+
+
+def _sports_api_to_canonical(status: str) -> str:
+    """Map a Sports API status code to canonical form.
+
+    Handles the regular dict lookup plus baseball innings (IN1, IN2, ...) which
+    follow a numeric pattern too open-ended to enumerate exhaustively.
+    """
+    if status in _SPORTS_API_CANONICAL:
+        return _SPORTS_API_CANONICAL[status]
+    if re.match(r"^IN\d+$", status):  # baseball inning: IN1, IN2, ..., IN12, etc.
+        return "inprogress"
+    return status.lower()
 
 
 def compute_status_match(
@@ -224,17 +239,20 @@ def compute_status_match(
 
     px_canonical = _PX_CANONICAL.get(px_status, px_status.lower())
 
-    checks: list[tuple[str | None, dict[str, str]]] = [
+    sources: list[tuple[str | None, dict[str, str] | None]] = [
         (odds_api_status, _ODDS_API_CANONICAL),
-        (sports_api_status, _SPORTS_API_CANONICAL),
+        (sports_api_status, None),  # uses _sports_api_to_canonical() for baseball inning support
         (sdio_status, _SDIO_CANONICAL),
         (espn_status, _ESPN_CANONICAL),
     ]
 
-    for source_status, canonical_map in checks:
+    for source_status, canonical_map in sources:
         if not source_status:  # None or empty string — no data from this source
             continue
-        source_canonical = canonical_map.get(source_status, source_status.lower())
+        if canonical_map is None:
+            source_canonical = _sports_api_to_canonical(source_status)
+        else:
+            source_canonical = canonical_map.get(source_status, source_status.lower())
         if px_canonical != source_canonical:
             return False
 

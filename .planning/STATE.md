@@ -107,6 +107,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-26
-Stopped at: Completed 03-05-PLAN.md — gap closure: send_alerts wired on success+failure paths, SSE timeout-based disconnect detection, notification nav links, last_prophetx_poll field fix
-Resume file: None — Phase 3 complete, all 5 plans executed including gap closure
+Last session: 2026-02-28
+Stopped at: Worker starvation fixed (concurrency=6). poll_odds_api confirmed executing every 10min. Odds API key returning 401 — needs key refresh in .env. All checkpoints closed.
+Resume file: None
