@@ -372,6 +372,7 @@ export default function EventsTable() {
   const [statusOrder, setStatusOrder] = useState<string[]>(ALL_STATUS_GROUPS);
   const [sortCol, setSortCol] = useState<SortCol | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [dense, setDense] = useState(false);
 
   function handleSort(col: SortCol) {
     if (sortCol === col) {
@@ -449,6 +450,8 @@ export default function EventsTable() {
         onClear={clearAll}
         onRefresh={canRefresh ? () => refreshMutation.mutate() : undefined}
         refreshing={refreshMutation.isPending}
+        dense={dense}
+        onDenseToggle={() => setDense((v) => !v)}
       />
 
       {/* Filter + sort controls */}
@@ -488,7 +491,12 @@ export default function EventsTable() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+      <div className={cn(
+        "rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden",
+        dense
+          ? "[&_td]:px-1 [&_td]:py-0.5 [&_th]:px-1 [&_th]:h-7"
+          : "[&_td]:px-1.5 [&_td]:py-1 [&_th]:px-1.5 [&_th]:h-8"
+      )}>
         <Table>
           <TableHeader>
             <TableRow className="border-zinc-800 hover:bg-transparent">
@@ -520,11 +528,14 @@ export default function EventsTable() {
                     : "hover:bg-zinc-800/30"
                 )}
               >
-                <TableCell className="px-3 font-mono text-[11px] text-zinc-600 whitespace-nowrap">
+                <TableCell className="font-mono text-[11px] text-zinc-600 whitespace-nowrap">
                   {event.prophetx_event_id}
                 </TableCell>
-                <TableCell className="text-zinc-200 font-medium text-sm">
-                  {event.name}
+                <TableCell className={cn(
+                  "font-medium text-zinc-200",
+                  dense ? "max-w-[140px] text-xs" : "max-w-[200px] text-sm"
+                )}>
+                  <span className="block truncate" title={event.name}>{event.name}</span>
                 </TableCell>
                 <TableCell className="text-zinc-400 text-xs">{event.sport}</TableCell>
                 <TableCell className="font-mono text-[11px] text-zinc-500 whitespace-nowrap">
@@ -574,6 +585,8 @@ function SectionHeader({
   onClear,
   onRefresh,
   refreshing,
+  dense,
+  onDenseToggle,
 }: {
   title: string;
   count: string | null;
@@ -581,6 +594,8 @@ function SectionHeader({
   onClear: () => void;
   onRefresh?: () => void;
   refreshing?: boolean;
+  dense?: boolean;
+  onDenseToggle?: () => void;
 }) {
   return (
     <div className="flex items-center gap-3 mb-3">
@@ -588,6 +603,20 @@ function SectionHeader({
       <div className="flex-1 h-px bg-zinc-800" />
       {count !== null && (
         <span className="text-xs text-zinc-600 shrink-0">{count}</span>
+      )}
+      {onDenseToggle && (
+        <button
+          onClick={onDenseToggle}
+          title={dense ? "Switch to comfortable view" : "Switch to dense view"}
+          className={cn(
+            "h-6 px-2 rounded-md text-[11px] font-medium border transition-colors",
+            dense
+              ? "bg-zinc-700/60 text-zinc-200 border-zinc-600"
+              : "border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 hover:bg-zinc-800"
+          )}
+        >
+          Dense
+        </button>
       )}
       {onRefresh && (
         <button
