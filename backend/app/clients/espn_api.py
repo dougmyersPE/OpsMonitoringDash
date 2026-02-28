@@ -16,6 +16,11 @@ import structlog
 
 log = structlog.get_logger()
 
+# Extra query params required for certain endpoints (beyond dates/limit)
+ENDPOINT_EXTRA_PARAMS: dict[str, dict] = {
+    "basketball_ncaab": {"groups": "50"},  # all Division I; default returns featured games only (~15)
+}
+
 # Unofficial ESPN scoreboard endpoints by sport key
 ENDPOINTS: dict[str, str] = {
     # Individual / tournament sports
@@ -171,6 +176,7 @@ class EspnApiClient:
             return []
 
         params = {"dates": date} if date else {}
+        params.update(ENDPOINT_EXTRA_PARAMS.get(endpoint_key, {}))
         try:
             resp = await self._client.get(url, params=params)
             resp.raise_for_status()
