@@ -19,7 +19,7 @@ import redis as _sync_redis
 import structlog
 from sqlalchemy import select
 
-from app.clients.sportsdataio import SportsDataIOClient
+from app.clients.sportsdataio import SPORTSDATAIO_SOCCER_BASE_URL, SportsDataIOClient
 from app.db.redis import get_sync_redis
 from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
@@ -116,9 +116,14 @@ def run(self):
 
             async with AsyncExitStack() as stack:
                 sdio = await stack.enter_async_context(SportsDataIOClient())
+                # Soccer competitions list: v3, soccer-specific key
                 sdio_soccer = await stack.enter_async_context(
                     SportsDataIOClient(api_key=_settings.SPORTSDATAIO_SOCCER_API_KEY)
                 ) if _settings.SPORTSDATAIO_SOCCER_API_KEY else sdio
+                # Soccer game data: v4, main key (GamesByDateFinal endpoint)
+                sdio_soccer_games = await stack.enter_async_context(
+                    SportsDataIOClient(base_url=SPORTSDATAIO_SOCCER_BASE_URL)
+                )
 
                 # Resolve team name lookups for college sports (abbreviation → full name).
                 # Cached in Redis for 24h — team rosters don't change mid-season, and
@@ -190,7 +195,7 @@ def run(self):
                         for game_date in [yesterday, today, tomorrow]:
                             for comp_id in soccer_competition_ids:
                                 try:
-                                    result = await sdio_soccer.get_soccer_games_by_date(comp_id, game_date)
+                                    result = await sdio_soccer_games.get_soccer_games_by_date(comp_id, game_date)
                                     for g in result:
                                         if isinstance(g, dict):
                                             g["_sdio_sport"] = "soccer"

@@ -8,6 +8,7 @@ import structlog
 log = structlog.get_logger()
 
 SPORTSDATAIO_BASE_URL = "https://api.sportsdata.io/v3"
+SPORTSDATAIO_SOCCER_BASE_URL = "https://api.sportsdata.io/v4"
 
 # SportsDataIO URL path segment differs from the logical sport name for some sports.
 # e.g. college basketball is /cbb/ not /ncaab/, college football is /cfb/ not /ncaaf/
@@ -18,8 +19,8 @@ SPORT_PATH_MAP: dict[str, str] = {
 
 
 class SportsDataIOClient(BaseAPIClient):
-    def __init__(self, api_key: str | None = None):
-        super().__init__(base_url=SPORTSDATAIO_BASE_URL)
+    def __init__(self, api_key: str | None = None, base_url: str = SPORTSDATAIO_BASE_URL):
+        super().__init__(base_url=base_url)
         self._api_key = api_key or settings.SPORTSDATAIO_API_KEY
         # Per research Pitfall 5: ALWAYS use header auth, never query param.
         # Query param auth logs the API key in Nginx access logs — security risk.
@@ -64,11 +65,12 @@ class SportsDataIOClient(BaseAPIClient):
     async def get_soccer_games_by_date(self, competition_id: int | str, game_date: str) -> list:
         """Fetch games for one soccer competition on a given date.
 
+        Uses the v4 GamesByDateFinal endpoint — requires main API key, v4 base URL.
         SDIO returns 404 when no games are scheduled for that competition/date.
         """
         try:
             raw = await self._get(
-                f"/soccer/scores/json/GamesByDate/{competition_id}/{game_date}",
+                f"/soccer/scores/json/GamesByDateFinal/{competition_id}/{game_date}",
                 headers=self._headers,
             )
         except httpx.HTTPStatusError as e:
