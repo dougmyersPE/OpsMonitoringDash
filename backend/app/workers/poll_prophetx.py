@@ -182,7 +182,6 @@ def run(self):
                     away_team=away_team,
                     scheduled_start=scheduled_start,
                     prophetx_status=status_value,
-                    last_prophetx_poll=now,
                 )
                 session.add(event)
             else:
@@ -199,7 +198,6 @@ def run(self):
                 if scheduled_start is not None:
                     existing.scheduled_start = scheduled_start
                 existing.prophetx_status = status_value
-                existing.last_prophetx_poll = now
                 existing.status_match = compute_status_match(
                     status_value,
                     existing.odds_api_status,
@@ -243,7 +241,6 @@ def run(self):
                     scheduled_start=str(event.scheduled_start),
                 )
                 event.prophetx_status = "ended"
-                event.last_prophetx_poll = now
                 event.status_match = compute_status_match(
                     "ended",
                     event.odds_api_status,

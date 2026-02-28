@@ -15,6 +15,7 @@ export interface EventRow {
   is_flagged: boolean;
   is_critical: boolean;
   last_prophetx_poll: string | null;
+  last_real_world_poll: string | null;
 }
 
 export async function fetchEvents(): Promise<EventRow[]> {

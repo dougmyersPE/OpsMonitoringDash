@@ -33,7 +33,7 @@ async def list_events(session: AsyncSession = Depends(get_async_session)):
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
     visible = or_(
         Event.prophetx_status != "ended",
-        Event.last_prophetx_poll >= cutoff,
+        Event.last_real_world_poll >= cutoff,
     )
     total_q = await session.execute(select(func.count()).select_from(Event).where(visible))
     total = total_q.scalar_one()

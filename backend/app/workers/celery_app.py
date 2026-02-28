@@ -36,6 +36,7 @@ celery_app.conf.update(
     # Memory management
     result_expires=3600,             # 1-hour TTL on task results in Redis
     task_ignore_result=True,         # Polling tasks don't need result storage
+    worker_max_memory_per_child=400000,  # 400MB — recycle fork worker after task instead of OOM kill
 
     # Beat schedule — intervals configured via POLL_INTERVAL_* env vars
     beat_schedule={

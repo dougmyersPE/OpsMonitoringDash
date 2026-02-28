@@ -223,9 +223,9 @@ type SortCol =
   | "sdio_status"
   | "espn_status"
   | "is_flagged"
-  | "last_prophetx_poll";
+  | "last_real_world_poll";
 
-const DATE_COLS = new Set<SortCol>(["scheduled_start", "last_prophetx_poll"]);
+const DATE_COLS = new Set<SortCol>(["scheduled_start", "last_real_world_poll"]);
 const STATUS_COLS = new Set<SortCol>([
   "prophetx_status",
   "odds_api_status",
@@ -510,7 +510,7 @@ export default function EventsTable() {
               <SortableHead col="sdio_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>SDIO</SortableHead>
               <SortableHead col="espn_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>ESPN</SortableHead>
               <SortableHead col="is_flagged" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Flag</SortableHead>
-              <SortableHead col="last_prophetx_poll" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Checked</SortableHead>
+              <SortableHead col="last_real_world_poll" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Checked</SortableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -552,8 +552,8 @@ export default function EventsTable() {
                 <TableCell><SourceStatus status={event.espn_status} /></TableCell>
                 <TableCell><FlaggedBadge flagged={event.is_flagged} /></TableCell>
                 <TableCell className="font-mono text-[11px] text-zinc-600 whitespace-nowrap">
-                  {event.last_prophetx_poll
-                    ? format(new Date(event.last_prophetx_poll), "HH:mm:ss")
+                  {event.last_real_world_poll
+                    ? format(new Date(event.last_real_world_poll), "HH:mm:ss")
                     : <span className="text-zinc-700">—</span>}
                 </TableCell>
               </TableRow>
