@@ -350,8 +350,13 @@ def run(self):
                 or "Unknown"
             )
 
+            # GlobalGameID (NBA/NFL/MLB/NHL/NCAAB/NCAAF) matches ProphetX event ID directly.
+            # Store it so we can skip fuzzy matching when IDs align exactly.
+            global_game_id = str(game.get("GlobalGameID") or "")
+
             sdio_games_normalized.append({
                 "sdio_game_id": sdio_game_id,
+                "global_game_id": global_game_id,
                 "sport": sport,
                 "home_team": str(home_team),
                 "away_team": str(away_team),
@@ -370,7 +375,22 @@ def run(self):
                 "scheduled_start": px_event.scheduled_start,
             }
 
-            match = matcher.find_best_match(px_event_dict, sdio_games_normalized)
+            # Direct ID match: SDIO GlobalGameID == ProphetX event ID (NBA/NFL/MLB/NHL etc.)
+            # Bypasses fuzzy matching entirely — SDIO abbreviations ("MEM", "DAL") score
+            # poorly against ProphetX full names ("Memphis Grizzlies", "Dallas Mavericks").
+            px_id = str(px_event.prophetx_event_id)
+            direct_game = next(
+                (g for g in sdio_games_normalized if g.get("global_game_id") == px_id),
+                None,
+            )
+            if direct_game is not None:
+                match = {
+                    "sdio_game_id": direct_game["sdio_game_id"],
+                    "confidence": 1.0,
+                    "is_confirmed": True,
+                }
+            else:
+                match = matcher.find_best_match(px_event_dict, sdio_games_normalized)
 
             if match is None:
                 px_event.last_real_world_poll = now
