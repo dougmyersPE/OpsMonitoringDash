@@ -208,9 +208,11 @@ def run(self):
                 for event in date_candidates:
                     if not event.home_team or not event.away_team:
                         continue
-                    home_sim = _similarity(event.home_team, home)
-                    away_sim = _similarity(event.away_team, away)
-                    score = (home_sim + away_sim) / 2
+                    # Try both orderings — MMA/Tennis home/away conventions differ
+                    # between providers, so check forward and reversed and take the best.
+                    forward = (_similarity(event.home_team, home) + _similarity(event.away_team, away)) / 2
+                    reversed_ = (_similarity(event.home_team, away) + _similarity(event.away_team, home)) / 2
+                    score = max(forward, reversed_)
                     if score > best_score:
                         best_score = score
                         best_match = event
