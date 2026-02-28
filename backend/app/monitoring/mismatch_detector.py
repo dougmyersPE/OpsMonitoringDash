@@ -276,8 +276,8 @@ def compute_is_critical(
         return False
 
     px_canonical = _PX_CANONICAL.get(px_status, px_status.lower())
-    if px_canonical == "inprogress":
-        return False  # ProphetX already shows live — not critical
+    if px_canonical != "scheduled":
+        return False  # Only critical when ProphetX shows not-started but sources say live
 
     sources: list[tuple[str | None, dict[str, str] | None]] = [
         (odds_api_status, _ODDS_API_CANONICAL),
