@@ -99,11 +99,13 @@ None.
 
 ### Blockers/Concerns
 
-- **PHASE 2 BLOCKER:** ProphetX correct base URL needed — `api.prophetx.co` does not resolve; contact Doug for real URL + API key
-- **PHASE 2 BLOCKER:** ProphetX status enum values still unconfirmed (no successful API call yet) — required before Phase 2 comparison logic
-- SportsDataIO NFL/NCAAB/NCAAF endpoint paths return 404 (different URL format than NBA/MLB/NHL/Soccer) — needs research for Phase 2 sport coverage
-- Event ID matching confidence threshold (0.90) must be validated against real ProphetX + SportsDataIO data early in Phase 2
+- SportsDataIO NFL/NCAAB/NCAAF endpoint paths return 404 (different URL format than NBA/MLB/NHL/Soccer) — needs research
+- Event ID matching confidence threshold (0.90) must be validated against real ProphetX + SportsDataIO data
 - /api/v1/health/workers returns 404 despite correct route registration — needs investigation (likely path conflict or import error in workers module)
+
+### Resolved
+- ProphetX base URL: `https://api-ss-sandbox.betprophet.co/partner` — confirmed working (WS consumer live)
+- ProphetX status enum values confirmed from live DB: `ended`, `live`, `not_started`
 
 ## Session Continuity
 

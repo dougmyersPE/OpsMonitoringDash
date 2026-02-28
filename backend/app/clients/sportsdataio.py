@@ -1,3 +1,5 @@
+import httpx
+
 from app.clients.base import BaseAPIClient
 from app.core.config import settings
 from datetime import date
@@ -28,14 +30,23 @@ class SportsDataIOClient(BaseAPIClient):
         Fetch raw games for a sport on a given date (default: today).
         sport: logical sport name e.g. "ncaab", "nba", "mlb", "nhl"
         game_date: YYYY-MM-DD format; defaults to today
+
+        SDIO returns 404 when no games are scheduled (off-season or gameless date).
+        This is treated as an empty result, not an error.
         """
         if game_date is None:
             game_date = date.today().isoformat()
         path_sport = SPORT_PATH_MAP.get(sport, sport)
-        raw = await self._get(
-            f"/{path_sport}/scores/json/GamesByDate/{game_date}",
-            headers=self._headers,
-        )
+        try:
+            raw = await self._get(
+                f"/{path_sport}/scores/json/GamesByDate/{game_date}",
+                headers=self._headers,
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                log.debug("sportsdataio_no_games", sport=sport, date=game_date)
+                return []
+            raise
         log.info(
             "sportsdataio_games_raw",
             sport=sport,
@@ -51,11 +62,19 @@ class SportsDataIOClient(BaseAPIClient):
         return raw if isinstance(raw, list) else []
 
     async def get_soccer_games_by_date(self, competition_id: int | str, game_date: str) -> list:
-        """Fetch games for one soccer competition on a given date."""
-        raw = await self._get(
-            f"/soccer/scores/json/GamesByDate/{competition_id}/{game_date}",
-            headers=self._headers,
-        )
+        """Fetch games for one soccer competition on a given date.
+
+        SDIO returns 404 when no games are scheduled for that competition/date.
+        """
+        try:
+            raw = await self._get(
+                f"/soccer/scores/json/GamesByDate/{competition_id}/{game_date}",
+                headers=self._headers,
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return []
+            raise
         return raw if isinstance(raw, list) else []
 
     async def get_team_names(self, sport: str) -> dict[str, str]:
