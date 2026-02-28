@@ -533,7 +533,7 @@ export default function EventsTable() {
                 </TableCell>
                 <TableCell className={cn(
                   "font-medium text-zinc-200",
-                  dense ? "max-w-[140px] text-xs" : "max-w-[200px] text-sm"
+                  dense ? "max-w-[200px] text-xs" : "max-w-[280px] text-xs"
                 )}>
                   <span className="block truncate" title={event.name}>{event.name}</span>
                 </TableCell>
