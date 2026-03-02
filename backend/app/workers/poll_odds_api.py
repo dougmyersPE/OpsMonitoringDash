@@ -72,24 +72,49 @@ def run(self):
         return
 
     # ------------------------------------------------------------------ #
-    # 1. Fetch scores for all mapped sports                                #
+    # 1. Determine which sports to poll based on active events in DB       #
+    # ------------------------------------------------------------------ #
+    with SyncSessionLocal() as session:
+        active_sports = {
+            _normalize_sport(row[0])
+            for row in session.execute(
+                select(Event.sport).where(Event.sport.isnot(None)).distinct()
+            ).all()
+        }
+
+    # Only fetch sport keys that map to sports with active ProphetX events
+    relevant_keys: list[tuple[str, str]] = []  # (prophetx_sport, sport_key)
+    for prophetx_sport, sport_keys in SPORT_KEY_MAP.items():
+        if prophetx_sport in active_sports:
+            for sport_key in sport_keys:
+                relevant_keys.append((prophetx_sport, sport_key))
+
+    if not relevant_keys:
+        log.info("poll_odds_api_no_active_sports")
+        _write_heartbeat()
+        return
+
+    log.info("odds_api_sport_keys_to_fetch", count=len(relevant_keys),
+             keys=[k for _, k in relevant_keys])
+
+    # ------------------------------------------------------------------ #
+    # 2. Fetch scores only for relevant sports                             #
     # ------------------------------------------------------------------ #
     async def _fetch_all() -> list[dict]:
         results: list[dict] = []
         async with OddsAPIClient() as client:
-            for prophetx_sport, sport_keys in SPORT_KEY_MAP.items():
-                for sport_key in sport_keys:
-                    try:
-                        games = await client.get_scores(sport_key, days_from=3)
-                        for g in games:
-                            g["_prophetx_sport"] = prophetx_sport
-                        results.extend(games)
-                    except Exception as exc:
-                        log.warning(
-                            "odds_api_sport_fetch_failed",
-                            sport_key=sport_key,
-                            error=str(exc),
-                        )
+            for prophetx_sport, sport_key in relevant_keys:
+                try:
+                    games = await client.get_scores(sport_key, days_from=3)
+                    for g in games:
+                        g["_prophetx_sport"] = prophetx_sport
+                    results.extend(games)
+                except Exception as exc:
+                    log.warning(
+                        "odds_api_sport_fetch_failed",
+                        sport_key=sport_key,
+                        error=str(exc),
+                    )
         return results
 
     try:
@@ -155,15 +180,48 @@ def run(self):
             best_match: Event | None = None
             best_score = 0.0
 
+            # Parse game datetime for time-proximity scoring
+            try:
+                game_dt = datetime.fromisoformat(commence_raw.replace("Z", "+00:00"))
+            except Exception:
+                game_dt = datetime(game_date.year, game_date.month, game_date.day, 12, 0, tzinfo=timezone.utc)
+
             for event in match_candidates:
                 home_sim = _similarity(event.home_team or "", home)
                 away_sim = _similarity(event.away_team or "", away)
-                score = (home_sim + away_sim) / 2
+                name_score = (home_sim + away_sim) / 2
+
+                # Time proximity bonus — prefer closer matches
+                time_bonus = 0.0
+                if event.scheduled_start and game_dt:
+                    delta_hours = abs((event.scheduled_start - game_dt).total_seconds()) / 3600
+                    if delta_hours <= 1:
+                        time_bonus = 0.15
+                    elif delta_hours <= 6:
+                        time_bonus = 0.10
+                    elif delta_hours <= 12:
+                        time_bonus = 0.05
+
+                score = name_score + time_bonus
                 if score > best_score:
                     best_score = score
                     best_match = event
 
             if best_match and best_score >= FUZZY_THRESHOLD:
+                # 12-hour guard — reject cross-day mismatches
+                if best_match.scheduled_start:
+                    game_midday = datetime(game_date.year, game_date.month, game_date.day, 12, 0, tzinfo=timezone.utc)
+                    hours_apart = abs((best_match.scheduled_start - game_midday).total_seconds()) / 3600
+                    if hours_apart > 12:
+                        unmatched += 1
+                        log.debug(
+                            "odds_api_time_too_far",
+                            home=home, away=away,
+                            game_date=str(game_date),
+                            scheduled_start=str(best_match.scheduled_start),
+                            hours_apart=round(hours_apart, 1),
+                        )
+                        continue
                 best_match.odds_api_status = real_status
                 new_status_match = compute_status_match(
                     best_match.prophetx_status,
