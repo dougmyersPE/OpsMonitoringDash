@@ -101,6 +101,13 @@ _SOCCER_COMPETITIONS_TTL = 86400  # 24 hours
 @celery_app.task(name="app.workers.poll_sports_data.run", bind=True, max_retries=3)
 def run(self):
     """Fetch SDIO games, run EventMatcher, detect mismatches and flag-only events."""
+    from app.workers.source_toggle import is_source_enabled, clear_source_and_recompute
+    if not is_source_enabled("sports_data"):
+        clear_source_and_recompute("sports_data")
+        _write_heartbeat()
+        log.info("poll_sports_data_skipped", reason="source disabled")
+        return
+
     # Query active ProphetX soccer tournament names so we can filter SDIO
     # competition queries to only competitions that ProphetX currently serves.
     px_soccer_leagues: set[str] = set()

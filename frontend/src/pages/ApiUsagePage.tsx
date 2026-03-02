@@ -4,6 +4,7 @@ import { fetchUsageData } from "../api/usage";
 import QuotaSection from "../components/usage/QuotaSection";
 import CallVolumeSection from "../components/usage/CallVolumeSection";
 import IntervalSection from "../components/usage/IntervalSection";
+import SourceToggleSection from "../components/usage/SourceToggleSection";
 import { useAuthStore } from "../stores/auth";
 
 export default function ApiUsagePage() {
@@ -42,7 +43,10 @@ export default function ApiUsagePage() {
               intervals={data.intervals}
             />
             {role === "admin" && (
-              <IntervalSection intervals={data.intervals} />
+              <>
+                <SourceToggleSection sourcesEnabled={data.sources_enabled} />
+                <IntervalSection intervals={data.intervals} />
+              </>
             )}
           </>
         )}

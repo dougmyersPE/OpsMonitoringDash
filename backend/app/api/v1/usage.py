@@ -154,6 +154,13 @@ async def get_usage(
         projections["per_worker"][worker] = monthly
         projections["monthly_total"] += monthly
 
+    # --- 6. Source enabled toggles ---
+    source_toggle_keys = ["odds_api", "sports_api", "sports_data", "espn"]
+    sources_enabled: dict[str, bool] = {}
+    for src in source_toggle_keys:
+        val = config_map.get(f"source_enabled_{src}", "true")
+        sources_enabled[src] = val.lower() != "false"
+
     return {
         "date": today_str,
         "calls_today": calls_today,
@@ -164,4 +171,5 @@ async def get_usage(
         },
         "intervals": intervals,
         "projections": projections,
+        "sources_enabled": sources_enabled,
     }

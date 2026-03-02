@@ -87,6 +87,13 @@ def run(self):
         log.warning("poll_odds_api_skipped", reason="ODDS_API_KEY not configured")
         return
 
+    from app.workers.source_toggle import is_source_enabled, clear_source_and_recompute
+    if not is_source_enabled("odds_api"):
+        clear_source_and_recompute("odds_api")
+        _write_heartbeat()
+        log.info("poll_odds_api_skipped", reason="source disabled")
+        return
+
     # ------------------------------------------------------------------ #
     # 1. Determine which sports to poll based on active events in DB       #
     # ------------------------------------------------------------------ #

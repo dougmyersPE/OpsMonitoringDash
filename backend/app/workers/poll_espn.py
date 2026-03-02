@@ -76,6 +76,13 @@ def _increment_call_counter(worker_name: str) -> None:
 @celery_app.task(name="app.workers.poll_espn.run", bind=True, max_retries=3)
 def run(self):
     """Fetch ESPN scoreboards and update espn_status on matched events."""
+    from app.workers.source_toggle import is_source_enabled, clear_source_and_recompute
+    if not is_source_enabled("espn"):
+        clear_source_and_recompute("espn")
+        _write_heartbeat()
+        log.info("poll_espn_skipped", reason="source disabled")
+        return
+
     now = datetime.now(timezone.utc)
     today = now.date()
     yesterday = today - timedelta(days=1)

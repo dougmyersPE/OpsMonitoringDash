@@ -38,6 +38,7 @@ export interface UsageData {
     monthly_total: number;
     per_worker: Record<string, number>;
   };
+  sources_enabled: Record<string, boolean>;
 }
 
 export async function fetchUsageData(): Promise<UsageData> {

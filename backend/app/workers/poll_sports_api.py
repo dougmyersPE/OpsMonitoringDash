@@ -167,6 +167,13 @@ def run(self):
         log.warning("poll_sports_api_skipped", reason="SPORTS_API_KEY not configured")
         return
 
+    from app.workers.source_toggle import is_source_enabled, clear_source_and_recompute
+    if not is_source_enabled("sports_api"):
+        clear_source_and_recompute("sports_api")
+        _write_heartbeat()
+        log.info("poll_sports_api_skipped", reason="source disabled")
+        return
+
     now = datetime.now(timezone.utc)
     today = now.date()
     yesterday = today - timedelta(days=1)

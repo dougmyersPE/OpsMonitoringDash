@@ -37,6 +37,16 @@ INTERVAL_MINIMUMS = {
     "poll_interval_critical_check_min": "15",
 }
 
+# Source enable/disable toggles — "true" or "false". When disabled, the worker
+# skips polling, clears its source column, and recomputes status_match so stale
+# data doesn't cause false-positive alerts on the dashboard.
+SOURCE_ENABLED_DEFAULTS = {
+    "source_enabled_odds_api": ("true", "Enable Odds API polling source"),
+    "source_enabled_sports_api": ("true", "Enable Sports API polling source"),
+    "source_enabled_sports_data": ("true", "Enable SportsDataIO polling source"),
+    "source_enabled_espn": ("true", "Enable ESPN polling source"),
+}
+
 
 def seed_intervals(session):
     """Insert poll interval and minimum config rows if they don't already exist.
@@ -47,6 +57,7 @@ def seed_intervals(session):
     all_keys = {
         **{k: (v, "Poll interval (seconds) — seeded from env/defaults") for k, v in INTERVAL_DEFAULTS.items()},
         **{k: (v, "Minimum poll interval floor (seconds) — prevents API abuse") for k, v in INTERVAL_MINIMUMS.items()},
+        **SOURCE_ENABLED_DEFAULTS,
     }
 
     for key, (default_value, description) in all_keys.items():

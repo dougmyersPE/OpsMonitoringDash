@@ -96,6 +96,11 @@ async def update_config(
     body: ConfigUpdateRequest,
     session: AsyncSession = Depends(get_async_session),
 ):
+    # --- Source toggle validation ---
+    is_source_toggle = key.startswith("source_enabled_")
+    if is_source_toggle and body.value.lower() not in ("true", "false"):
+        raise HTTPException(status_code=422, detail="Source toggle must be 'true' or 'false'")
+
     # --- Interval-specific validation ---
     worker_key = INTERVAL_WORKER_KEYS.get(key)
     is_interval_key = worker_key is not None
