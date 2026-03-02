@@ -1,13 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
-import { Activity, BarChart2 } from "lucide-react";
+import { Activity, BarChart2, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SystemHealth from "./SystemHealth";
 import NotificationCenter from "./NotificationCenter";
 import SseProvider from "./SseProvider";
 
 const NAV_ITEMS = [
-  { to: "/",        label: "Events",  Icon: Activity  },
-  { to: "/markets", label: "Markets", Icon: BarChart2  },
+  { to: "/",        label: "Events",    Icon: Activity  },
+  { to: "/markets", label: "Markets",   Icon: BarChart2 },
+  { to: "/usage",   label: "API Usage", Icon: Gauge     },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

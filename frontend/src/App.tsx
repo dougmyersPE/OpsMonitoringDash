@@ -5,6 +5,7 @@ import { useAuthStore } from "./stores/auth";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import MarketsPage from "./pages/MarketsPage";
+import ApiUsagePage from "./pages/ApiUsagePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +41,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <MarketsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/usage"
+            element={
+              <ProtectedRoute>
+                <ApiUsagePage />
               </ProtectedRoute>
             }
           />
