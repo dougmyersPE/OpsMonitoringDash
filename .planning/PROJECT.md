@@ -2,24 +2,11 @@
 
 ## What This Is
 
-An internal operations tool for a ProphetX prediction market operator. It continuously monitors sports event statuses on ProphetX against real-world game states (via SportsDataIO), automatically syncs them when mismatches are detected, monitors market liquidity levels against configurable thresholds, and surfaces all issues to the team via a real-time dashboard, Slack alerts, and an in-app notification center.
+An internal operations tool for a ProphetX prediction market operator. It continuously monitors sports event statuses on ProphetX against real-world game states (via SportsDataIO, ESPN, Sports API, and Odds API), automatically syncs them when mismatches are detected, monitors market liquidity levels against configurable thresholds, tracks API usage with quota monitoring and per-worker frequency controls, and surfaces all issues to the team via a real-time dashboard, Slack alerts, and an in-app notification center.
 
 ## Core Value
 
 Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-
-## Current Milestone: v1.1 Stabilization + API Usage
-
-**Goal:** Fix false-positive alerts and data source gaps from v1.0, add API usage monitoring with per-worker poll frequency controls.
-
-**Target features:**
-- Fix false-positive alerts (Sports API wrong-game matching)
-- Fix SDIO NFL/NCAAB/NCAAF endpoint 404s
-- Fix worker health endpoint 404
-- Validate event matching confidence threshold against real data
-- API usage tab: pull usage/limits from SDIO, Odds API, Sports API endpoints
-- API usage tab: track total call volume across all workers
-- API usage tab: per-worker poll frequency controls (adjustable from UI)
 
 ## Requirements
 
@@ -36,49 +23,70 @@ Operators always know the true health of their ProphetX platform — stale event
 - ✓ In-app notification center with read/unread state — v1.0
 - ✓ Audit log of all automated and manual actions (append-only) — v1.0
 - ✓ Role-based access control: Admin, Operator, Read-Only — v1.0
+- ✓ False-positive mismatch alerts eliminated (actual game datetimes + 6h threshold) — v1.1
+- ✓ Worker health endpoint returns correct status — v1.1
+- ✓ Confidence threshold validated against real data — v1.1
+- ✓ Daily API call counts per worker visible on API Usage tab — v1.1
+- ✓ Provider quota display (Odds API + Sports API per sport) — v1.1
+- ✓ 7-day call volume history chart — v1.1
+- ✓ Projected monthly call volume — v1.1
+- ✓ Admin poll frequency controls with <5s effect — v1.1
+- ✓ Server-enforced minimum poll intervals (HTTP 422) — v1.1
+- ✓ DB-backed intervals surviving Beat restarts — v1.1
 
 ### Active
 
-(Defined in REQUIREMENTS.md for v1.1)
+(None — planning next milestone)
 
 ### Out of Scope
 
-- Automated liquidity top-up — deferred until ProphetX API liquidity mechanics confirmed
-- Market creation or odds-making — not an operator tool for that
-- Email/SMS alerting — Slack + in-app covers v1 needs
+- Automated liquidity top-up — ProphetX API liquidity mechanics unconfirmed; financial risk
+- Market creation or odds-making — not an operator tool
+- Email/SMS alerting — Slack + in-app covers team needs
 - Mobile native app — web dashboard sufficient
-- Historical analytics beyond audit log — future phase
+- Automated quota throttling — risk of oscillation; operators should decide
+- Real-time calls/second display — always 0.0-0.1 at this scale; meaningless
+- Full API call log (every request in DB) — ~1.3M rows/month, no actionable use case
+- SDIO quota tracking — SDIO plans are "unlimited calls"; no quota endpoint
 
 ## Context
 
-- Platform: ProphetX prediction market (sports betting markets)
-- ProphetX REST API + WebSocket consumer live at `https://api-ss-sandbox.betprophet.co/partner`
-- ProphetX status enum values confirmed: `ended`, `live`, `not_started`
-- SportsDataIO is the existing sports data subscription (main key + soccer key)
-- Sports focus: NFL, NBA, MLB, NHL, NCAAB, NCAAF, Soccer
-- Supplementary sources: The Odds API, ESPN unofficial API, Sports API
-- Deployed on Hetzner CX23 (Tailscale access at http://100.111.249.12)
-- GitHub: https://github.com/dougmyersPE/OpsMonitoringDash (private)
-- Team of multiple people with Admin, Operator, Read-Only roles
-- Event ID matching layer uses sport + team names + scheduled start time with confidence scoring
+Shipped v1.1 with ~9,869 LOC (7,192 Python + 2,677 TypeScript).
+Tech stack: FastAPI + Celery/Redis/RedBeat + PostgreSQL, React/TypeScript + Tailwind v4 + shadcn/ui v3.
+Deployed on Hetzner CX23 (Tailscale access at http://100.111.249.12).
+GitHub: https://github.com/dougmyersPE/OpsMonitoringDash (private).
+
+ProphetX REST API + WebSocket consumer live at `https://api-ss-sandbox.betprophet.co/partner`.
+5 poll workers: ProphetX WS, SportsDataIO, ESPN, Sports API, Odds API.
+Sports focus: NFL, NBA, MLB, NHL, NCAAB, NCAAF, Soccer.
+
+Known tech debt:
+- SportsApiClient bypasses BaseAPIClient (works but architecturally inconsistent)
+- Sports API quota reads: 15 sequential Redis reads instead of MGET
+- SDIO NFL/NCAAB/NCAAF endpoints 404 (off-season; deferred until seasons resume)
+- ProphetX write endpoint still stubbed (log-only until PATCH path confirmed)
 
 ## Constraints
 
 - **Tech Stack**: Python/FastAPI backend, React/TypeScript frontend, PostgreSQL + Redis — chosen for async polling capability, sports data ecosystem, real-time dashboard support
 - **Latency**: Dashboard and status correction must reflect changes within 30 seconds
-- **Reliability**: Polling workers must auto-restart; ProphetX API failures retry with exponential backoff (3 attempts); system stays up even if SportsDataIO is temporarily unavailable
+- **Reliability**: Polling workers must auto-restart; ProphetX API failures retry with exponential backoff (3 attempts); system stays up even if a data source is temporarily unavailable
 - **Security**: API keys stored as environment variables; JWT auth; HTTPS only; audit log append-only
-- **Deployment**: Docker Compose on VPS; infrastructure cost target ~$15–30/month
+- **Deployment**: Docker Compose on VPS; infrastructure cost target ~$15-30/month
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Python + FastAPI backend | Best ecosystem for sports data integrations; async-native for concurrent polling | — Pending |
-| Celery + Redis for background workers | Industry standard for periodic tasks; horizontally scalable | — Pending |
-| SSE over WebSockets for dashboard | Simpler server-side implementation; unidirectional push sufficient | — Pending |
-| Liquidity: alert-only in v1 | ProphetX API top-up mechanics unconfirmed; avoid financial risk | — Pending |
-| Event matching layer required | ProphetX and SportsDataIO use different IDs; match by sport + teams + time | — Pending |
+| Python + FastAPI backend | Best ecosystem for sports data integrations; async-native for concurrent polling | ✓ Good — handles 5 concurrent workers well |
+| Celery + Redis for background workers | Industry standard for periodic tasks; horizontally scalable | ✓ Good — RedBeat solved restart issues |
+| SSE over WebSockets for dashboard | Simpler server-side implementation; unidirectional push sufficient | ✓ Good — reconnect banner handles drops |
+| Liquidity: alert-only in v1 | ProphetX API top-up mechanics unconfirmed; avoid financial risk | ✓ Good — still appropriate |
+| Event matching layer required | ProphetX and SportsDataIO use different IDs; match by sport + teams + time | ✓ Good — 0.90 threshold validated |
+| RedBeat for Celery Beat scheduler | Prevents duplicate tasks on restart; Redis-backed | ✓ Good — DB bootstrap added in v1.1 |
+| DB-backed poll intervals (v1.1) | Operator changes must survive Beat restarts; static config was fragile | ✓ Good — bootstrap reads DB on start |
+| Deferred import for celery_app in API | Avoids loading Celery machinery in API process; only runs on admin PATCH | ✓ Good — clean separation |
+| Recharts for data visualization | Compatible with React 19; simpler API than D3 | ✓ Good — stacked bar chart works well |
 
 ---
-*Last updated: 2026-03-01 after v1.1 milestone start*
+*Last updated: 2026-03-02 after v1.1 milestone*
