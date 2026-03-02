@@ -63,13 +63,13 @@ Requirements for milestone v1.1 (Stabilization + API Usage). Each maps to roadma
 ### API Usage Tracking
 
 - [x] **USAGE-01**: Operator can see total API calls made per worker per day on the API Usage tab
-- [ ] **USAGE-02**: Operator can see provider-reported quota (used/remaining/limit) for Odds API and Sports API on the API Usage tab
-- [ ] **USAGE-03**: Operator can see a 7-day call volume history chart per worker on the API Usage tab
-- [ ] **USAGE-04**: Operator can see projected monthly call volume at current polling rate on the API Usage tab
+- [x] **USAGE-02**: Operator can see provider-reported quota (used/remaining/limit) for Odds API and Sports API on the API Usage tab
+- [x] **USAGE-03**: Operator can see a 7-day call volume history chart per worker on the API Usage tab
+- [x] **USAGE-04**: Operator can see projected monthly call volume at current polling rate on the API Usage tab
 
 ### Poll Frequency Controls
 
-- [ ] **FREQ-01**: Admin can adjust poll frequency per worker from the API Usage tab with changes taking effect within seconds
+- [x] **FREQ-01**: Admin can adjust poll frequency per worker from the API Usage tab with changes taking effect within seconds
 - [x] **FREQ-02**: Server enforces minimum poll interval per worker to prevent API abuse (HTTP 422 on violation)
 - [x] **FREQ-03**: Poll interval settings persist across Beat restarts (DB-backed, not overwritten by static config)
 
@@ -152,10 +152,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USAGE-01 | Phase 4 | Complete |
 | FREQ-02 | Phase 5 | Complete |
 | FREQ-03 | Phase 5 | Complete |
-| USAGE-02 | Phase 7 | Pending |
-| USAGE-03 | Phase 7 | Pending |
-| USAGE-04 | Phase 7 | Pending |
-| FREQ-01 | Phase 7 | Pending |
+| USAGE-02 | Phase 6 | Complete |
+| USAGE-03 | Phase 6 | Complete |
+| USAGE-04 | Phase 6 | Complete |
+| FREQ-01 | Phase 6 | Complete |
 
 **Coverage:**
 - v1.0 requirements: 21 total — 21 complete ✓
@@ -164,4 +164,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-03-01 after v1.1 roadmap created (phases 4-6)*
+*Last updated: 2026-03-02 after Phase 7 documentation gap closure — all 10 v1.1 requirements checked and traceability updated to reflect Phase 6 as implementation phase*
