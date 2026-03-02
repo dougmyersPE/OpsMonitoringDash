@@ -8,7 +8,7 @@ Three phases that build in strict dependency order. Phase 1 assembles the infras
 
 ### v1.1 (Active)
 
-Three phases starting at Phase 4. Phase 4 fixes active false-positive bugs and broken endpoints while laying the Redis counter foundation that all usage display depends on. Phase 5 resolves the RedBeat restart overwrite problem and adds server-side interval enforcement — this backend-only phase must complete before any UI for frequency controls is built. Phase 6 delivers the ApiUsagePage frontend, surfacing call volume, provider quota, 7-day history, projected usage, and per-worker frequency controls to operators.
+Four phases starting at Phase 4. Phase 4 fixes active false-positive bugs and broken endpoints while laying the Redis counter foundation that all usage display depends on. Phase 5 resolves the RedBeat restart overwrite problem and adds server-side interval enforcement — this backend-only phase must complete before any UI for frequency controls is built. Phase 6 delivers the ApiUsagePage frontend, surfacing call volume, provider quota, 7-day history, projected usage, and per-worker frequency controls to operators. Phase 7 closes documentation gaps from the milestone audit: creates missing VERIFICATION.md files for Phases 4 and 6, updates SUMMARY frontmatter, and checks off completed requirements.
 
 ## Phases
 
@@ -24,6 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Stabilization + Counter Foundation** - Fix false-positive alerts, broken endpoints, and confidence threshold; emit Redis call counters from all workers (completed 2026-03-02)
 - [x] **Phase 5: Interval Control Backend** - Remove poll intervals from static Beat config, bootstrap from DB on startup, enforce minimum intervals server-side (completed 2026-03-02)
 - [x] **Phase 6: ApiUsagePage** - Frontend tab showing call volume, provider quota, 7-day chart, projected usage, and per-worker frequency controls (completed 2026-03-02)
+- [ ] **Phase 7: Documentation Gap Closure** - Create missing VERIFICATION.md files, update SUMMARY frontmatter, check off completed requirements (audit gap closure)
 
 ## Phase Details
 
@@ -120,6 +121,19 @@ Plans:
 - [x] 06-01-PLAN.md — Backend data pipeline: quota header capture, ApiUsageSnapshot model + migration, nightly rollup worker, extended /usage endpoint
 - [x] 06-02-PLAN.md — Frontend ApiUsagePage: quota cards, 7-day stacked bar chart (Recharts), projection card, admin interval controls, routing + nav
 
+### Phase 7: Documentation Gap Closure
+**Goal**: All v1.1 requirements are fully satisfied per 3-source cross-reference (VERIFICATION.md + SUMMARY frontmatter + REQUIREMENTS.md checkboxes) — closing the documentation gaps identified by the milestone audit so the milestone can be archived
+**Depends on**: Phase 6
+**Requirements**: USAGE-02, USAGE-03, USAGE-04, FREQ-01
+**Gap Closure:** Closes gaps from v1.1 milestone audit (2026-03-02)
+**Success Criteria** (what must be TRUE):
+  1. Phase 4 VERIFICATION.md exists and confirms STAB-01, STAB-02, STAB-03, USAGE-01 are satisfied (code already verified by integration checker)
+  2. Phase 6 VERIFICATION.md exists and confirms USAGE-02, USAGE-03, USAGE-04, FREQ-01 are satisfied (code already verified by integration checker)
+  3. Phase 6 SUMMARY frontmatter `requirements_completed` fields are populated in both 06-01-SUMMARY.md and 06-02-SUMMARY.md
+  4. REQUIREMENTS.md checkboxes for USAGE-02, USAGE-03, USAGE-04, FREQ-01 are checked and traceability status is Complete
+
+Plans: (none yet)
+
 ## Progress
 
 **Execution Order:**
@@ -133,3 +147,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 4. Stabilization + Counter Foundation | 2/2 | Complete | 2026-03-02 |
 | 5. Interval Control Backend | 2/2 | Complete | 2026-03-02 |
 | 6. ApiUsagePage | 2/2 | Complete | 2026-03-02 |
+| 7. Documentation Gap Closure | 0/0 | Pending | — |

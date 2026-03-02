@@ -152,10 +152,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | USAGE-01 | Phase 4 | Complete |
 | FREQ-02 | Phase 5 | Complete |
 | FREQ-03 | Phase 5 | Complete |
-| USAGE-02 | Phase 6 | Pending |
-| USAGE-03 | Phase 6 | Pending |
-| USAGE-04 | Phase 6 | Pending |
-| FREQ-01 | Phase 6 | Pending |
+| USAGE-02 | Phase 7 | Pending |
+| USAGE-03 | Phase 7 | Pending |
+| USAGE-04 | Phase 7 | Pending |
+| FREQ-01 | Phase 7 | Pending |
 
 **Coverage:**
 - v1.0 requirements: 21 total — 21 complete ✓
