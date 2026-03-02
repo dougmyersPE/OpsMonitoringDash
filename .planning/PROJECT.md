@@ -8,25 +8,38 @@ An internal operations tool for a ProphetX prediction market operator. It contin
 
 Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
 
+## Current Milestone: v1.1 Stabilization + API Usage
+
+**Goal:** Fix false-positive alerts and data source gaps from v1.0, add API usage monitoring with per-worker poll frequency controls.
+
+**Target features:**
+- Fix false-positive alerts (Sports API wrong-game matching)
+- Fix SDIO NFL/NCAAB/NCAAF endpoint 404s
+- Fix worker health endpoint 404
+- Validate event matching confidence threshold against real data
+- API usage tab: pull usage/limits from SDIO, Odds API, Sports API endpoints
+- API usage tab: track total call volume across all workers
+- API usage tab: per-worker poll frequency controls (adjustable from UI)
+
 ## Requirements
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Real-time polling of ProphetX events and markets — v1.0
+- ✓ Real-world game status data from SportsDataIO with supplementary sources — v1.0
+- ✓ Automated event status sync: Upcoming → Live → Ended — v1.0
+- ✓ Alert and flag events when real-world game is postponed or cancelled — v1.0
+- ✓ Configurable per-market liquidity thresholds with global defaults — v1.0
+- ✓ Liquidity monitoring: alert when market falls below threshold — v1.0
+- ✓ Real-time dashboard showing all events/markets with mismatch and low-liquidity highlighting — v1.0
+- ✓ Slack alerting (webhook) with deduplication — v1.0
+- ✓ In-app notification center with read/unread state — v1.0
+- ✓ Audit log of all automated and manual actions (append-only) — v1.0
+- ✓ Role-based access control: Admin, Operator, Read-Only — v1.0
 
 ### Active
 
-- [ ] Real-time polling of ProphetX events and markets every ~30 seconds
-- [ ] Real-world game status data from SportsDataIO (primary) with supplementary sources as fallback
-- [ ] Automated event status sync: Upcoming → Live → Ended when real-world state changes
-- [ ] Alert and flag events when real-world game is postponed or cancelled (manual action required)
-- [ ] Configurable per-market liquidity thresholds with global defaults
-- [ ] Liquidity monitoring: alert when market falls below threshold (no auto-top-up in v1)
-- [ ] Real-time dashboard showing all events/markets with mismatch and low-liquidity highlighting
-- [ ] Slack alerting (webhook) for status mismatches, auto-updates, liquidity breaches, action failures
-- [ ] In-app notification center with read/unread state
-- [ ] Audit log of all automated and manual actions (append-only)
-- [ ] Role-based access control: Admin, Operator, Read-Only
+(Defined in REQUIREMENTS.md for v1.1)
 
 ### Out of Scope
 
@@ -39,14 +52,15 @@ Operators always know the true health of their ProphetX platform — stale event
 ## Context
 
 - Platform: ProphetX prediction market (sports betting markets)
-- ProphetX has a REST API with authentication; exact status enum values to be confirmed from API docs
-- SportsDataIO is the existing sports data subscription (Doug's account)
-- Sports focus: primarily NFL, NBA, MLB, NHL and other major leagues covered by SportsDataIO
-- Supplementary sources (The Odds API, ESPN unofficial API, web scraping) fill gaps where SportsDataIO lacks coverage
-- Greenfield project — no existing codebase
-- Team of multiple people needs access (Admin, Operator, Read-Only roles)
-- Deployment: VPS/cloud (Docker + Docker Compose, Nginx, SSL)
-- Critical implementation risk: event ID mapping between ProphetX and SportsDataIO must be solved with a matching layer (sport type + team names + scheduled start time)
+- ProphetX REST API + WebSocket consumer live at `https://api-ss-sandbox.betprophet.co/partner`
+- ProphetX status enum values confirmed: `ended`, `live`, `not_started`
+- SportsDataIO is the existing sports data subscription (main key + soccer key)
+- Sports focus: NFL, NBA, MLB, NHL, NCAAB, NCAAF, Soccer
+- Supplementary sources: The Odds API, ESPN unofficial API, Sports API
+- Deployed on Hetzner CX23 (Tailscale access at http://100.111.249.12)
+- GitHub: https://github.com/dougmyersPE/OpsMonitoringDash (private)
+- Team of multiple people with Admin, Operator, Read-Only roles
+- Event ID matching layer uses sport + team names + scheduled start time with confidence scoring
 
 ## Constraints
 
@@ -67,4 +81,4 @@ Operators always know the true health of their ProphetX platform — stale event
 | Event matching layer required | ProphetX and SportsDataIO use different IDs; match by sport + teams + time | — Pending |
 
 ---
-*Last updated: 2026-02-24 after initialization*
+*Last updated: 2026-03-01 after v1.1 milestone start*

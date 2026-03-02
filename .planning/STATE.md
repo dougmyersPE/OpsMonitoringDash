@@ -2,47 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-24)
+See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 3 complete — all 5 plans executed (including gap closure 03-05)
+**Current focus:** Milestone v1.1 — Stabilization + API Usage
 
 ## Current Position
 
-Phase: 3 of 3 (Dashboard and Alerts) — COMPLETE
-Plan: 5 of 5 in current phase — COMPLETE
-Status: Phase 3 complete — all plans executed including gap closure
-Last activity: 2026-02-26 — Completed Plan 03-05 (gap closure: send_alerts wired, SSE timeout-based banner, notification nav links, last_prophetx_poll field fix)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v1.1
+Last activity: 2026-03-01 — Milestone v1.1 started
 
-Progress: [██████████] 100%
-
-## Performance Metrics
-
-**Velocity:**
-- Total plans completed: 6
-- Average duration: 9 min
-- Total execution time: 0.92 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01-foundation | 3/3 | 43 min | 14.3 min |
-| 02-monitoring-engine | 3/5 | 16 min | 5.3 min |
-| 03-dashboard-and-alerts | 5/5 | 18 min | 3.6 min |
-
-**Recent Trend:**
-- Last 5 plans: 15 min, 20 min, 5 min, 5 min, 5 min
-- Trend: stable
-
-*Updated after each plan completion*
-| Phase 02-monitoring-engine P02 | 5 | 2 tasks | 7 files |
-| Phase 02-monitoring-engine P03 | 6 | 2 tasks | 12 files |
-| Phase 03-dashboard-and-alerts P01 | 4 | 3 tasks | 17 files |
-| Phase 03-dashboard-and-alerts P02 | 4 | 2 tasks | 10 files |
-| Phase 03-dashboard-and-alerts P03 | 3 | 2 tasks | 8 files |
-| Phase 03-dashboard-and-alerts P04 | 5 | 2 tasks | 4 files |
-| Phase 03 P05 | 2min | 3 tasks | 5 files |
+Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
@@ -110,7 +82,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Generated docs/architecture.md, committed and pushed to GitHub. Clean state.
-Resume file: .planning/phases/03-dashboard-and-alerts/.continue-here.md (deployment context)
-
-Note: Slack webhook URL was redacted from .continue-here.md in git history (GitHub push protection). Real URL is still in server .env and local .env.
+Stopped at: Milestone v1.1 started, defining requirements
+Resume file: none
