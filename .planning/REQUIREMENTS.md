@@ -56,8 +56,8 @@ Requirements for milestone v1.1 (Stabilization + API Usage). Each maps to roadma
 
 ### Stabilization
 
-- [ ] **STAB-01**: Sports API false-positive alerts are eliminated by using actual game start times instead of noon-UTC proxy and tightening the time-distance guard
-- [ ] **STAB-02**: Worker health endpoint (`/api/v1/health/workers`) returns correct worker status instead of 404
+- [x] **STAB-01**: Sports API false-positive alerts are eliminated by using actual game start times instead of noon-UTC proxy and tightening the time-distance guard
+- [x] **STAB-02**: Worker health endpoint (`/api/v1/health/workers`) returns correct worker status instead of 404
 - [ ] **STAB-03**: Event matching confidence threshold is validated against real ProphetX + source data and tuned if needed
 
 ### API Usage Tracking
@@ -146,8 +146,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STAB-01 | Phase 4 | Pending |
-| STAB-02 | Phase 4 | Pending |
+| STAB-01 | Phase 4 | Complete |
+| STAB-02 | Phase 4 | Complete |
 | STAB-03 | Phase 4 | Pending |
 | USAGE-01 | Phase 4 | Pending |
 | FREQ-02 | Phase 5 | Pending |

@@ -1,3 +1,16 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+last_updated: "2026-03-02T03:59:10.892Z"
+progress:
+  total_phases: 4
+  completed_phases: 3
+  total_plans: 13
+  completed_plans: 12
+---
+
 # Project State
 
 ## Project Reference
@@ -10,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 4 — Stabilization + Counter Foundation
-Plan: —
-Status: Roadmap complete, ready to plan Phase 4
-Last activity: 2026-03-01 — v1.1 roadmap created (phases 4-6)
+Plan: 2 of 2
+Status: Plan 04-01 complete, ready for Plan 04-02
+Last activity: 2026-03-02 — Completed 04-01 (time guard fixes + health test)
 
-Progress: [░░░░░░░░░░] 0% (v1.1)
+Progress: [█████░░░░░] 50% (v1.1 — 1/2 Phase 4 plans complete)
 
 ## Performance Metrics
 
@@ -23,7 +36,8 @@ Progress: [░░░░░░░░░░] 0% (v1.1)
 | v1.1 requirements | 10 total |
 | Mapped to phases | 10/10 |
 | Phases defined | 3 (phases 4-6) |
-| Plans complete | 0 |
+| Plans complete | 1 |
+| Phase 04 P01 | 15min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -77,6 +91,10 @@ Recent decisions affecting current work:
 - v1.1 roadmap: USAGE-01 (call counters visible today) assigned to Phase 4 — counters start accumulating during stabilization, providing real data by Phase 6 frontend build
 - v1.1 roadmap: api-sports.io quota must be captured and displayed per sport family (Basketball, Hockey, Baseball, American Football each have separate daily quotas) — single "Sports API: N/100" number would be misleading
 - v1.1 roadmap: Redis counter pattern must use INCRBY (atomic) not GET/SET — non-atomic under --concurrency=6 causes undercounting
+- 04-01: Use game_dt (actual parsed datetime from api-sports.io) instead of noon-UTC proxy (game_start_utc) in poll_sports_api.py time guard — eliminates false-positive root cause
+- 04-01: Tighten time-distance threshold from >12h to >6h in both Sports API and ESPN workers — 6h is sufficient for UTC offsets while rejecting consecutive-day matches
+- 04-01: Replace guard_midday with record_dt in ESPN worker for consistency with Sports API pattern
+- [Phase 04]: Use game_dt (actual parsed datetime from api-sports.io) instead of noon-UTC proxy in time guard
 
 ### Pending Todos
 
@@ -93,10 +111,10 @@ Recent decisions affecting current work:
 
 - ProphetX base URL: `https://api-ss-sandbox.betprophet.co/partner` — confirmed working (WS consumer live)
 - ProphetX status enum values confirmed from live DB: `ended`, `live`, `not_started`
-- Sports API false-positive root cause: using noon-UTC proxy instead of actual start time, time-distance guard too loose (>12h) — fix is diagnosed and clear
+- Sports API false-positive root cause: using noon-UTC proxy instead of actual start time, time-distance guard too loose (>12h) — FIXED in 04-01 (commit 338390e)
 
 ## Session Continuity
 
-Last session: 2026-03-01
-Stopped at: v1.1 roadmap created (phases 4-6), ready to plan Phase 4
+Last session: 2026-03-02
+Stopped at: Completed 04-01-PLAN.md (time guard fixes + health test)
 Resume file: none
