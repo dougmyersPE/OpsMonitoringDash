@@ -109,6 +109,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-28
-Stopped at: Critical alert tier shipped and deployed. All session work committed. Clean state.
-Resume file: None
+Last session: 2026-03-01
+Stopped at: Generated docs/architecture.md, committed and pushed to GitHub. Clean state.
+Resume file: .planning/phases/03-dashboard-and-alerts/.continue-here.md (deployment context)
+
+Note: Slack webhook URL was redacted from .continue-here.md in git history (GitHub push protection). Real URL is still in server .env and local .env.
