@@ -21,9 +21,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Infrastructure, database, auth, and API clients — everything every subsequent phase depends on
 - [x] **Phase 2: Monitoring Engine** - Event matching, polling workers, auto status sync, liquidity monitoring, and audit log — the core value (completed 2026-02-25)
 - [x] **Phase 3: Dashboard and Alerts** - Real-time SSE dashboard, Slack alerting with deduplication, alert-only mode, and notification center (completed 2026-02-26)
-- [x] **Phase 4: Stabilization + Counter Foundation** - Fix false-positive alerts, broken endpoints, and confidence threshold; emit Redis call counters from all workers (code complete 2026-03-02, deployment pending)
-- [ ] **Phase 5: Interval Control Backend** - Remove poll intervals from static Beat config, bootstrap from DB on startup, enforce minimum intervals server-side
-- [ ] **Phase 6: ApiUsagePage** - Frontend tab showing call volume, provider quota, 7-day chart, projected usage, and per-worker frequency controls
+- [x] **Phase 4: Stabilization + Counter Foundation** - Fix false-positive alerts, broken endpoints, and confidence threshold; emit Redis call counters from all workers (completed 2026-03-02)
+- [x] **Phase 5: Interval Control Backend** - Remove poll intervals from static Beat config, bootstrap from DB on startup, enforce minimum intervals server-side (completed 2026-03-02)
+- [x] **Phase 6: ApiUsagePage** - Frontend tab showing call volume, provider quota, 7-day chart, projected usage, and per-worker frequency controls (completed 2026-03-02)
 
 ## Phase Details
 
@@ -102,7 +102,9 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. After an Admin sets a poll interval via PATCH `/api/v1/config/poll_interval_{worker}`, restarting the Beat container does not revert the interval to the code default — the DB-persisted value survives
   2. A PATCH request setting a poll interval below the per-worker minimum returns HTTP 422 with a clear error message; the interval is not applied
-**Plans**: TBD
+Plans:
+- [x] 05-01-PLAN.md — Empty beat_schedule, beat_bootstrap.py DB-read on startup, RedBeat entry creation for all workers
+- [x] 05-02-PLAN.md — Server-side minimum enforcement in PATCH /config, real-time RedBeat propagation via run_in_executor
 
 ### Phase 6: ApiUsagePage
 **Goal**: Operators and Admins can open the API Usage tab and immediately see provider quota status, per-worker call volume today and over the past 7 days, projected monthly burn rate, and — for Admins — live-updating interval controls per worker
@@ -113,7 +115,10 @@ Plans:
   2. Operator can see a 7-day bar chart of call volume per worker; the chart reflects accumulated `api_usage_snapshots` data and is not blank on day one
   3. Operator can see projected monthly call volume computed from the current polling rate; the projection updates when an Admin changes a poll interval
   4. Admin can enter a new poll interval for any worker, save it, and the change takes effect within 5 seconds without restarting any container; the interval input is not visible to Operator or Read-Only users
-**Plans**: TBD
+
+Plans:
+- [x] 06-01-PLAN.md — Backend data pipeline: quota header capture, ApiUsageSnapshot model + migration, nightly rollup worker, extended /usage endpoint
+- [x] 06-02-PLAN.md — Frontend ApiUsagePage: quota cards, 7-day stacked bar chart (Recharts), projection card, admin interval controls, routing + nav
 
 ## Progress
 
@@ -125,6 +130,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Foundation | 3/3 | Complete | 2026-02-25 |
 | 2. Monitoring Engine | 3/3 | Complete | 2026-02-25 |
 | 3. Dashboard and Alerts | 5/5 | Complete | 2026-02-26 |
-| 4. Stabilization + Counter Foundation | 2/2 | Code complete (deploy pending) | 2026-03-02 |
-| 5. Interval Control Backend | 0/? | Not started | - |
-| 6. ApiUsagePage | 0/? | Not started | - |
+| 4. Stabilization + Counter Foundation | 2/2 | Complete | 2026-03-02 |
+| 5. Interval Control Backend | 2/2 | Complete | 2026-03-02 |
+| 6. ApiUsagePage | 2/2 | Complete | 2026-03-02 |
