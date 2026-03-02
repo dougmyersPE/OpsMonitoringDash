@@ -66,10 +66,10 @@ export default function CallVolumeChart({ data }: CallVolumeChartProps) {
             color: "#e4e4e7",
             fontSize: "0.875rem",
           }}
-          labelFormatter={formatDate}
-          formatter={(value: number, name: string) => [
-            value.toLocaleString(),
-            WORKER_DISPLAY_NAMES[name] ?? name,
+          labelFormatter={(label) => formatDate(String(label))}
+          formatter={(value, name) => [
+            Number(value).toLocaleString(),
+            WORKER_DISPLAY_NAMES[String(name)] ?? String(name),
           ]}
         />
         <Legend
