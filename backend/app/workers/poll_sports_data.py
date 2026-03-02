@@ -48,6 +48,24 @@ def _write_heartbeat(worker_name: str) -> None:
     r = _sync_redis.from_url(settings.REDIS_URL)
     r.set(f"worker:heartbeat:{worker_name}", "1", ex=settings.POLL_INTERVAL_SPORTS_DATA * 3)
 
+
+def _increment_call_counter(worker_name: str) -> None:
+    """Atomically increment today's API call counter for this worker.
+
+    Key: api_calls:{worker_name}:{YYYY-MM-DD}
+    TTL: 8 days (set only on first write so old keys expire automatically).
+    Uses Redis INCR (atomic) -- safe under --concurrency=6.
+    """
+    from app.core.config import settings
+    from datetime import date
+    today = date.today().isoformat()
+    key = f"api_calls:{worker_name}:{today}"
+    r = _sync_redis.from_url(settings.REDIS_URL)
+    count = r.incr(key)
+    if count == 1:
+        r.expire(key, 8 * 86400)
+
+
 # Sports to poll — must match the subscription on the configured SPORTSDATAIO_API_KEY.
 # URL path mapping (ncaab→cbb etc.) is handled in SportsDataIOClient.
 SUPPORTED_SPORTS = ["nba", "nfl", "mlb", "nhl", "ncaab", "ncaaf", "soccer"]
@@ -494,6 +512,7 @@ def run(self):
 
     # Write heartbeat key — read by /health/workers to confirm worker is alive
     _write_heartbeat("poll_sports_data")
+    _increment_call_counter("poll_sports_data")
 
     log.info(
         "poll_sports_data_complete",

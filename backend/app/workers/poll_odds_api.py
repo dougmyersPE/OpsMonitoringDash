@@ -64,6 +64,22 @@ def _write_heartbeat() -> None:
     r.set("worker:heartbeat:poll_odds_api", "1", ex=settings.POLL_INTERVAL_ODDS_API * 3)
 
 
+def _increment_call_counter(worker_name: str) -> None:
+    """Atomically increment today's API call counter for this worker.
+
+    Key: api_calls:{worker_name}:{YYYY-MM-DD}
+    TTL: 8 days (set only on first write so old keys expire automatically).
+    Uses Redis INCR (atomic) -- safe under --concurrency=6.
+    """
+    from datetime import date
+    today = date.today().isoformat()
+    key = f"api_calls:{worker_name}:{today}"
+    r = _sync_redis.from_url(settings.REDIS_URL)
+    count = r.incr(key)
+    if count == 1:
+        r.expire(key, 8 * 86400)
+
+
 @celery_app.task(name="app.workers.poll_odds_api.run", bind=True, max_retries=3)
 def run(self):
     """Fetch Odds API scores and update real_world_status on matched events."""
@@ -257,6 +273,7 @@ def run(self):
     # 4. Heartbeat + summary                                               #
     # ------------------------------------------------------------------ #
     _write_heartbeat()
+    _increment_call_counter("poll_odds_api")
 
     log.info(
         "poll_odds_api_complete",
