@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Infrastructure, database, auth, and API clients — everything every subsequent phase depends on
 - [x] **Phase 2: Monitoring Engine** - Event matching, polling workers, auto status sync, liquidity monitoring, and audit log — the core value (completed 2026-02-25)
 - [x] **Phase 3: Dashboard and Alerts** - Real-time SSE dashboard, Slack alerting with deduplication, alert-only mode, and notification center (completed 2026-02-26)
-- [ ] **Phase 4: Stabilization + Counter Foundation** - Fix false-positive alerts, broken endpoints, and confidence threshold; emit Redis call counters from all workers
+- [x] **Phase 4: Stabilization + Counter Foundation** - Fix false-positive alerts, broken endpoints, and confidence threshold; emit Redis call counters from all workers (code complete 2026-03-02, deployment pending)
 - [ ] **Phase 5: Interval Control Backend** - Remove poll intervals from static Beat config, bootstrap from DB on startup, enforce minimum intervals server-side
 - [ ] **Phase 6: ApiUsagePage** - Frontend tab showing call volume, provider quota, 7-day chart, projected usage, and per-worker frequency controls
 
@@ -92,8 +92,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Fix Sports API + ESPN time guards (use actual game datetime, tighten >12h to >6h), add /health/workers regression test
-- [ ] 04-02-PLAN.md — Redis INCRBY call counters in all 5 workers, GET /api/v1/usage endpoint, confidence threshold validation script
+- [x] 04-01-PLAN.md — Fix Sports API + ESPN time guards (use actual game datetime, tighten >12h to >6h), add /health/workers regression test
+- [x] 04-02-PLAN.md — Redis INCRBY call counters in all 5 workers, GET /api/v1/usage endpoint, confidence threshold validation script
 
 ### Phase 5: Interval Control Backend
 **Goal**: Poll intervals are stored in the database as the authoritative source of truth; Beat never overwrites operator-configured intervals on restart; server enforces minimum intervals so no worker can be configured to abuse an external API
@@ -125,6 +125,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Foundation | 3/3 | Complete | 2026-02-25 |
 | 2. Monitoring Engine | 3/3 | Complete | 2026-02-25 |
 | 3. Dashboard and Alerts | 5/5 | Complete | 2026-02-26 |
-| 4. Stabilization + Counter Foundation | 0/2 | Not started | - |
+| 4. Stabilization + Counter Foundation | 2/2 | Code complete (deploy pending) | 2026-03-02 |
 | 5. Interval Control Backend | 0/? | Not started | - |
 | 6. ApiUsagePage | 0/? | Not started | - |

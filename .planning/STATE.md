@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-last_updated: "2026-03-02T03:59:10.892Z"
+status: phase-4-code-complete
+last_updated: "2026-03-02T04:04:00.000Z"
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 4 — Stabilization + Counter Foundation
-Plan: 2 of 2
-Status: Plan 04-01 complete, ready for Plan 04-02
-Last activity: 2026-03-02 — Completed 04-01 (time guard fixes + health test)
+Plan: 2 of 2 (COMPLETE)
+Status: Phase 4 code complete; deployment to Hetzner pending
+Last activity: 2026-03-02 — Completed 04-02 (Redis call counters + usage endpoint + confidence validation)
 
-Progress: [█████░░░░░] 50% (v1.1 — 1/2 Phase 4 plans complete)
+Progress: [██████████] 100% (v1.1 Phase 4 — 2/2 plans complete, deployment pending)
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [█████░░░░░] 50% (v1.1 — 1/2 Phase 4 plans compl
 | Phases defined | 3 (phases 4-6) |
 | Plans complete | 1 |
 | Phase 04 P01 | 15min | 2 tasks | 3 files |
+| Phase 04 P02 | 4min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,9 @@ Recent decisions affecting current work:
 - 04-01: Tighten time-distance threshold from >12h to >6h in both Sports API and ESPN workers — 6h is sufficient for UTC offsets while rejecting consecutive-day matches
 - 04-01: Replace guard_midday with record_dt in ESPN worker for consistency with Sports API pattern
 - [Phase 04]: Use game_dt (actual parsed datetime from api-sports.io) instead of noon-UTC proxy in time guard
+- 04-02: Counter only at successful-completion path -- early returns do not inflate counts (preserves accuracy for Phase 6 usage display)
+- 04-02: Usage endpoint requires readonly role (not admin) per USAGE-01 -- operators must see their own call data
+- 04-02: Confidence validation is a server-side script requiring human judgment, not an automated test
 
 ### Pending Todos
 
@@ -116,5 +120,6 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 04-01-PLAN.md (time guard fixes + health test)
+Stopped at: Completed 04-02-PLAN.md (Redis call counters + usage endpoint + confidence validation)
 Resume file: none
+Next: Deploy Phase 4 to Hetzner server (docker compose build && docker compose up -d), then proceed to Phase 5 planning

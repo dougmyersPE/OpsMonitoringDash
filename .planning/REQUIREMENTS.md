@@ -58,11 +58,11 @@ Requirements for milestone v1.1 (Stabilization + API Usage). Each maps to roadma
 
 - [x] **STAB-01**: Sports API false-positive alerts are eliminated by using actual game start times instead of noon-UTC proxy and tightening the time-distance guard
 - [x] **STAB-02**: Worker health endpoint (`/api/v1/health/workers`) returns correct worker status instead of 404
-- [ ] **STAB-03**: Event matching confidence threshold is validated against real ProphetX + source data and tuned if needed
+- [x] **STAB-03**: Event matching confidence threshold is validated against real ProphetX + source data and tuned if needed
 
 ### API Usage Tracking
 
-- [ ] **USAGE-01**: Operator can see total API calls made per worker per day on the API Usage tab
+- [x] **USAGE-01**: Operator can see total API calls made per worker per day on the API Usage tab
 - [ ] **USAGE-02**: Operator can see provider-reported quota (used/remaining/limit) for Odds API and Sports API on the API Usage tab
 - [ ] **USAGE-03**: Operator can see a 7-day call volume history chart per worker on the API Usage tab
 - [ ] **USAGE-04**: Operator can see projected monthly call volume at current polling rate on the API Usage tab
@@ -148,8 +148,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | STAB-01 | Phase 4 | Complete |
 | STAB-02 | Phase 4 | Complete |
-| STAB-03 | Phase 4 | Pending |
-| USAGE-01 | Phase 4 | Pending |
+| STAB-03 | Phase 4 | Complete |
+| USAGE-01 | Phase 4 | Complete |
 | FREQ-02 | Phase 5 | Pending |
 | FREQ-03 | Phase 5 | Pending |
 | USAGE-02 | Phase 6 | Pending |
