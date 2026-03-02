@@ -26,7 +26,7 @@ WORKER_NAMES = [
 
 @router.get("/usage")
 async def get_usage(
-    _=Depends(require_role(RoleEnum.readonly)),
+    _=Depends(require_role(RoleEnum.readonly, RoleEnum.operator, RoleEnum.admin)),
 ):
     """Return today's API call counts per worker.
 
