@@ -2,7 +2,13 @@
 
 ## Overview
 
-Three phases that build in strict dependency order. Phase 1 assembles the infrastructure skeleton, configures Redis with memory limits, sets up JWT auth, and wires the external API clients — nothing else can start without this. Phase 2 delivers the core engine: the event ID matching layer (the hardest and most critical piece), the polling workers, automated status sync, liquidity monitoring, and the audit log — this is where the tool's primary value is actually produced. Phase 3 makes that value visible and actionable: the SSE-driven real-time dashboard, Slack alerting with deduplication, alert-only mode for safe rollout, and the in-app notification center.
+### v1.0 (Complete)
+
+Three phases that build in strict dependency order. Phase 1 assembles the infrastructure skeleton, configures Redis with memory limits, sets up JWT auth, and wires the external API clients. Phase 2 delivers the core engine: event ID matching, polling workers, automated status sync, liquidity monitoring, and audit log. Phase 3 makes that value visible and actionable: SSE-driven real-time dashboard, Slack alerting with deduplication, alert-only mode, and in-app notification center.
+
+### v1.1 (Active)
+
+Three phases starting at Phase 4. Phase 4 fixes active false-positive bugs and broken endpoints while laying the Redis counter foundation that all usage display depends on. Phase 5 resolves the RedBeat restart overwrite problem and adds server-side interval enforcement — this backend-only phase must complete before any UI for frequency controls is built. Phase 6 delivers the ApiUsagePage frontend, surfacing call volume, provider quota, 7-day history, projected usage, and per-worker frequency controls to operators.
 
 ## Phases
 
@@ -15,6 +21,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Infrastructure, database, auth, and API clients — everything every subsequent phase depends on
 - [x] **Phase 2: Monitoring Engine** - Event matching, polling workers, auto status sync, liquidity monitoring, and audit log — the core value (completed 2026-02-25)
 - [x] **Phase 3: Dashboard and Alerts** - Real-time SSE dashboard, Slack alerting with deduplication, alert-only mode, and notification center (completed 2026-02-26)
+- [ ] **Phase 4: Stabilization + Counter Foundation** - Fix false-positive alerts, broken endpoints, and confidence threshold; emit Redis call counters from all workers
+- [ ] **Phase 5: Interval Control Backend** - Remove poll intervals from static Beat config, bootstrap from DB on startup, enforce minimum intervals server-side
+- [ ] **Phase 6: ApiUsagePage** - Frontend tab showing call volume, provider quota, 7-day chart, projected usage, and per-worker frequency controls
 
 ## Phase Details
 
@@ -65,19 +74,53 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — React SPA scaffold (Vite+shadcn+TanStack Query+Zustand+React Router+axios), Login page, EventsTable with mismatch highlighting, MarketsTable with liquidity highlighting, SystemHealth indicator, SseProvider + useSse hook
-- [ ] 03-02-PLAN.md — SSE backend endpoint (sse-starlette + Redis pub/sub), verify_token_from_query dep, worker heartbeats, Redis publish in poll workers, Slack alerting (slack-sdk + SETNX dedup), alert_only_mode guard in update_event_status
-- [ ] 03-03-PLAN.md — Notifications backend API (list + mark-read), NotificationCenter component (bell icon + Sheet panel + unread badge)
-- [ ] 03-04-PLAN.md — Frontend Dockerfile (multi-stage), frontend/nginx.conf (SPA fallback), docker-compose frontend service, nginx/nginx.conf SSE location block (proxy_buffering off), end-to-end smoke test checkpoint
-- [ ] 03-05-PLAN.md — Gap closure: send_alerts wiring in update_event_status, SSE reconnect banner timeout fix, notification entity navigation links, last_prophetx_poll field name correction
+- [x] 03-01-PLAN.md — React SPA scaffold (Vite+shadcn+TanStack Query+Zustand+React Router+axios), Login page, EventsTable with mismatch highlighting, MarketsTable with liquidity highlighting, SystemHealth indicator, SseProvider + useSse hook
+- [x] 03-02-PLAN.md — SSE backend endpoint (sse-starlette + Redis pub/sub), verify_token_from_query dep, worker heartbeats, Redis publish in poll workers, Slack alerting (slack-sdk + SETNX dedup), alert_only_mode guard in update_event_status
+- [x] 03-03-PLAN.md — Notifications backend API (list + mark-read), NotificationCenter component (bell icon + Sheet panel + unread badge)
+- [x] 03-04-PLAN.md — Frontend Dockerfile (multi-stage), frontend/nginx.conf (SPA fallback), docker-compose frontend service, nginx/nginx.conf SSE location block (proxy_buffering off), end-to-end smoke test checkpoint
+- [x] 03-05-PLAN.md — Gap closure: send_alerts wiring in update_event_status, SSE reconnect banner timeout fix, notification entity navigation links, last_prophetx_poll field name correction
+
+### Phase 4: Stabilization + Counter Foundation
+**Goal**: False-positive mismatch alerts are eliminated, all broken endpoints return correct responses, the confidence threshold is validated against real data, and Redis call counters are emitting from all 5 workers so that one week of real usage data exists before the frontend is built
+**Depends on**: Phase 3
+**Requirements**: STAB-01, STAB-02, STAB-03, USAGE-01
+**Success Criteria** (what must be TRUE):
+  1. No false-positive mismatch alerts fire for Sports API when game start times differ by more than the tightened time-distance guard; sports with no active events are skipped without error
+  2. `GET /api/v1/health/workers` returns a valid JSON response (200 or appropriate status) instead of 404
+  3. Event matching confidence threshold has been tested against a sample of real ProphetX + source data; any tuning applied is documented with before/after match rates
+  4. An operator visiting the API Usage tab (or calling `/api/v1/usage`) can see total calls made by each worker today (the counter increments each poll cycle and resets at midnight UTC)
+**Plans**: TBD
+
+### Phase 5: Interval Control Backend
+**Goal**: Poll intervals are stored in the database as the authoritative source of truth; Beat never overwrites operator-configured intervals on restart; server enforces minimum intervals so no worker can be configured to abuse an external API
+**Depends on**: Phase 4
+**Requirements**: FREQ-02, FREQ-03
+**Success Criteria** (what must be TRUE):
+  1. After an Admin sets a poll interval via PATCH `/api/v1/config/poll_interval_{worker}`, restarting the Beat container does not revert the interval to the code default — the DB-persisted value survives
+  2. A PATCH request setting a poll interval below the per-worker minimum returns HTTP 422 with a clear error message; the interval is not applied
+**Plans**: TBD
+
+### Phase 6: ApiUsagePage
+**Goal**: Operators and Admins can open the API Usage tab and immediately see provider quota status, per-worker call volume today and over the past 7 days, projected monthly burn rate, and — for Admins — live-updating interval controls per worker
+**Depends on**: Phase 5
+**Requirements**: USAGE-02, USAGE-03, USAGE-04, FREQ-01
+**Success Criteria** (what must be TRUE):
+  1. Operator can see used/remaining/limit quota for Odds API and Sports API (per sport family) on the API Usage tab; fields show "—" rather than stale or zero values when provider data is unavailable
+  2. Operator can see a 7-day bar chart of call volume per worker; the chart reflects accumulated `api_usage_snapshots` data and is not blank on day one
+  3. Operator can see projected monthly call volume computed from the current polling rate; the projection updates when an Admin changes a poll interval
+  4. Admin can enter a new poll interval for any worker, save it, and the change takes effect within 5 seconds without restarting any container; the interval input is not visible to Operator or Read-Only users
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-02-25 |
-| 2. Monitoring Engine | 3/3 | Complete   | 2026-02-25 |
-| 3. Dashboard and Alerts | 4/5 | Gap closure in progress | 2026-02-26 |
+| 2. Monitoring Engine | 3/3 | Complete | 2026-02-25 |
+| 3. Dashboard and Alerts | 5/5 | Complete | 2026-02-26 |
+| 4. Stabilization + Counter Foundation | 0/? | Not started | - |
+| 5. Interval Control Backend | 0/? | Not started | - |
+| 6. ApiUsagePage | 0/? | Not started | - |

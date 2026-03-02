@@ -9,12 +9,21 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 4 — Stabilization + Counter Foundation
 Plan: —
-Status: Defining requirements for v1.1
-Last activity: 2026-03-01 — Milestone v1.1 started
+Status: Roadmap complete, ready to plan Phase 4
+Last activity: 2026-03-01 — v1.1 roadmap created (phases 4-6)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [░░░░░░░░░░] 0% (v1.1)
+
+## Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+| v1.1 requirements | 10 total |
+| Mapped to phases | 10/10 |
+| Phases defined | 3 (phases 4-6) |
+| Plans complete | 0 |
 
 ## Accumulated Context
 
@@ -64,23 +73,30 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-05: send_alerts import placed inside task body to avoid circular import — failure-path alert wrapped in its own try/except — Matches SystemConfig import pattern; prevents alert enqueue failure from blocking retry logic
 - [Phase 03]: 03-05: lastOpenRef initialized to Date.now() at mount so 15s grace starts from mount preventing false-positive banner — Browser SSE connects asynchronously; starting grace period from mount avoids immediate banner flash on first load
 - [Phase 03]: 03-05: Plain <a href> anchor used for notification nav (no useNavigate) — Hash URLs work without React Router for same-page scrolling; simpler than router dependency
+- v1.1 roadmap: FREQ-03 (DB-backed intervals, Beat restart survives) assigned to Phase 5 before any UI — RedBeat restart overwrite pitfall must be resolved before frequency controls are exposed to operators
+- v1.1 roadmap: USAGE-01 (call counters visible today) assigned to Phase 4 — counters start accumulating during stabilization, providing real data by Phase 6 frontend build
+- v1.1 roadmap: api-sports.io quota must be captured and displayed per sport family (Basketball, Hockey, Baseball, American Football each have separate daily quotas) — single "Sports API: N/100" number would be misleading
+- v1.1 roadmap: Redis counter pattern must use INCRBY (atomic) not GET/SET — non-atomic under --concurrency=6 causes undercounting
 
 ### Pending Todos
 
-None.
+- Before Phase 5: Run `redis-cli KEYS "redbeat:*"` against live Redis to confirm exact Beat key names before writing `RedBeatSchedulerEntry.from_key()` — mismatch creates orphaned key silently
+- Before Phase 5: Confirm that importing `celery_app` in the FastAPI API process does not trigger worker registration side effects
+- Before Phase 6: Run `npm install recharts@^3.7.0` and verify React 19 compatibility with `npm ls react-is`
 
 ### Blockers/Concerns
 
-- SportsDataIO NFL/NCAAB/NCAAF endpoint paths return 404 (different URL format than NBA/MLB/NHL/Soccer) — needs research
-- Event ID matching confidence threshold (0.90) must be validated against real ProphetX + SportsDataIO data
-- /api/v1/health/workers returns 404 despite correct route registration — needs investigation (likely path conflict or import error in workers module)
+- api-sports.io quota headers: must inspect actual response headers from live worker before deciding SDIO quota display strategy (SDIO may expose no quota headers — but this is low-confidence absence of evidence, not confirmed)
+- NCAAB/NCAAF SDIO endpoint paths: exact v3 URL paths must be confirmed via `curl` before modifying `sportsdataio.py`
 
 ### Resolved
+
 - ProphetX base URL: `https://api-ss-sandbox.betprophet.co/partner` — confirmed working (WS consumer live)
 - ProphetX status enum values confirmed from live DB: `ended`, `live`, `not_started`
+- Sports API false-positive root cause: using noon-UTC proxy instead of actual start time, time-distance guard too loose (>12h) — fix is diagnosed and clear
 
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Milestone v1.1 started, defining requirements
+Stopped at: v1.1 roadmap created (phases 4-6), ready to plan Phase 4
 Resume file: none

@@ -146,23 +146,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STAB-01 | — | Pending |
-| STAB-02 | — | Pending |
-| STAB-03 | — | Pending |
-| USAGE-01 | — | Pending |
-| USAGE-02 | — | Pending |
-| USAGE-03 | — | Pending |
-| USAGE-04 | — | Pending |
-| FREQ-01 | — | Pending |
-| FREQ-02 | — | Pending |
-| FREQ-03 | — | Pending |
+| STAB-01 | Phase 4 | Pending |
+| STAB-02 | Phase 4 | Pending |
+| STAB-03 | Phase 4 | Pending |
+| USAGE-01 | Phase 4 | Pending |
+| FREQ-02 | Phase 5 | Pending |
+| FREQ-03 | Phase 5 | Pending |
+| USAGE-02 | Phase 6 | Pending |
+| USAGE-03 | Phase 6 | Pending |
+| USAGE-04 | Phase 6 | Pending |
+| FREQ-01 | Phase 6 | Pending |
 
 **Coverage:**
 - v1.0 requirements: 21 total — 21 complete ✓
-- v1.1 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10 ⚠️
+- v1.1 requirements: 10 total — 10 mapped ✓
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-03-01 after v1.1 milestone requirements defined*
+*Last updated: 2026-03-01 after v1.1 roadmap created (phases 4-6)*
