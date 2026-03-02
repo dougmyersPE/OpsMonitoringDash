@@ -1,206 +1,212 @@
 # Project Research Summary
 
-**Project:** ProphetX Market Monitor
-**Domain:** Real-time operations monitoring dashboard — prediction market / sports event lifecycle management
-**Researched:** 2026-02-24
-**Confidence:** MEDIUM-HIGH (established patterns; ProphetX-specific API behavior unverified)
+**Project:** ProphetX Market Monitor — v1.1 (API Usage Monitoring + Poll Frequency Controls)
+**Domain:** Real-time operational monitoring dashboard for prediction market / sports event lifecycle management
+**Researched:** 2026-03-01
+**Confidence:** HIGH (v1.0 codebase directly inspected; all new patterns verified against official documentation and live code)
 
 ## Executive Summary
 
-ProphetX Market Monitor is a real-time internal operations dashboard for monitoring prediction market events and liquidity. The system follows a well-established NOC/SOC dashboard architecture: a Python/FastAPI backend with Celery/Redis background workers poll two external APIs (ProphetX and SportsDataIO) every 30 seconds, detect status mismatches and low-liquidity conditions, take automated corrective actions, and push updates to the React dashboard via Server-Sent Events. The core challenge is not technical novelty — it's reliability. Every piece of the system (polling, matching, alerting, auto-correction) operates in a loop with financial consequences if it misfires, so defensive patterns (idempotency, deduplication, distributed locks, confidence-gated automation) are non-negotiable from day one.
+ProphetX Market Monitor v1.1 is a well-scoped incremental milestone on top of an already-deployed v1.0 system. The core v1.0 stack — FastAPI, Celery/RedBeat, Redis, PostgreSQL, React 19, TanStack Query 5, Tailwind 4, shadcn/ui 3 — is validated and unchanged. The v1.1 work adds three orthogonal concerns: (1) capturing and displaying API call volume and provider quota data, (2) giving operators UI controls to adjust per-worker poll frequencies without engineering involvement, and (3) stabilizing known false-positive mismatch bugs and broken SDIO endpoints. The only new library is `recharts@^3.7.0` for the 7-day call-volume bar chart.
 
-The highest-risk element of the entire build is the event ID matching layer. ProphetX and SportsDataIO use completely different identifiers for the same real-world game, and the fuzzy matching logic (sport + normalized team names + scheduled start time) is the single bottleneck that everything else depends on. Without a working matcher producing high-confidence results, no status comparisons are valid and no automated actions should fire. This means the matching layer must be built, validated against real API data, and stress-tested for edge cases (double-headers, playoff rematches, team name variants) before the worker engine is considered complete. Budget significant time here.
+The recommended approach for the two highest-complexity features is deliberately conservative. For quota display: capture provider response headers (`x-requests-remaining` from Odds API, `x-ratelimit-requests-remaining` from api-sports.io) inside the client layer, store to Redis with a 25-hour TTL, and serve via a new `/api/v1/usage` endpoint. For poll frequency control: extend the existing `system_config` table pattern with `poll_interval_*` keys, write to both PostgreSQL (durability across restarts) and RedBeat Redis (live effect within 5 seconds), and remove poll-interval entries from the static `beat_schedule` to prevent restart overwrite. SDIO and ESPN have no documented quota mechanisms; their usage monitoring is call-count-only via Redis `INCRBY`.
 
-The recommended rollout strategy — built into the architecture from the start — is alert-only mode: a single config flag (`auto_updates_enabled`) that allows the system to detect and alert on mismatches without writing any changes to ProphetX. The system should run in this mode for at least 48 hours before enabling automated status updates. This requires alert deduplication (a Redis TTL-based per-condition rate limiter) to be in place before Slack goes live; otherwise a single stuck mismatch generates 120 Slack alerts per hour and operators will immediately distrust the channel. These two requirements (alert-only mode flag, deduplication) are v1 blockers for production use even though they read like polish features.
+The single greatest implementation risk is the RedBeat restart overwrite pitfall: if `poll_interval_*` entries remain in the static `beat_schedule` dict in `celery_app.py`, every Beat container restart silently reverts operator-configured intervals to the code defaults. This must be addressed at the architecture level before any UI is built — the correct fix is to remove these entries from the static config and bootstrap them from the database at startup. Secondary risks include the api-sports.io quota-per-sport-family nuance (each sport is a separate API base URL with a separate daily quota), the need for atomic `INCRBY` counters (not `GET`/`SET`) to avoid race conditions under 6-worker concurrency, and the SDIO 404-suppression behavior that silently hides path and subscription errors. All three risks have clear, implementable mitigations documented in PITFALLS.md.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The backend stack is FastAPI (0.115.x) + Celery (5.4.x) + Redis (7.x) + PostgreSQL (16.x) on Python 3.12. This is the established choice for async Python services that need periodic background work. FastAPI provides native SSE support via `StreamingResponse`; Celery provides distributed task scheduling with retry queues; Redis serves triple duty as Celery broker, application state cache, and SSE pub/sub bus. The frontend is React 18 + TypeScript + Vite + TanStack Query + Tailwind CSS + shadcn/ui. SSE (not WebSockets) is the right choice for unidirectional server-to-client push in this context. Version compatibility is critical: FastAPI 0.100+ requires Pydantic v2; TanStack Query v5 requires React 18; celery-redbeat 2.x requires Celery 5; Celery 5.4+ is required for Python 3.12 support.
+The v1.0 stack requires no changes for v1.1. `celery-redbeat 2.3.3` is already installed and supports runtime schedule mutation via `RedBeatSchedulerEntry.from_key().save()` — this is the mechanism for live poll-interval updates without Beat restart. The existing `system_config` table and `/api/v1/config` PATCH endpoint already handle the persistence pattern; v1.1 extends it with `poll_interval_*` keys. The new `/api/v1/usage` endpoint is a read-light endpoint combining Redis MGET (live today counts + quota keys) and a single PostgreSQL SELECT (7-day snapshot history). All HTTP client work uses `httpx`, already present.
 
-**Core technologies:**
-- FastAPI 0.115.x: REST API + SSE backend — async-native, Pydantic v2 integrated, first-class SSE via `StreamingResponse`
-- Celery 5.4.x + celery-redbeat 2.x: Polling engine + Beat scheduler — industry standard for periodic tasks; redbeat required to prevent duplicate tasks on container restart
-- Redis 7.x: Broker + cache + pub/sub — single service covering three roles; use separate databases (db=0, db=1, db=2) to isolate concerns
-- PostgreSQL 16.x + SQLAlchemy 2.x async + asyncpg: Primary store — use async engine throughout; never `psycopg2` which blocks the event loop
-- React 18 + TanStack Query 5.x: Dashboard UI — SSE triggers `queryClient.invalidateQueries` rather than patching local state
-- httpx + tenacity: External API calls with exponential backoff retry across ProphetX, SportsDataIO, and all clients
-- uv + Ruff + mypy: Python toolchain — `uv` replaces pip/poetry; Ruff replaces Black+flake8; all configured in `pyproject.toml`
+**Core technologies (all existing — no changes):**
+- FastAPI 0.115.x — API server; extend `/api/v1/config` and add `/api/v1/usage` router
+- celery-redbeat 2.3.3 — runtime schedule mutation via `RedBeatSchedulerEntry`; already installed and in production
+- Redis 7.x — `INCRBY` call counters (atomic, O(1)); quota key storage with 25h TTL; no new Redis infrastructure
+- PostgreSQL 16.x — new `api_usage_snapshots` table for 7-day history; `system_config` extension for interval persistence
+- React 19 / TanStack Query 5 — new `ApiUsagePage` with 60-second `refetchInterval`; no additional complexity
 
-See `.planning/research/STACK.md` for full library list and version compatibility matrix.
+**New library (frontend only):**
+- recharts 3.7.x — 7-day call-volume bar chart; React 19 peer dependency issue resolved in 3.x; ~180KB, SVG-based, composable; no peer override needed in most cases
+
+See `.planning/research/STACK.md` for full library rationale, alternatives considered, and version compatibility notes.
 
 ### Expected Features
 
-The system has a well-defined feature set from a detailed PRD. Table stakes are numerous because this is a financially consequential ops tool — a basic dashboard with no auth, no audit log, and no alert deduplication would be a liability, not a product.
+The v1.1 feature set is grounded in actual codebase inspection and confirmed API provider capabilities. All P1 features are required for the API Usage tab to deliver genuinely useful operator information.
 
-**Must have (table stakes):**
-- Event ID matching layer (sport + fuzzy team names + start time window) — system is non-functional without this
-- Celery polling workers (poll_prophetx + poll_sports_data on 30-second schedule) — the monitoring engine
-- Automated status sync (Upcoming → Live → Ended) with idempotent ProphetX writes
-- Postponed/cancelled event detection with dashboard flagging and alerts
-- Liquidity threshold monitoring with configurable per-market thresholds
-- Real-time dashboard: Events Table + Markets Table with mismatch/liquidity highlighting via SSE
-- Slack webhook alerting with alert deduplication (1 alert per event per condition per 5–15 minutes)
-- In-app notification center (bell + panel, read/unread, click-to-navigate)
-- Audit log (append-only PostgreSQL, no UPDATE/DELETE, before/after state in JSONB)
-- JWT authentication + RBAC (Admin / Operator / Read-Only) with server-side enforcement
-- Admin config panel (liquidity thresholds, polling interval, Slack webhook URL)
-- Alert-only mode flag (`auto_updates_enabled`) — gates all ProphetX write actions
-- Worker health indicator — operators must know if polling has stopped
-- "Action Failed" state with retry CTA on dashboard
+**Must have for v1.1 launch (P1):**
+- Redis `INCRBY` call counter per worker per day — foundation for all display; must be built first; atomic under 6-worker concurrency
+- Response header capture in `BaseAPIClient` — `_capture_quota_headers()` hook (no-op default); overridden in Odds API and Sports API clients
+- Per-provider quota display (used / remaining / limit) — Odds API and api-sports.io only; SDIO shows call-count only; ESPN shows N/A
+- Projected monthly call volume at current rate — computed at read time in API layer, no storage needed
+- DB-backed poll intervals (`system_config` table, `poll_interval_*` keys) — prerequisite for all UI controls
+- UI poll interval controls (`WorkerFrequencyPanel`) — Admin-only; live update via RedBeat + DB persistence across restarts
+- `api_usage_snapshots` table (new Alembic migration) + nightly rollup worker — durable 7-day history for chart
+- `ApiUsagePage` frontend — `UsageSummaryCards`, `WorkerFrequencyPanel`, `CallVolumeChart`
 
-**Should have (operational advantage):**
-- Manual event mapping correction UI — when auto-matching produces wrong results, admins need a UI fix path
-- Audit log search/filter UI (date range, actor, event, action type)
-- Supplementary data source fallback (The Odds API or ESPN) for SportsDataIO coverage gaps
-- Slack digest for bulk status changes (NFL Sunday batching)
-- Notification acknowledgement (is_acknowledged, acknowledged_by, acknowledged_at)
-- ProphetX API circuit breaker (open/half-open/closed states)
+**Should have (defer to v1.2):**
+- Quota alert Slack notification at configurable threshold — reuses existing alerting; deferred because quota display itself prevents surprise exhaustion
+- Per-sport-key call breakdown (Odds API) — adds counter dimension complexity; defer until operators request sport-level attribution
+- Per-worker pause toggle — interval control covers the use case (set to very long interval = effectively paused)
 
-**Defer to v2+:**
-- Automated liquidity top-up — blocked until ProphetX top-up API mechanics are confirmed and system has 2+ stable weeks
-- Historical analytics / trend charts — significant scope; Slack + audit log covers v1 operational needs
-- Email/SMS alerting — Slack covers the immediate team; email digest is a future reporting feature
-- Per-user notification preferences — premature for a small team; add when team grows beyond 5 operators
-- Alert escalation chains (PagerDuty-style) — add only if SLA requirements demand it
+**Anti-features (do not build):**
+- Automated quota throttling (auto-reduce interval near limit) — risk of oscillation; operators make the call
+- Real-time calls/second display — always 0.0–0.1 at this scale; operationally meaningless
+- Full API call log (every request in DB) — 1.3M rows/month, no actionable use case beyond what Redis counters provide
 
-See `.planning/research/FEATURES.md` for full prioritization matrix and dependency graph.
+**Critical finding on quota burn rates:** At current intervals, the system burns ~21,600 Odds API calls/month (43x the 500-call free tier) and ~720 Sports API calls/day (7x the 100-call free tier). The API Usage tab will make this visible immediately; operators need interval controls to manage it. This is not a bug — it is a consequence of polling intervals set for data freshness without visibility into cost.
+
+See `.planning/research/FEATURES.md` for full prioritization matrix, dependency graph, and dynamic interval control option analysis.
 
 ### Architecture Approach
 
-The system follows a 4-layer architecture: External Data Sources → Background Worker Layer (Celery Beat + Poll Workers + Action Workers) → Data Layer (PostgreSQL + Redis) → API/Delivery Layer (FastAPI) → Frontend (React SPA). Workers and the API communicate exclusively via Redis pub/sub — no direct imports between them. The services/ layer (mismatch detector, liquidity monitor, event matcher) is framework-agnostic Python business logic callable by both workers and API handlers. External API calls are isolated in a clients/ layer so ProphetX/SportsDataIO changes only touch one file.
+v1.1 follows three existing architectural patterns from v1.0 without introducing new patterns. Pattern 1: Redis for hot data (call counters, quota snapshots, heartbeats), PostgreSQL for durable data (daily snapshots, system config, events). Pattern 2: `system_config` table as runtime override for env-var defaults — v1.1 adds `poll_interval_*` keys to this existing mechanism. Pattern 3: client-layer concerns stay in the client layer — quota header capture belongs in `clients/`, not in `workers/`, so future clients automatically get it.
 
 **Major components:**
-1. Celery Beat (redbeat) — schedules poll_prophetx and poll_sports_data on 30-second intervals; must run as its own Docker container, never embedded in FastAPI
-2. Poll Workers — fetch external data, run mismatch/liquidity detection, enqueue action tasks to a separate action_queue; never call external APIs from inside alerting code
-3. Action Workers — execute ProphetX status updates (idempotent, with distributed lock and intent-first DB write pattern), send Slack alerts (with deduplication), write audit log, publish to Redis pub/sub
-4. Event Matching Layer (event_matcher.py + event_id_mappings table) — run once per new event discovery; cache result in Redis for O(1) poll-cycle lookup; never re-run on every cycle
-5. FastAPI Backend — REST endpoints + SSE /stream endpoint (subscribes to Redis pub/sub channels); JWT/RBAC enforcement on all write endpoints
-6. React Dashboard — EventSource() consumes SSE stream; TanStack Query handles REST data; SSE events trigger cache invalidation rather than local state patching
+1. **Redis call counters** — `INCRBY api_calls:{worker}:{YYYY-MM-DD}` per poll cycle; 8-day TTL; atomic under 6-worker concurrency; incremented in each `poll_*.py` after the external fetch
+2. **Quota header capture hook** — `BaseAPIClient._capture_quota_headers()` (no-op default); overridden by `OddsAPIClient` and `SportsApiClient`; writes `api_quota:{provider}:*` keys to Redis with 25h TTL
+3. **`api_usage_snapshots` table** — `worker_name + snapshot_date + call_count` (UNIQUE constraint); written by nightly rollup task (02:00 UTC); read by `/api/v1/usage` endpoint
+4. **`/api/v1/usage` endpoint** — parallel Redis MGET (today counts + quota keys) + PostgreSQL SELECT (7-day history); expected < 50ms; `require_role(read_only)`
+5. **Interval control path** — PATCH `/api/v1/config/poll_interval_{worker}` writes to DB (persistence) + `RedBeatSchedulerEntry.from_key().save()` (live update); `celery_app.py` reads DB on startup with env-var fallback
+6. **`ApiUsagePage`** — `UsageSummaryCards` + `WorkerFrequencyPanel` (Admin-only) + `CallVolumeChart` (recharts); `refetchInterval: 60_000`
 
-See `.planning/research/ARCHITECTURE.md` for component boundary rules, full data flow diagrams, and project directory structure.
+**Build order (dependencies determine sequence):**
+Step 1 — Call counter infra (no dependencies) → Step 2 — Quota header capture → Step 3 — DB schema migration → Step 4 — Nightly rollup worker → Step 5 — `/api/v1/usage` endpoint → Step 6 — Interval control backend → Step 7 — Frontend `ApiUsagePage`
+
+See `.planning/research/ARCHITECTURE.md` for full data flow diagrams, component boundary rules, code patterns, and anti-patterns to avoid.
 
 ### Critical Pitfalls
 
-1. **Duplicate automated actions (double-fire)** — Two workers detect the same mismatch in overlapping cycles and both enqueue `update_event_status`, causing duplicate ProphetX API calls and false "Action Failed" alerts. Prevention: Redis distributed lock (`SET NX EX 60`) keyed on `lock:status_update:{event_id}` before enqueuing any action task. Must be built into Phase 2 from day one.
+1. **RedBeat restart overwrite (CRITICAL)** — Static `beat_schedule` in `celery_app.py` overwrites Redis entries on every Beat restart via `update_from_dict()`. Operator-configured intervals are silently lost. Prevention: remove poll-interval entries from static `beat_schedule`; bootstrap into Redis from DB at startup. This must be addressed before building any UI — choosing the wrong storage strategy requires rewriting both backend and frontend on discovery.
 
-2. **Fuzzy matching false positives (wrong game updated)** — The event matcher links a ProphetX event to the wrong SportsDataIO game; the system confidently auto-updates the wrong event. Prevention: require all three criteria simultaneously (exact sport match, ≥0.85 fuzzy team score, start time within ±15 minutes); gate all auto-actions behind a ≥0.90 composite confidence threshold; flag anything below for manual review. Never auto-act on low-confidence matches.
+2. **API call counter race condition** — `GET`/`SET` counter pattern is non-atomic; under `--concurrency=6` multiple workers overwrite each other's increments and the counter undercounts. Prevention: always use `INCRBY` (single atomic Redis command). Same effort as `GET`/`SET` — no excuse to use the racy pattern.
 
-3. **Alert storms causing operator blindness** — Every 30-second cycle re-detects the same unresolved mismatch and fires a new Slack alert. After 10 minutes: 20 identical alerts, operators stop reading Slack, real new alerts are missed. Prevention: Redis TTL key per `alert_sent:{event_id}:{condition_type}` with 5-minute suppression window; implement "still unresolved" re-alert context after window expires. This is a v1 production blocker, not polish.
+3. **Response headers discarded by clients** — Current `BaseAPIClient._get()` extracts JSON and discards the `Response` object; Odds API and Sports API quota data is lost on every call. Prevention: add header capture hook to `_get()` before building any quota display. Note: `SportsApiClient` does not extend `BaseAPIClient` and needs a direct addition to `get_games()`.
 
-4. **SSE silent stale connection** — Network hiccup or Nginx idle timeout (default 60s) kills the SSE connection; the dashboard keeps displaying frozen data with no warning. Prevention: server-side heartbeat comment every 15 seconds (keeps connection alive, makes drops detectable); visible "Connection lost — reconnecting..." banner in React when EventSource enters CONNECTING state; Nginx `proxy_read_timeout 3600s; proxy_buffering off;` for the SSE location block.
+4. **Inconsistent data contract on API Usage tab** — Provider headers, local counters, and configured limits have different refresh rates and reset periods. Displaying them side-by-side without clear source labels misleads operators (e.g., "47 calls today" + "88 remaining" does not equal "100 limit" when sources differ). Prevention: define the JSON schema for `/api/v1/usage` with explicit field semantics before building the frontend; label each field with its source and last-updated timestamp; show "—" not "0" when data is unavailable.
 
-5. **Automated actions without idempotency** — Network timeout after ProphetX API success causes Celery to retry; the second call double-applies the action. Prevention: write-intent pattern (set status to `update_pending` in DB before calling ProphetX; verify current ProphetX state at start of any retry — if already correct, mark complete without re-calling). Non-retrofittable; must be the default pattern for all action tasks from Phase 2.
+5. **api-sports.io quota is per-sport-family, not global** — Each sport on api-sports.io is a separate API base URL with a separate daily quota. "Basketball remaining: 88" does not imply "Hockey remaining: 88." Quota capture must key by sport family, not just by provider name.
 
-6. **ProphetX status enum assumptions** — Comparison logic built against guessed values (`"upcoming"`, `"live"`) never matches actual API values (`"SCHEDULED"`, `"IN_PROGRESS"`); system runs clean but never detects mismatches. Prevention: log every raw status value from ProphetX on the first integration test; build the Python enum from observed data, not documentation; add a `WARNING: unknown_prophetx_status` fallback for new values post-launch.
+6. **SDIO 404 suppression hides real errors** — The 404 fallback in `get_games_by_date_raw()` silently returns `[]` for both "no games today" (correct) and "wrong URL / not subscribed" (error). Prevention: run `probe_subscription_coverage()` on startup to distinguish 403 (not subscribed) from 404 (no games today) from 200 (working).
 
-See `.planning/research/PITFALLS.md` for full pitfall details, warning signs, recovery strategies, and a phase-to-pitfall mapping.
+See `.planning/research/PITFALLS.md` for full v1.1 and v1.0 pitfall details, warning signs, recovery strategies, technical debt table, and integration gotchas per provider.
 
 ## Implications for Roadmap
 
-Based on the combined research, the architecture's own dependency graph strongly suggests a 5-phase structure. Phases are not discretionary — each layer depends on the one before it. The event ID matching layer is the critical path through Phase 2 and must be treated as a validation gate before Phase 3 begins.
+The build order for v1.1 is dictated primarily by data dependencies: counters must emit before displays can be built; schema must exist before rollup workers can write; backend must return real data before frontend is built. The interval control and usage display concerns are independent of each other after the shared counter foundation is in place and can be developed in parallel.
 
-### Phase 1: Foundation and Infrastructure
+### Phase 1: Stabilization + Counter Foundation
 
-**Rationale:** Every other component depends on the database schema, environment configuration, Redis setup, and API client layer being in place. Auth also belongs here — it must be present before any write-capable endpoint is exposed, even in development.
-**Delivers:** Running Docker Compose skeleton (postgres, redis, backend, frontend, celery, nginx), SQLAlchemy models and Alembic migrations for all 6 entities (Event, Market, AuditLog, User, Notification, Config), JWT auth system, ProphetX and SportsDataIO API client classes with retry/backoff, pydantic-settings config, Redis database separation (db=0/1/2), redbeat configuration, Redis maxmemory policy.
-**Addresses features:** JWT authentication, RBAC foundation, admin config model
-**Avoids pitfalls:** Celery Beat clock drift (configure redbeat here, not later), Redis memory exhaustion (set maxmemory in docker-compose.yml now), ProphetX enum assumptions (client logs raw responses from first call), API key exposure (pydantic-settings from env, never in code)
-**Research flag:** Standard patterns — no additional research needed; these are well-documented FastAPI/Celery/PostgreSQL setup patterns.
+**Rationale:** Fix the active false-positive mismatch bugs and SDIO 404 issues before adding new features — these undermine operator trust in the existing system and are blocking v1.0 correctness. Simultaneously, lay the Redis counter infrastructure that all v1.1 display features depend on. Counters can begin accumulating real data immediately, providing a week of history by the time the UI is built.
 
-### Phase 2: Monitoring Engine (Background Workers)
+**Delivers:** False-positive mismatch fixes (Sports API start-time matching, cross-day guard tightened from `>12h` to `>6h`), SDIO NFL/NCAAB/NCAAF endpoint path verification and fix, `probe_subscription_coverage()` startup run, `/api/v1/health/workers` 404 diagnosis and fix, Redis `INCRBY` call counters in all 5 workers
 
-**Rationale:** The worker engine is the core value of the system. It must be built before the API layer can serve meaningful data and before the dashboard has anything to display. The event ID matching layer is the highest-risk dependency and must be built and validated against real ProphetX + SportsDataIO responses before poll worker logic is finalized.
-**Delivers:** Event ID matching layer (event_matcher.py, event_id_mappings table, rapidfuzz scoring, confidence gating), mismatch detector service, liquidity monitor service, poll_prophetx and poll_sports_data Celery tasks, update_event_status action task (with distributed lock + idempotent write-intent pattern), Celery queue separation (poll_queue / action_queue), audit writer service.
-**Uses:** ProphetX client + SportsDataIO client from Phase 1, Redis lock pattern, SQLAlchemy async sessions
-**Implements:** Background Worker Layer from architecture diagram
-**Critical gate:** After Phase 2 is complete, run the matching layer against live ProphetX and SportsDataIO data for 24–48 hours. Review match confidence scores and confirm the comparisons are detecting real mismatches before building the frontend on top of this output.
-**Avoids pitfalls:** Double-fire duplicates (distributed lock built in here), idempotency failures (write-intent pattern is default from start), wrong-event auto-updates (confidence gating built into matcher), ProphetX enum assumptions (validate raw responses before writing comparison logic)
-**Research flag:** Needs research during planning — ProphetX API rate limits, pagination behavior, exact status enum values, and SportsDataIO sport endpoint coverage must be confirmed against actual API documentation before this phase begins.
+**Addresses features:** Known bugs from project context; Redis counter foundation for all usage display features
 
-### Phase 3: API Layer and Real-Time Delivery
+**Avoids pitfalls:** SDIO 404 suppression (run startup probe; distinguish subscription errors from gameless-date 404s), race condition (use `INCRBY` from day one), Sports API wrong-game match (use actual ISO start time from api-sports.io; tighten hours-apart threshold)
 
-**Rationale:** REST endpoints and the SSE stream can only serve meaningful data after Phase 2 workers have populated the database. The SSE endpoint depends on Phase 2 workers publishing to Redis pub/sub channels.
-**Delivers:** All REST endpoints (/events, /markets, /audit-log, /notifications, /config), SSE /stream endpoint with heartbeat and event ID support, manual sync trigger (POST /events/{id}/sync-status), RBAC enforcement on all write endpoints, SSE stale-connection banner in React, Nginx SSE configuration (proxy_buffering off, proxy_read_timeout 3600s).
-**Implements:** API/Delivery Layer from architecture diagram; FastAPI → Redis pub/sub subscription pattern
-**Avoids pitfalls:** SSE silent stale connection (heartbeat + stale banner built in here, not deferred to polish phase), JWT token logging in Nginx (short-lived SSE token exchange or cookie auth for SSE endpoint)
-**Research flag:** Standard patterns — FastAPI SSE and TanStack Query patterns are well-documented; no additional research needed.
+**Research flag:** No additional research needed — bugs are diagnosed, patterns are established
 
-### Phase 4: React Dashboard and Alerting
+### Phase 2: Quota Capture + Usage API Backend
 
-**Rationale:** The dashboard is the operator-facing surface; it can only be built meaningfully once the API layer exists and serves real data. Alerting (Slack + in-app notifications) belongs in this phase because alert deduplication must be in place before Slack goes live in production.
-**Delivers:** Events Table with status mismatch highlighting, Markets Table with liquidity threshold view, useSSE hook (EventSource + TanStack Query cache invalidation), notification bell + notification center, Slack webhook client + send_alerts worker with Redis TTL-based deduplication, alert-only mode flag enforcement (gates all ProphetX writes), admin config panel (thresholds, polling interval, Slack URL), worker health indicator, "Action Failed" badge with retry CTA.
-**Implements:** Frontend Layer from architecture diagram; complete alert delivery pipeline
-**Avoids pitfalls:** Alert storms (deduplication built in before Slack goes live, not post-launch), alert-only mode required for rollout plan (config flag built in Phase 4, not after go-live)
-**Research flag:** Alert deduplication implementation is well-documented (Redis TTL pattern); Slack Block Kit formatting is well-documented. Standard patterns — no additional research needed.
+**Rationale:** Build the backend data pipeline before the frontend. Quota header capture in clients is a targeted change to `BaseAPIClient._get()` — it needs coordination because all existing clients are affected (no-op default means no regression, but the `SportsApiClient` exception requires separate handling). The `/api/v1/usage` endpoint can serve live data (Redis) immediately; historical data (PostgreSQL snapshots) accumulates over the following days.
 
-### Phase 5: Polish, Hardening, and Production Deployment
+**Delivers:** `BaseAPIClient._capture_quota_headers()` hook, Odds API quota capture (`x-requests-remaining`, `x-requests-used`), Sports API quota capture per sport family (`x-ratelimit-requests-remaining`, `x-ratelimit-requests-limit`), `api_usage_snapshots` DB table + Alembic migration, nightly rollup worker (02:00 UTC), `/api/v1/usage` endpoint with explicit JSON schema
 
-**Rationale:** Hardening tasks span all layers and are best done after the full system is functional end-to-end so the blast radius of each change is known.
-**Delivers:** Full Nginx + SSL (Certbot) configuration, production Docker Compose hardening (health checks, restart policies, named volumes, secret management), database indexes on hot query paths (prophetx_event_id, status_match, audit_log.timestamp), error/empty/loading states in all UI components, RBAC server-side enforcement audit (verify DB-level INSERT-only on audit_log), "looks done but isn't" checklist verification for all 8 critical behaviors from PITFALLS.md, supplementary data source fallback (The Odds API / ESPN), audit log search/filter UI.
-**Avoids pitfalls:** Redis memory exhaustion (verify with `redis-cli info memory` after 48 hours), SSE Nginx timeout (proxy_read_timeout set here), audit log mutability (PostgreSQL GRANT enforcement verified), RBAC bypass (server-side role check audit)
-**Research flag:** Nginx SSE configuration and Let's Encrypt Certbot patterns are well-documented. Standard patterns.
+**Uses:** Redis MGET, PostgreSQL `api_usage_snapshots`, existing `system_config` pattern, existing `/api/v1/health` pattern for role gating
+
+**Avoids pitfalls:** Data contract inconsistency (define JSON schema before frontend build; each field includes source and last-updated), per-sport quota nuance (key quota capture by sport family for api-sports.io), header discard (add hook before building any display), stale quota display (25h TTL — shows "—" not stale value if key expires)
+
+**Research flag:** Inspect actual SDIO response headers from a live worker call before finalizing SDIO quota handling — research is LOW confidence that SDIO exposes no quota headers (absence of evidence only; must verify from live response)
+
+### Phase 3: Interval Control Backend
+
+**Rationale:** The RedBeat restart overwrite pitfall must be resolved before any UI for interval control is built. This is purely a backend concern. The critical change is removing poll-interval entries from the static `beat_schedule` and bootstrapping them from the DB at startup. Test the Beat startup path with a disconnected database to confirm graceful fallback to env-var defaults.
+
+**Delivers:** `celery_app.py` modified to read intervals from DB at startup with env-var fallback (3-second timeout, fail-safe), poll-interval entries removed from static `beat_schedule`, config PATCH endpoint extended to write to RedBeat live schedule when key matches `poll_interval_*`, per-worker minimum interval enforcement server-side (HTTP 422 on violation)
+
+**Uses:** `RedBeatSchedulerEntry.from_key().save()` (already confirmed in research), existing `system_config` PATCH endpoint pattern
+
+**Avoids pitfalls:** RedBeat restart overwrite (intervals removed from static config; DB is the source of truth bootstrapped into Redis at startup), minimum interval bypass (server-side validation only — not client-side)
+
+**Research flag:** Verify RedBeat key prefix and task name format against live `redis-cli KEYS "redbeat:*"` before writing `Entry.from_key()` — confirmed `redbeat:{task_name}` pattern in research but must match actual production Beat keys. Also confirm that importing `celery_app` in the FastAPI process does not trigger worker registration side effects.
+
+### Phase 4: Frontend ApiUsagePage
+
+**Rationale:** Build after both the usage API backend (Phase 2) and interval control backend (Phase 3) return real data. The frontend is purely a consumer. Building it against mocked data delays discovery of API shape mismatches. Admin-only interval controls must be gated by the existing role check (`require_role(RoleEnum.admin)`).
+
+**Delivers:** `ApiUsagePage` with `UsageSummaryCards` (calls today + remaining quota per provider with source labels), `WorkerFrequencyPanel` (current interval + number input + save; Admin-only), `CallVolumeChart` (recharts 7-day bar chart per worker); new `/usage` route in `App.tsx`; nav entry in `Layout.tsx`
+
+**Uses:** recharts 3.7.x (only new npm dependency), TanStack Query `useQuery` (refetchInterval: 60s) + `useMutation` (optimistic UI on interval save), shadcn/ui Tabs + Card + Slider + Button
+
+**Avoids pitfalls:** Data contract inconsistency (label each field with source + last-updated in UI; show "—" when source is unavailable), api-sports.io per-sport quota (display per-sport or clearly labeled, never aggregated as a single "Sports API" number without explanation)
+
+**Research flag:** After `npm install recharts@^3.7.0`, verify React 19 compatibility with `npm ls react-is` — if a conflict appears, add `"react-is": "^19.0.0"` to `package.json` overrides
 
 ### Phase Ordering Rationale
 
-- **Infrastructure before workers:** SQLAlchemy models, Redis configuration, and API clients must exist before any worker can run. This is a hard dependency, not a preference.
-- **Workers before API:** The REST endpoints for /events and /markets are only meaningful once workers have polled and populated the database. The SSE stream requires workers to be publishing to Redis pub/sub channels.
-- **API before dashboard:** The React dashboard needs real endpoints to develop against. Building it against mocked data delays discovery of API shape mismatches.
-- **Alert deduplication in Phase 4 not Phase 5:** The research is emphatic that deduplication is a correctness requirement, not a polish feature. Slack must not go live without it.
-- **Event matching as Phase 2 gate:** The matching layer is placed at the start of Phase 2 and marked as a validation gate specifically because everything downstream (mismatch detection, auto-updates, dashboard data) is invalid if matching is broken.
+- Phase 1 (Stabilization) comes first because false positives undermine operator trust, and starting counters early gives the chart meaningful data by the time the frontend is built
+- Phase 2 (Backend data pipeline) before Phase 4 (Frontend) is non-negotiable — the display has nothing to show without the backend
+- Phase 3 (Interval control backend) before Phase 4 (Frontend) prevents the RedBeat restart pitfall from being built into a UI that operators start using before the bug is discovered
+- Phases 2 and 3 can run in parallel if development bandwidth allows — they share no code dependencies (different files, different concerns)
+- All backend phases (1–3) can be deployed and validated via `curl` before any frontend work begins
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 2:** ProphetX API — rate limits per minute, pagination behavior, exact status enum values (SCHEDULED vs. upcoming vs. IN_PROGRESS), error codes for invalid status transitions (409? 422?). SportsDataIO — which sport endpoints are covered by the subscription, exact terminal status values beyond "Final" (F/OT, F/SO, Postponed, Canceled, Suspended), daily request limits per sport. These must be confirmed against actual API documentation before Phase 2 work begins. Plan a spike day to log raw API responses before writing any comparison logic.
+Phases requiring deeper research or validation during planning:
 
-Phases with standard patterns (skip research-phase):
-- **Phase 1:** FastAPI + Celery + PostgreSQL + Redis setup — extremely well-documented, stable ecosystem
-- **Phase 3:** FastAPI SSE + TanStack Query + Redis pub/sub — established patterns with working code examples in STACK.md and ARCHITECTURE.md
-- **Phase 4:** Slack Block Kit + Redis TTL deduplication — well-documented
-- **Phase 5:** Nginx SSE config + Certbot + Docker hardening — standard production patterns
+- **Phase 3 (Interval control):** Verify RedBeat Redis key prefix and task name format against live `redis-cli KEYS "redbeat:*"` before writing `Entry.from_key()` — confirmed `redbeat:{task_name}` pattern in research but must match production Beat
+- **Phase 2 (Quota capture — SDIO):** Inspect actual SDIO response headers from a live worker call before hardcoding "no quota headers" — research is LOW confidence on this specific point (absence of evidence only)
+- **Phase 2 (Sports API quota):** Confirm whether the api-sports.io `/status` endpoint counts against daily quota — if it does not, it can supplement header-based tracking
+
+Phases with standard, well-established patterns (skip additional research):
+
+- **Phase 1 (Stabilization):** Bug fixes are diagnosed; patterns (INCRBY, Sports API matching) are confirmed from official docs and codebase inspection
+- **Phase 4 (Frontend):** recharts + TanStack Query + shadcn/ui pattern is established and well-documented
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | MEDIUM | Core technology choices are HIGH confidence (FastAPI, Celery, React ecosystem are mature and well-documented). Version numbers could not be live-verified (web search unavailable) — recommend running `pip index versions fastapi celery sqlalchemy` and checking npm registry before creating lockfiles. |
-| Features | HIGH | Domain is well-understood; PRD is detailed and specific; NOC/SOC dashboard and trading ops patterns are established. Feature categorization (table stakes vs. differentiators vs. anti-features) is based on solid domain knowledge. |
-| Architecture | HIGH | Celery/FastAPI/Redis/SSE patterns are well-established and stable. The 4-layer architecture, component boundary rules, and data flow diagrams are based on documented, production-proven patterns. |
-| Pitfalls | HIGH for infrastructure pitfalls; MEDIUM for ProphetX-specific behavior | Celery/Redis/SSE failure modes are well-documented and stable. ProphetX-specific behavior (rate limits, status enum values, idempotency guarantees on their PATCH endpoint) is MEDIUM confidence — cannot be verified without access to ProphetX API documentation. |
+| Stack | HIGH | v1.0 stack is in production; only new dep is recharts 3.7.x with documented React 19 compatibility. Verify post-install with `npm ls react-is`. |
+| Features | HIGH | Feature scope grounded in actual codebase inspection + confirmed API provider docs. Quota burn rate analysis uses real worker config values. |
+| Architecture | HIGH | Build order and component boundaries derived directly from live code inspection. All integration points (RedBeat, system_config, BaseAPIClient) verified against existing implementations. |
+| Pitfalls | HIGH (infrastructure); MEDIUM (provider-specific) | RedBeat restart overwrite confirmed from `redbeat/schedulers.py` source inspection. Race condition confirmed from Redis docs. SDIO quota headers: LOW confidence (no evidence found either way — must inspect live response). api-sports.io per-sport quota nuance: MEDIUM (documented behavior, needs production confirmation). |
 
-**Overall confidence:** MEDIUM-HIGH
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **ProphetX API documentation access:** Rate limits, exact status enum values, PATCH idempotency behavior, and error codes for invalid status transitions must be confirmed against actual ProphetX API documentation before Phase 2 begins. This is the single most important validation step in the entire project.
-- **SportsDataIO subscription coverage:** The subscription tier determines which sports endpoints are available. The polling logic and event matching must be scoped to confirmed coverage. Attempting to poll uncovered sports returns 403 silently.
-- **SportsDataIO terminal status values:** The research identified that `Final` is not the only terminal state (F/OT, F/SO, Postponed, Canceled, Suspended). All terminal and in-progress state values for each covered sport must be mapped before the comparison logic can be trusted.
-- **Package version pinning:** Stack research was conducted without live web access. All version recommendations are based on training data through August 2025. Confirm that FastAPI 0.115.x, Celery 5.4.x, celery-redbeat 2.x, and TanStack Query 5.x are current stable releases before creating lockfiles.
-- **Team name alias coverage:** The event matching layer requires a `TEAM_NAME_ALIASES` dictionary that maps ProphetX team name variants to canonical forms. This must be populated from actual ProphetX API responses — the initial set cannot be pre-defined without seeing real data.
+- **SDIO quota headers:** Research found no documentation of SDIO quota response headers; paid plans are described as "unlimited." Before coding the SDIO quota capture (or deciding not to), inspect actual SDIO API response headers from a live worker call. Do not hardcode "unlimited" in the UI without checking subscription terms and inspecting actual response headers from a `docker compose logs worker` capture or temporary debug logging.
+
+- **RedBeat key format in production:** Research confirms the `redbeat:{task_name}` key pattern with dashes (e.g., `redbeat:poll-sports-data`). Before writing the `Entry.from_key()` call, run `redis-cli KEYS "redbeat:*"` against the live Redis instance to confirm exact key names. A mismatch creates a new orphaned key rather than updating the existing Beat entry — no error is thrown, the change silently has no effect.
+
+- **celery_app import in FastAPI process:** The interval control PATCH endpoint needs to import `celery_app` from `workers/celery_app.py`. The `include=[...]` in `celery_app.py` registers task modules — confirm this does not trigger worker startup side effects when imported in the API container. Validate by running the import in isolation before wiring into the config endpoint.
+
+- **NCAAB/NCAAF SDIO endpoint paths:** The exact v3 URL paths for NFL, NCAAB (cbb), and NCAAF (cfb) endpoints must be confirmed against the SDIO API with a direct `curl` before modifying `sportsdataio.py`. The `SPORT_PATH_MAP` remapping is in place but the endpoint name variant may still be wrong for specific sports.
+
+- **api-sports.io per-sport quota display:** Research recommends keying quota capture by sport family for api-sports.io (Basketball, Hockey, Baseball, American Football each have separate API base URLs and separate daily quotas). The frontend must display these separately or with clear sport-family labels — a single "Sports API: 47/100" number is misleading and possibly incorrect.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `.planning/PROJECT.md` — project constraints, key decisions, deployment target
-- `docs/PRD.md` (ProphetX Market Monitor, v1.0, 2026-02-24) — primary feature specification
-- FastAPI official documentation — SSE via `sse-starlette`, dependency injection, async SQLAlchemy patterns
-- SQLAlchemy 2.0 documentation — async engine, `async_sessionmaker`, `selectinload` patterns
-- Celery 5.x documentation — periodic tasks, task routing, retry policies, `acks_late` behavior
-- celery-redbeat documentation — Redis-backed Beat scheduler, container restart safety
+- Direct codebase inspection: `workers/celery_app.py`, `workers/poll_*.py`, `clients/base.py`, `clients/odds_api.py`, `clients/sports_api.py`, `models/config.py`, `api/v1/config.py`, `api/v1/health.py`, `db/redis.py`, `docker-compose.yml`, `core/config.py`
+- The Odds API v4 docs (https://the-odds-api.com/liveapi/guides/v4/) — `x-requests-remaining`, `x-requests-used`, `x-requests-last` headers confirmed
+- api-football.com rate limit docs (https://www.api-football.com/news/post/how-ratelimit-works) — `x-ratelimit-requests-remaining`, `x-ratelimit-requests-limit` headers confirmed
+- Redis INCR/INCRBY docs (https://redis.io/docs/latest/commands/incr/) — atomic counter pattern confirmed
+- celery-redbeat PyPI + readthedocs — `RedBeatSchedulerEntry.save()` for runtime schedule mutation confirmed; v2.3.3 current
+- SportsDataIO official site (https://sportsdata.io/apis) — "unlimited API calls" on paid plans confirmed
 
 ### Secondary (MEDIUM confidence)
-- Redis pub/sub pattern for SSE fan-out — established industry pattern; training data through August 2025
-- rapidfuzz library for fuzzy string matching — commonly used for entity resolution in Python data pipelines
-- NOC/SOC dashboard patterns — domain analogy; features validated against PagerDuty, Grafana, OpsGenie feature sets
-- Trading operations tooling — domain analogy; RBAC, audit log, and alert deduplication requirements confirmed against trading ops patterns
+- Recharts GitHub releases (https://github.com/recharts/recharts/releases/tag/v3.7.0) — v3.7.0 React 19 compatibility claimed; install verification required
+- RedBeat source code (`redbeat/schedulers.py`) — `update_from_dict()` restart overwrite behavior confirmed via source inspection (confirmed pattern, not from docs)
+- GitHub gist (nvpmai/bd475b5d562811dadc86381a49759040) — `Entry.from_key()` runtime update pattern confirmed working
+- LogRocket best React chart libraries 2025 — Recharts recommended for admin dashboards
 
-### Tertiary (requires live validation)
-- ProphetX API behavior (rate limits, status enums, idempotency) — MEDIUM confidence; must be verified against actual API documentation and live testing
-- SportsDataIO subscription coverage and terminal status values — MEDIUM confidence; must be confirmed against actual subscription tier
-- Specific library version numbers — requires live npm/PyPI verification before lockfile creation
+### Tertiary (LOW confidence — requires live validation)
+- SDIO quota headers: no evidence found in public documentation — absence of evidence only; must verify from live response before committing to "no quota header" design
 
 ---
-*Research completed: 2026-02-24*
+*Research completed: 2026-03-01*
 *Ready for roadmap: yes*

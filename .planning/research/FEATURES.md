@@ -1,263 +1,241 @@
 # Feature Research
 
 **Domain:** Internal operations monitoring dashboard — prediction market / sports event lifecycle management
-**Researched:** 2026-02-24
-**Confidence:** HIGH (domain is well-understood; PRD is detailed; patterns from NOC/SOC dashboards, trading ops tools, and real-time monitoring systems are established)
+**Researched:** 2026-03-01 (v1.1 update; original v1 research 2026-02-24)
+**Confidence:** HIGH (v1 domain is built; v1.1 features grounded in actual code + confirmed API provider capabilities)
 
 ---
 
-## Feature Landscape
+## v1.1 Feature Scope: API Usage Monitoring + Stabilization
 
-### Table Stakes (Users Expect These)
+This section covers the new features for the v1.1 milestone. The v1 feature landscape is preserved below for reference.
 
-These are non-negotiable. Missing any of these means the system fails its stated purpose as an operations tool.
+---
+
+### Table Stakes for v1.1 (Users Expect These)
+
+These are required for the API Usage tab to be genuinely useful. Without them, the tab delivers incomplete information that operators cannot act on.
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Per-provider quota display (used / limit / remaining) | Operators configuring poll intervals need to know current standing against monthly limits before adjusting — a "remaining calls" number is the minimum viable signal | MEDIUM | Odds API: read `x-requests-remaining` + `x-requests-used` headers on every poll response. Sports API (api-sports.io): read `x-ratelimit-requests-remaining` + `x-ratelimit-requests-limit` headers. SDIO: no documented quota — display "unlimited" per official docs. ESPN: no documented quota — display "N/A" |
+| Internal call counter per worker | Odds API and Sports API headers only reflect the provider's counter — they don't tell you which worker made which calls. An internal Redis `INCR` counter per worker per day gives attribution and lets you see who's consuming quota fastest | LOW | Redis key pattern: `api_calls:{worker}:{YYYY-MM-DD}`. Increment on each outbound call inside the client. Reset naturally when date rolls over (key TTL = 48h). No DB schema change needed |
+| Total monthly call volume across all workers | Operators need one number: "how many calls have we made this month across all sources?" to assess whether usage is on track | LOW | Aggregate Redis daily counters into a rolling monthly total. Computed at read time — no separate counter needed |
+| Per-worker poll frequency control (UI) | The single biggest lever for controlling API costs. Currently requires `.env` edit + container rebuild — operators cannot adjust without engineering involvement | HIGH | Requires: (1) DB-backed schedule table (sqlalchemy-celery-beat or equivalent), (2) API endpoint to read/write intervals, (3) UI controls in the API Usage tab, (4) Beat scheduler restart or dynamic interval update. This is the most complex feature in v1.1 |
+| Projected monthly call volume at current rate | If you're 10 days in and have used 40% of quota, you'll exceed limits. Operators need a projection, not just current consumption | LOW | `(calls_this_month / days_elapsed) * days_in_month`. Computed in the API layer — no storage needed |
+
+### Differentiators (Operational Advantage)
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Quota alert threshold (configurable % warning) | "Alert me when Odds API is at 80% of monthly quota" prevents surprise quota exhaustion mid-month | LOW | Store `api_usage_alert_threshold` in SystemConfig (default 80%). Check on each provider poll response. Fire Slack alert via existing deduplication system |
+| Per-worker pause toggle | When approaching quota limits, operators want to pause the highest-consumption workers without stopping everything | MEDIUM | Celery Beat dynamic schedule: set interval to 0 or use a `worker_enabled` flag checked at task start. Simpler than full interval control — just a boolean |
+| Provider status badge (last poll success/fail) | Was the last Odds API call successful? Did it return quota headers? A green/red indicator next to each provider's quota tells operators whether the displayed numbers are current | LOW | Already tracked in worker heartbeat keys (`worker:heartbeat:{name}`). Extend heartbeat payload to include last HTTP status code |
+| Call cost breakdown by sport key | For Odds API: each sport key is 1 credit. With 5 sport keys at 10-min intervals, knowing which sport keys consume the most helps operators decide which to disable off-season | MEDIUM | Extend Redis counter to include sport key dimension: `api_calls:odds_api:{sport_key}:{YYYY-MM-DD}`. Requires updating the Odds API client to pass sport key to counter |
+
+### Anti-Features (Do Not Build)
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Dynamic interval updates without container restart | Operators want "set it and live" frequency control | RedBeat stores schedule state in Redis and reads it at Beat startup. Changing intervals in DB while Beat is running requires either Beat restart or a custom scheduler loop. Django-celery-beat solves this but requires significant scheduler replacement — not appropriate for a one-container Beat setup | Require a Beat restart after interval change (one `docker compose restart beat` command); document this clearly in the UI tooltip. Acceptable operational cost vs. scheduler complexity |
+| Real-time call-per-second rate display | Monitoring dashboards show "requests per second" | This system has at most 6 concurrent workers and ~30s poll intervals — never more than ~1 req/sec average. Rate display adds complexity for a metric that will always show "0.0" or "0.1" | Show calls per cycle and calls per day instead — operationally meaningful for this system |
+| Full API call log (every request) | "Show me every API call made" | PostgreSQL table growing at 30 rows/minute = 1.3M rows/month. Requires log rotation, indexes, and a query interface. No actionable use case beyond what Redis counters already provide | Keep Redis counters (daily granularity). Add structured log lines already emitted by workers. Archive logs via Docker log rotation |
+| Automated quota throttling (auto-reduce interval when near limit) | Sounds smart — system adjusts itself | Requires feedback loop logic that could interact badly with Beat's scheduling state. Risk: system oscillates intervals every poll cycle as quota approaches threshold | Alert at 80% threshold; let operators make the interval adjustment manually |
+
+---
+
+## Feature Dependencies for v1.1
+
+```
+[Redis API Call Counters]
+    └──required by──> [Per-Worker Internal Call Display]
+    └──required by──> [Total Monthly Volume]
+    └──required by──> [Projected Monthly Volume]
+    └──required by──> [Call Cost by Sport Key]
+
+[Provider Response Header Capture]
+    └──required by──> [Per-Provider Quota Display (used/limit/remaining)]
+    └──required by──> [Quota Alert at Threshold]
+    (requires BaseAPIClient to capture and store headers from Odds API + Sports API responses)
+
+[Per-Provider Quota Display] ──enhances──> [Projected Monthly Volume]
+    (provider quota remaining = ground truth; internal counter = attribution)
+
+[DB-Backed Schedule Table]
+    └──required by──> [Per-Worker Poll Frequency Control (UI)]
+    └──required by──> [Per-Worker Pause Toggle]
+    (replaces hardcoded beat_schedule in celery_app.py)
+
+[Per-Worker Poll Frequency Control]
+    └──requires──> [Beat Restart on Interval Change]
+    (RedBeat re-reads schedule from Redis on startup; interval changes take effect after restart)
+
+[Existing Worker Heartbeat Keys]
+    └──enhances──> [Provider Status Badge]
+    (extend heartbeat to include last_http_status)
+
+[Existing Slack Alerting + Deduplication]
+    └──required by──> [Quota Alert Threshold]
+    (reuses existing send_alerts.py + Redis TTL dedup pattern)
+```
+
+### Dependency Notes
+
+- **Redis counters before any display feature**: All call-count display features depend on the counters being incremented correctly in the client layer. The counter increment must be in `BaseAPIClient._get()` or in each specific client's methods — not in the workers — so all clients benefit automatically.
+- **Provider headers require BaseAPIClient refactor**: Currently `BaseAPIClient._get()` discards the `Response` object and returns only `response.json()`. To capture `x-requests-remaining` headers, `_get()` must return the raw `Response` or a tuple `(data, headers)`. This is a breaking change to every client. Plan the refactor carefully.
+- **Beat schedule DB migration is a prerequisite for interval controls**: Until the beat schedule is stored in a table rather than hardcoded in `celery_app.py`, no UI can change intervals at runtime.
+
+---
+
+## MVP Definition for v1.1
+
+### Launch With (v1.1)
+
+- [ ] Redis `INCR` counter per worker per day in `BaseAPIClient` — every outbound call counted. Foundation for everything else.
+- [ ] Response header capture in Odds API client — capture and store `x-requests-remaining`, `x-requests-used`, `x-requests-last` from every Odds API response into Redis key `api_quota:odds_api`.
+- [ ] Response header capture in Sports API client — capture and store `x-ratelimit-requests-remaining`, `x-ratelimit-requests-limit` from every Sports API response into Redis key `api_quota:sports_api`.
+- [ ] API Usage tab in frontend — shows per-provider quota (used/remaining/limit), internal call counts by worker, projected monthly total.
+- [ ] DB-backed poll intervals — migrate `beat_schedule` intervals from hardcoded `celery_app.py` to a `worker_schedule` table in PostgreSQL. Read at Beat startup. Admin can update via API.
+- [ ] UI controls for poll intervals — slider or number input per worker in the API Usage tab. Admin-only. Displays "requires Beat restart to take effect" warning.
+
+### Defer (v1.2+)
+
+- [ ] Per-sport-key call breakdown — useful but adds counter dimension complexity. Defer until operators request sport-level attribution.
+- [ ] Quota alert Slack notification — useful but not blocking. The quota display itself prevents surprise exhaustion for operators watching the dashboard.
+- [ ] Per-worker pause toggle — interval control covers the use case (set to very long interval = effectively paused).
+
+---
+
+## Feature Prioritization Matrix (v1.1)
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Redis call counters (internal) | HIGH | LOW | P1 — foundation for all display |
+| Odds API quota header capture | HIGH | MEDIUM | P1 — requires BaseAPIClient refactor |
+| Sports API quota header capture | HIGH | MEDIUM | P1 — same refactor |
+| API Usage tab UI (read-only) | HIGH | MEDIUM | P1 — the visible deliverable |
+| DB-backed poll intervals | HIGH | HIGH | P1 — enables operator control |
+| UI poll interval controls | HIGH | MEDIUM | P1 — depends on DB-backed intervals |
+| Projected monthly volume display | MEDIUM | LOW | P1 — computed at read time, cheap |
+| Quota alert Slack notification | MEDIUM | LOW | P2 — reuses existing alerting |
+| Per-sport-key call breakdown | LOW | MEDIUM | P2 |
+| Per-worker pause toggle | MEDIUM | MEDIUM | P2 |
+
+**Priority key:**
+- P1: Must have for v1.1 launch
+- P2: Add after core usage tab is working
+
+---
+
+## Call Volume Reference (As-Built)
+
+Actual call volume based on production code and current intervals:
+
+| Worker | Interval | Calls/Cycle | Calls/Hour | Calls/Day | Calls/Month | Quota |
+|--------|----------|-------------|------------|-----------|-------------|-------|
+| poll_sports_data | 30s | 18+ (6 sports × 3 dates, non-soccer) | 2,160 | 51,840 | ~1.6M | SDIO: unlimited |
+| poll_odds_api | 600s | ~5 (active sport keys) | 30 | 720 | ~21,600 | 500/month (free tier) |
+| poll_sports_api | 1800s | ~15 (5 sports × 3 dates) | 30 | 720 | ~21,600 | 100/day (free tier) |
+| poll_espn | 600s | ~5 (sports × date) | 30 | 720 | ~21,600 | No published limit |
+| poll_prophetx | 300s | ~1-5 (pagination) | 12-60 | 288-1,440 | ~9K-43K | ProphetX: unconfirmed |
+
+**Critical finding**: Odds API free tier is 500 calls/month. At current 600s interval with ~5 sport keys, the system burns ~21,600 calls/month — 43x the free tier. The existing 600s interval was set to conserve usage but is not conservative enough for the free tier. The API Usage tab will make this visible; operators need interval controls to manage it.
+
+**Sports API (api-sports.io)**: Free tier is 100 calls/day. Current 1800s interval generates ~720 calls/day — 7x the free tier. Same issue as Odds API.
+
+**Data sources for quota info:**
+- Odds API: Response headers `x-requests-remaining`, `x-requests-used` (confirmed — HIGH confidence from official docs)
+- Sports API (api-sports.io): Response headers `x-ratelimit-requests-remaining`, `x-ratelimit-requests-limit` (confirmed — HIGH confidence from api-football.com rate limit documentation)
+- SDIO: No documented quota API; advertises "unlimited API calls" (HIGH confidence)
+- ESPN: No documented quota API; unofficial API with no published limits (MEDIUM confidence — rate limiting exists but thresholds unpublished)
+
+---
+
+## Dynamic Interval Control: Technical Options
+
+The "per-worker poll frequency control" feature has three implementation paths. Listed in order of implementation effort:
+
+### Option A: Restart-Required DB Intervals (RECOMMENDED)
+Store intervals in a `worker_schedule` PostgreSQL table. `celery_app.py` reads from DB on startup instead of hardcoded dict. Admin changes interval via UI → DB update → operator runs `docker compose restart beat` → new interval takes effect.
+
+**Effort:** Medium — DB migration + API endpoint + UI + Beat startup change
+**Complexity:** Low — no scheduler replacement, no Redis state management
+**Beat restart:** Required after every change (acceptable — documented in UI tooltip)
+**Confidence:** HIGH — established pattern; FastAPI + SQLAlchemy already in place
+
+### Option B: sqlalchemy-celery-beat Library
+Replace RedBeat with `sqlalchemy-celery-beat`. Stores schedule in PostgreSQL. Beat polls the DB for schedule changes at configurable intervals. No restart required for interval changes.
+
+**Effort:** High — replaces the Beat scheduler (RedBeat → sqlalchemy-celery-beat); risks disrupting existing RedBeat lock behavior
+**Complexity:** High — `redbeat_lock_timeout=900` behavior must be replicated; `LockNotOwnedError` risk from PITFALLS.md returns
+**Beat restart:** Not required
+**Confidence:** MEDIUM — library exists and works but scheduler replacement in production carries risk
+
+### Option C: Redis-Backed Dynamic Schedule (Custom)
+Keep RedBeat. Add a Redis key `worker:interval:{name}` that workers check at task start. If interval has changed since last run, tasks self-reschedule via `apply_async(countdown=new_interval)`.
+
+**Effort:** High — requires each worker to implement self-scheduling logic; bypasses Beat entirely
+**Complexity:** High — Beat and worker self-scheduling can drift; hard to debug
+**Confidence:** LOW — non-standard pattern; high risk of scheduling inconsistencies
+
+**Recommendation: Option A.** Restart-required interval control is entirely adequate for an internal ops tool where interval changes happen once every few weeks. The added complexity of Option B or C is not justified by the use case.
+
+---
+
+## v1 Feature Landscape (Reference — Already Built)
+
+### Table Stakes (Completed in v1)
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
 | Real-time event status table | Core purpose — operators must see all ProphetX events and their current ProphetX vs. real-world status at a glance | MEDIUM | SSE stream from Redis pub/sub; dual-status columns with mismatch indicator |
 | Real-time market liquidity table | Core purpose — operators must see all markets with current liquidity vs. configured threshold | MEDIUM | Same SSE stream; highlight below-threshold markets |
 | Automated status sync (Upcoming → Live → Ended) | The system's primary value — removing manual status correction | HIGH | Requires event ID matching layer; Celery worker; ProphetX write API |
-| Postponed/cancelled event flagging | Without this, bettors remain in open positions on dead events — high operational risk | MEDIUM | Read-only detection in v1; alert + dashboard highlight; optional auto-cancel if ProphetX API supports it |
-| Status mismatch highlighting | Operators must be able to spot problems instantly without reading every row | LOW | CSS color coding: amber = mismatch detected, red = action failed, blue = resolving |
+| Postponed/cancelled event flagging | Without this, bettors remain in open positions on dead events — high operational risk | MEDIUM | Detection only in v1; alert + dashboard highlight |
+| Status mismatch highlighting | Operators must be able to spot problems instantly without reading every row | LOW | CSS color coding: amber = mismatch detected, red = action failed |
 | Slack webhook alerting | Team must know about issues even when not watching the dashboard | LOW | Slack Block Kit messages; one webhook URL in config |
 | In-app notification center | Audit trail of what the system has done; read/unread state | MEDIUM | Bell icon + panel; notifications link to relevant event/market |
 | Configurable liquidity thresholds | Each market has different liquidity needs; global default plus per-market override | LOW | Admin-only; stored in SystemConfig and Market tables |
-| Audit log (append-only) | Compliance, debugging, accountability — any operator tool that takes automated actions must log them | MEDIUM | PostgreSQL append-only table; no DELETE; before/after state in JSON |
-| JWT authentication | Multi-user tool requires authentication; no shared passwords | LOW | Standard FastAPI/JWT pattern; email + password |
-| Role-based access control (Admin, Operator, Read-Only) | Multiple team members with different permission levels | MEDIUM | Three roles; server-side enforcement; affects all write endpoints |
-| Manual status sync trigger | Operators need an override for cases where automation fails or is uncertain | LOW | POST /events/{id}/sync-status; Operator + Admin only |
-| "Last checked" timestamps | Operators must know data freshness — stale data without a timestamp is worse than no data | LOW | Display last_prophetx_poll and last_real_world_poll per row |
-| System health indicator | If polling workers are down, operators must know immediately | MEDIUM | Worker heartbeat; banner/badge showing "Polling active" vs. "Polling stopped" |
-| Auto-retry with exponential backoff | ProphetX API failures must not silently drop actions; team must be alerted after retries exhausted | MEDIUM | Celery retry with 1s/2s/4s backoff; after 3 failures send critical alert |
-| Poll cycle configuration | Operators need to tune polling frequency without code changes | LOW | polling_interval_seconds in SystemConfig; Admin-only |
+| Audit log (append-only) | Compliance, debugging, accountability | MEDIUM | PostgreSQL append-only table; no DELETE; before/after state in JSON |
+| JWT authentication | Multi-user tool requires authentication | LOW | Standard FastAPI/JWT pattern; email + password |
+| Role-based access control (Admin, Operator, Read-Only) | Multiple team members with different permission levels | MEDIUM | Three roles; server-side enforcement |
+| Manual status sync trigger | Operators need an override for cases where automation fails | LOW | POST /events/{id}/sync-status; Operator + Admin only |
+| "Last checked" timestamps | Operators must know data freshness | LOW | Display last_prophetx_poll and last_real_world_poll per row |
+| System health indicator | If polling workers are down, operators must know immediately | MEDIUM | Worker heartbeat via Redis keys; banner/badge |
+| Auto-retry with exponential backoff | ProphetX API failures must not silently drop actions | MEDIUM | Celery retry with 1s/2s/4s backoff |
+| Alert deduplication | Without this, one stuck event generates 120 Slack alerts/hour | MEDIUM | Redis TTL key per event + condition type |
+| Alert-only mode flag | Required for safe production rollout | LOW | Single config flag: auto_updates_enabled |
 
-### Differentiators (Competitive/Operational Advantage)
-
-These features separate a great ops tool from a basic one. Not required for launch, but provide meaningful value.
+### Differentiators (Completed in v1)
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Event ID matching layer with manual override | ProphetX and SportsDataIO use different IDs — a robust fuzzy-matching layer (sport + teams + start time) that can be manually corrected removes the biggest integration risk | HIGH | The hardest part of the whole system; fuzzy string matching + time window; admin UI to confirm/reject matches; stored as mapping table |
-| Alert deduplication / rate limiting | Without this, a single stuck event generates a Slack alert every 30 seconds — alert fatigue causes operators to ignore alerts | MEDIUM | Per-event, per-issue cooldown (e.g., 1 alert/event/minute); digest mode for bulk changes during busy sports windows |
-| "Action Failed" state with manual resolution CTA | When automation fails, the UI should not just show an error — it should tell the operator exactly what to do next | LOW | "Action Failed" badge + "Retry" or "Open ProphetX" button; links to relevant audit log entries |
-| Supplementary data source fallback | SportsDataIO has coverage gaps; pluggable source architecture means those gaps don't silently produce "Unknown" statuses forever | HIGH | Abstract data source interface; The Odds API or ESPN API as secondary; per-source confidence scoring |
-| "Alert-only mode" (dry run) | Running in monitor-only mode for 48 hours before enabling auto-updates builds trust in the matching and detection logic | LOW | Single config flag: auto_updates_enabled in SystemConfig; when false, system detects and alerts but takes no write actions |
-| Slack digest for bulk status changes | During game starts on a Sunday (NFL), 10+ events go Live simultaneously — individual alerts cause notification spam | MEDIUM | Group alerts within a 60-second window into a single Slack message: "7 events updated to Live" |
-| Audit log search and filter UI | The raw audit log becomes useful only when operators can query it — date range, actor, event, action type | MEDIUM | Frontend filter panel + paginated table; relies on indexed audit_log table |
-| Notification acknowledgement | Operators should be able to mark issues as "seen and handled" to reduce noise in the notification center | LOW | is_acknowledged field on Notification; acknowledged_by, acknowledged_at |
-| Manual event mapping correction UI | When the automatic event ID matching is wrong, admins need a way to fix it without a database query | HIGH | Admin-only view of pending/confirmed event mappings; confirm, reject, or manually map |
-| Worker health dashboard panel | Shows Celery worker status, last task run times, and task queue depths — critical for diagnosing polling failures | MEDIUM | Flower (Celery monitoring) embedded or FastAPI endpoint querying Celery inspect; read-only panel |
-| ProphetX API circuit breaker | If ProphetX returns repeated errors, stop hammering their API and wait — prevents ban/rate-limit escalation | MEDIUM | Circuit breaker pattern in ProphetX client; open/half-open/closed states; alert when circuit opens |
+| Event ID matching layer with confidence scoring | Bridges ProphetX and SportsDataIO ID spaces; gates auto-actions at ≥0.90 confidence | HIGH | fuzzy string matching + time window; stored as event_id_mappings table |
+| Multi-source status confirmation | 4 real-world sources (SDIO, Odds API, Sports API, ESPN) reduce false positive risk | HIGH | Each worker updates its own source column; status_match is True only when ProphetX agrees with real-world consensus |
+| 5 supplementary data source workers | SDIO + Odds API + Sports API + ESPN + ProphetX WS — redundancy across all major sports data providers | HIGH | Each source is a separate Celery worker with independent failure isolation |
 
-### Anti-Features (Things to Explicitly NOT Build in v1)
-
-These seem useful but create disproportionate problems or complexity for v1.
+### Anti-Features (Deferred from v1)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Automated liquidity top-up | Operators want hands-free liquidity management | ProphetX API liquidity add mechanics are unconfirmed; financial risk if logic has bugs; could drain capital on misconfigured thresholds | Alert-only in v1; add top-up only after API mechanics are confirmed and system has been running stably for 2+ weeks |
-| Email/SMS alerting | Some team members prefer email; SMS feels urgent for critical alerts | Adds SendGrid/Twilio integration complexity for marginal v1 gain; Slack already covers the team | Slack + in-app covers v1; add email digest in v2 |
-| Historical analytics charts | "It would be great to see liquidity trends over time" | Requires time-series data aggregation, chart library, new data model — significant scope | Audit log provides full history for debugging; add trend charts in v2 |
-| Market creation / odds management | Full-featured ops console feels incomplete without it | Out of scope for this tool; ProphetX manages this natively; overlap would create confusion | Use ProphetX's own admin UI for market creation |
-| Mobile native app | "Operators need to check status on the phone" | Native app doubles development effort; web dashboard on mobile browser is sufficient for an ops tool | Responsive web dashboard (tablet-primary); defer native to v2+ |
-| Real-time price/odds feed | Operators like seeing market prices alongside liquidity | Odds data adds a third polling source; dashboard complexity increases significantly; not needed for status/liquidity ops | Show liquidity only; operators use ProphetX UI for odds |
-| Auto-escalation chains (PagerDuty-style) | "What if no one sees the Slack alert for 10 minutes?" | Requires user on-call schedules, escalation logic, and phone integration — significant ops infrastructure | Configurable Slack channel per severity in v2 (e.g., #ops-critical vs. #ops-info); not v1 |
-| Per-user notification preferences | "I only want alerts for NFL events" | Notification routing adds significant data model complexity; premature for a small team tool | Global notification settings in SystemConfig; per-user preferences in v2 |
-| Public API for external consumers | "We could expose this data to other systems" | External API requires versioning, rate limiting, API key management, and stability guarantees | Internal-only REST API is sufficient; external exposure is a future architectural decision |
-
----
-
-## Feature Dependencies
-
-```
-[JWT Authentication]
-    └──required by──> [RBAC Enforcement]
-                          └──required by──> [Admin Config Panel]
-                          └──required by──> [Manual Status Sync]
-                          └──required by──> [User Management]
-
-[ProphetX API Client]
-    └──required by──> [Event Status Polling Worker]
-    └──required by──> [Automated Status Sync Actions]
-    └──required by──> [Manual Status Sync Trigger]
-
-[SportsDataIO API Client]
-    └──required by──> [Event Status Polling Worker]
-
-[Event Status Polling Worker]
-    └──required by──> [Status Mismatch Detection]
-                          └──required by──> [Automated Status Sync Actions]
-                          └──required by──> [Status Mismatch Highlighting]
-                          └──required by──> [Slack Alerting]
-                          └──required by──> [In-App Notifications]
-
-[Event ID Matching Layer]
-    └──required by──> [Event Status Polling Worker]
-    (blocking: without this, SportsDataIO data cannot be correlated to ProphetX events)
-
-[Liquidity Polling Worker]
-    └──required by──> [Low Liquidity Detection]
-                          └──required by──> [Liquidity Threshold Highlighting]
-                          └──required by──> [Slack Alerting (liquidity)]
-                          └──required by──> [In-App Notifications (liquidity)]
-
-[Configurable Liquidity Thresholds]
-    └──required by──> [Low Liquidity Detection]
-
-[Audit Log Writes]
-    └──required by──> [Audit Log Viewer UI]
-    └──required by──> [Append-Only Compliance]
-
-[Redis Pub/Sub]
-    └──required by──> [SSE Stream Endpoint]
-                          └──required by──> [Real-Time Dashboard Updates]
-
-[Alert Deduplication]
-    └──enhances──> [Slack Alerting]
-    └──enhances──> [In-App Notifications]
-
-[Slack Alerting] ──independent of──> [In-App Notification Center]
-(both notify but are separate channels; either can fail without breaking the other)
-
-[Alert-Only Mode flag] ──gates──> [Automated Status Sync Actions]
-(when false, detection still runs but write actions are suppressed)
-```
-
-### Dependency Notes
-
-- **Event ID Matching Layer is the critical path blocker:** Without a working match between ProphetX event IDs and SportsDataIO game IDs, the entire monitoring engine produces no useful output. This must be solved before any status comparison logic can be validated.
-- **Auth before anything write-capable:** JWT + RBAC must be in place before the admin config panel, manual sync triggers, or user management are exposed — even in development.
-- **Alert deduplication must precede Slack go-live in production:** Without rate limiting, a single persistently mismatched event will flood the Slack channel every 30 seconds. Implement before enabling Slack in production.
-- **Alert-only mode should be first production state:** Build the flag from the start so the rollout plan (48 hours monitor-only) is a config toggle, not a code change.
-- **Redis pub/sub is the SSE backbone:** The real-time dashboard depends on polling workers publishing to Redis channels and the SSE endpoint streaming those events to browsers. Redis must be running before SSE is testable end-to-end.
-
----
-
-## MVP Definition
-
-### Launch With (v1)
-
-- [x] Event ID matching layer (sport + teams + scheduled start time fuzzy match) — system is non-functional without this
-- [x] ProphetX API client (authenticated, with exponential backoff retry) — foundation for all read/write operations
-- [x] SportsDataIO API client (poll all scheduled/in-progress games by date) — foundation for real-world status
-- [x] Celery polling workers: poll_sports_data + poll_prophetx on 30-second schedule — the monitoring engine
-- [x] Status mismatch detection and auto-update (Upcoming→Live, Live→Ended) — primary value delivery
-- [x] Postponed/cancelled event detection with alert + dashboard flag — high operational risk if missing
-- [x] Liquidity polling worker with configurable thresholds — second primary value delivery
-- [x] Real-time dashboard: Events Table + Markets Table with mismatch/liquidity highlighting via SSE — operator visibility
-- [x] Slack webhook alerts for: mismatch detected, auto-update success/fail, low liquidity, cancellation detected — team awareness when not watching dashboard
-- [x] In-app notification center (bell + panel, read/unread, click-to-navigate) — asynchronous alert review
-- [x] Audit log (append-only, all auto and manual actions) — accountability and debugging
-- [x] JWT authentication — required before any production use
-- [x] RBAC: Admin / Operator / Read-Only with server-side enforcement — multi-user team use
-- [x] Admin config panel: liquidity thresholds, polling interval, Slack webhook URL — operators must configure without code changes
-- [x] Alert-only mode flag — enables safe production rollout without auto-write risk
-- [x] Worker health indicator — operators must know if polling has stopped
-- [x] Alert deduplication / per-event rate limiting — required before Slack goes live in production
-
-### Add After Validation (v1.x)
-
-- [ ] Manual event mapping correction UI — add when mismatched mappings are observed in production (trigger: first mapping error reported by operators)
-- [ ] Audit log search/filter UI — add when log volume makes the raw list unwieldy (trigger: >500 audit entries)
-- [ ] Supplementary data source (The Odds API or ESPN) — add when SportsDataIO coverage gaps affect specific monitored events (trigger: first "Unknown" status that blocks auto-sync)
-- [ ] Slack digest for bulk changes — add when NFL/NBA Sunday volume causes alert fatigue (trigger: operators complain about Slack spam)
-- [ ] Notification acknowledgement (acknowledged_by/at) — add when operators request it to manage notification center noise
-- [ ] ProphetX API circuit breaker — add if ProphetX API instability becomes recurring issue (trigger: >3 circuit events in a week)
-
-### Future Consideration (v2+)
-
-- [ ] Automated liquidity top-up — defer until ProphetX API top-up mechanics are confirmed and system has 2+ weeks stable operational history
-- [ ] Historical analytics / trend charts — build after operators request insight into patterns (why defer: significant scope, low urgency for v1 ops)
-- [ ] Email digest / daily summary — add when team requests asynchronous summary (why defer: Slack covers real-time; digest is a reporting feature)
-- [ ] Predictive liquidity management — requires ML model trained on historical data; no training data until system has been running
-- [ ] Alert escalation chains (PagerDuty-style) — add if SLA requirements demand it (why defer: small team, Slack is sufficient)
-- [ ] Per-user notification preferences — add when team grows beyond 5 operators (why defer: premature optimization)
-- [ ] Multi-platform monitoring (other prediction market platforms) — add if business expands to other platforms
-
----
-
-## Feature Prioritization Matrix
-
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Event ID matching layer | HIGH | HIGH | P1 — v1 blocker |
-| ProphetX + SportsDataIO API clients | HIGH | MEDIUM | P1 — v1 blocker |
-| Celery polling workers | HIGH | MEDIUM | P1 — v1 blocker |
-| Auto status sync (Upcoming→Live→Ended) | HIGH | MEDIUM | P1 |
-| Postponed/cancelled event flagging | HIGH | LOW | P1 |
-| Liquidity threshold monitoring + alerting | HIGH | MEDIUM | P1 |
-| Real-time dashboard (SSE) | HIGH | MEDIUM | P1 |
-| Slack alerting | HIGH | LOW | P1 |
-| JWT auth + RBAC | HIGH | MEDIUM | P1 |
-| Audit log (append-only) | HIGH | LOW | P1 |
-| In-app notification center | MEDIUM | MEDIUM | P1 |
-| Alert deduplication | HIGH | LOW | P1 — required before production Slack |
-| Alert-only mode flag | HIGH | LOW | P1 — required for rollout plan |
-| Admin config panel | MEDIUM | LOW | P1 |
-| Worker health indicator | MEDIUM | LOW | P1 |
-| "Action Failed" state with retry CTA | MEDIUM | LOW | P1 |
-| Audit log search/filter UI | MEDIUM | MEDIUM | P2 |
-| Supplementary data sources | MEDIUM | HIGH | P2 |
-| Slack digest for bulk changes | MEDIUM | MEDIUM | P2 |
-| Notification acknowledgement | LOW | LOW | P2 |
-| Manual event mapping correction UI | MEDIUM | HIGH | P2 |
-| ProphetX API circuit breaker | MEDIUM | MEDIUM | P2 |
-| Historical analytics charts | LOW | HIGH | P3 |
-| Email/SMS alerting | LOW | MEDIUM | P3 |
-| Automated liquidity top-up | HIGH | HIGH | P3 — blocked on API confirmation |
-| Predictive liquidity management | MEDIUM | HIGH | P3 |
-
-**Priority key:**
-- P1: Must have for launch
-- P2: Should have, add when possible
-- P3: Nice to have, future consideration
-
----
-
-## Competitor Feature Analysis
-
-This is an internal operations tool with no direct commercial competitors. The closest analogues are:
-
-| Feature | NOC/SOC Dashboards (e.g., Grafana, PagerDuty) | Trading Operations Tools (e.g., exchange ops consoles) | Our Approach |
-|---------|----------------------------------------------|-------------------------------------------------------|--------------|
-| Real-time status view | Always present; core feature | Always present; critical path | Real-time via SSE; dual-status columns (ProphetX vs. real-world) |
-| Alerting | Multi-channel (email, Slack, PagerDuty, SMS) | Multi-channel; escalation chains | Slack + in-app for v1; covers the immediate team need |
-| Audit log | Standard in all ops tools; immutable in financial contexts | Mandatory; regulatory requirement in trading | Append-only PostgreSQL; no delete; before/after state |
-| RBAC | Standard; typically 3-5 roles | Always present; strict separation of read vs. write | Three roles (Admin, Operator, Read-Only); server-side enforcement |
-| Alert deduplication | Critical; all mature alerting tools do this | Critical; alert fatigue is a known ops problem | Per-event rate limiting + optional digest mode |
-| Automated remediation | Present in mature NOC tools (runbooks) | Present in automated trading risk systems | Auto status sync is the core automation; more remediation in v2 |
-| Event ID correlation | Not typically a problem in homogeneous systems | Cross-system ID mapping is a known hard problem | Custom matching layer: sport + teams + start time + fuzzy string |
-| Manual override | Always present as safety valve | Always present; critical for human-in-the-loop | Manual sync trigger; alert-only mode as global override |
-
----
-
-## Key Design Decisions Implied by Feature Analysis
-
-1. **Event ID matching is the riskiest feature and must be built first.** Everything else depends on it. Budget for it being harder than expected — fuzzy team name matching across different data sources is non-trivial (e.g., "LA Lakers" vs. "Los Angeles Lakers" vs. "Lakers").
-
-2. **Alert-only mode is not optional for rollout.** The rollout plan calls for 48 hours of monitor-only operation. This must be a day-one config flag, not something added later.
-
-3. **Deduplication before production Slack.** Without a 1-alert-per-event-per-minute cooldown, a single stuck event generates 120 Slack alerts/hour. This is a v1 blocker for production use, even though it reads like a v2 nice-to-have.
-
-4. **Audit log must be append-only by design, not convention.** Use PostgreSQL row-level security or application-level enforcement to prevent deletions. This is a compliance feature, not just logging.
-
-5. **SSE over WebSockets is correct for this use case.** The dashboard only needs server-to-client push. WebSockets add bidirectional complexity that is not needed. SSE reconnects automatically and is simpler to implement and debug.
-
-6. **RBAC must be server-side enforced.** Frontend role checks are for UX only. Every write endpoint must verify role server-side. This is especially critical for audit log integrity and threshold configuration.
+| Automated liquidity top-up | Operators want hands-free liquidity management | ProphetX API liquidity mechanics unconfirmed; financial risk | Alert-only; add after API mechanics confirmed and 2+ stable weeks |
+| Email/SMS alerting | Some team members prefer email | Adds integration complexity for marginal gain over Slack | Slack + in-app for v1 |
+| Historical analytics charts | "It would be great to see trends" | Requires time-series aggregation + chart library — significant scope | Audit log covers v1 debugging needs |
+| Automated quota throttling | System adjusts its own poll intervals near quota limit | Risk of oscillation; complex feedback loop | Alert at 80% threshold; manual adjustment |
 
 ---
 
 ## Sources
 
-- Project context: `/Users/doug/Prophet API Monitoring/.planning/PROJECT.md`
-- Full PRD: `/Users/doug/Prophet API Monitoring/docs/PRD.md`
-- Domain knowledge: NOC/SOC dashboard patterns, trading operations tooling, prediction market operator workflows (HIGH confidence — established, well-documented domain)
-- Alert deduplication pattern: industry-standard practice in all production monitoring systems (e.g., PagerDuty, OpsGenie, Grafana Alerting all implement de-duplication as a core feature)
-- Event ID matching complexity: known hard problem in sports data integration; documented in SportsDataIO and similar provider documentation patterns
-- Circuit breaker pattern: Martin Fowler's circuit breaker pattern; Celery retry/chord patterns
-
-*Note: WebSearch and Brave Search unavailable during this research session. All findings based on PRD analysis and domain knowledge. Confidence is HIGH for this domain — internal ops monitoring dashboard patterns are well-established and the PRD is detailed enough to drive complete feature categorization without external sources.*
+- `/Users/doug/Prophet API Monitoring/.planning/PROJECT.md` — v1.1 milestone target features
+- `/Users/doug/Prophet API Monitoring/backend/app/workers/celery_app.py` — current beat_schedule and intervals
+- `/Users/doug/Prophet API Monitoring/backend/app/clients/odds_api.py`, `sports_api.py`, `base.py` — current client implementation
+- The Odds API v4 documentation (`https://the-odds-api.com/liveapi/guides/v4/`) — response headers `x-requests-remaining`, `x-requests-used`, `x-requests-last` confirmed (HIGH confidence)
+- api-football.com rate limit documentation (`https://www.api-football.com/news/post/how-ratelimit-works`) — response headers `x-ratelimit-requests-remaining`, `x-ratelimit-requests-limit`, `x-ratelimit-remaining`, `x-ratelimit-limit` confirmed (HIGH confidence)
+- SportsDataIO official site (`https://sportsdata.io/apis`) — "unlimited API calls" confirmed (HIGH confidence)
+- sqlalchemy-celery-beat PyPI (`https://pypi.org/project/sqlalchemy-celery-beat/`) — Option B library (MEDIUM confidence)
+- Redis distributed counter pattern — standard Redis INCR/EXPIRE pattern (HIGH confidence)
 
 ---
-*Feature research for: ProphetX Market Monitor — internal operations monitoring dashboard*
-*Researched: 2026-02-24*
+*Feature research for: ProphetX Market Monitor v1.1 — API usage monitoring + stabilization*
+*Researched: 2026-03-01*
