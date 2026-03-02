@@ -70,8 +70,8 @@ Requirements for milestone v1.1 (Stabilization + API Usage). Each maps to roadma
 ### Poll Frequency Controls
 
 - [ ] **FREQ-01**: Admin can adjust poll frequency per worker from the API Usage tab with changes taking effect within seconds
-- [ ] **FREQ-02**: Server enforces minimum poll interval per worker to prevent API abuse (HTTP 422 on violation)
-- [ ] **FREQ-03**: Poll interval settings persist across Beat restarts (DB-backed, not overwritten by static config)
+- [x] **FREQ-02**: Server enforces minimum poll interval per worker to prevent API abuse (HTTP 422 on violation)
+- [x] **FREQ-03**: Poll interval settings persist across Beat restarts (DB-backed, not overwritten by static config)
 
 ## v2 Requirements
 
@@ -150,8 +150,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STAB-02 | Phase 4 | Complete |
 | STAB-03 | Phase 4 | Complete |
 | USAGE-01 | Phase 4 | Complete |
-| FREQ-02 | Phase 5 | Pending |
-| FREQ-03 | Phase 5 | Pending |
+| FREQ-02 | Phase 5 | Complete |
+| FREQ-03 | Phase 5 | Complete |
 | USAGE-02 | Phase 6 | Pending |
 | USAGE-03 | Phase 6 | Pending |
 | USAGE-04 | Phase 6 | Pending |

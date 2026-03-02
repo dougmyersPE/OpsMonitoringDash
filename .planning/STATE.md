@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: phase-4-code-complete
-last_updated: "2026-03-02T04:04:00.000Z"
+status: unknown
+last_updated: "2026-03-02T07:01:44.111Z"
 progress:
-  total_phases: 4
-  completed_phases: 3
-  total_plans: 13
-  completed_plans: 13
+  total_phases: 5
+  completed_phases: 5
+  total_plans: 15
+  completed_plans: 15
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 4 of 6 — Stabilization + Counter Foundation — COMPLETE
-Plan: 2 of 2 — COMPLETE (deployed)
-Status: Phase 4 complete — deployed to Hetzner, /health/workers and /usage verified live
-Last activity: 2026-03-02 — Deployed Phase 4, verified endpoints on live server
+Phase: 5 of 6 — Interval Control Backend — COMPLETE
+Plan: 2 of 2 — COMPLETE
+Status: Phase 5 complete — DB-backed intervals, Beat bootstrap, minimum enforcement, all 6 tests pass
+Last activity: 2026-03-02 — Executed Phase 5 (2 plans, 4 tasks, 6 files)
 
-Progress: [███░░░░░░░] 33% (v1.1 — Phase 4 done, Phases 5-6 remain)
+Progress: [██████░░░░] 67% (v1.1 — Phases 4-5 done, Phase 6 remains)
 
 ## Performance Metrics
 
@@ -36,9 +36,11 @@ Progress: [███░░░░░░░] 33% (v1.1 — Phase 4 done, Phases 5-
 | v1.1 requirements | 10 total |
 | Mapped to phases | 10/10 |
 | Phases defined | 3 (phases 4-6) |
-| Plans complete | 1 |
+| Plans complete | 5 |
 | Phase 04 P01 | 15min | 2 tasks | 3 files |
 | Phase 04 P02 | 4min | 3 tasks | 9 files |
+| Phase 05 P01 | 8min | 2 tasks | 4 files |
+| Phase 05 P02 | 10min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -99,11 +101,17 @@ Recent decisions affecting current work:
 - 04-02: Counter only at successful-completion path -- early returns do not inflate counts (preserves accuracy for Phase 6 usage display)
 - 04-02: Usage endpoint requires readonly role (not admin) per USAGE-01 -- operators must see their own call data
 - 04-02: Confidence validation is a server-side script requiring human judgment, not an automated test
+- 05-01: beat_schedule={} (empty dict) instead of removing key entirely -- ensures setup_schedule() statics cleanup is a no-op
+- 05-01: Bootstrap entries use entry.save() directly (not update_from_dict) so they never appear in statics_key and survive cleanup
+- 05-01: Beat depends_on postgres (service_healthy) + redis (service_healthy) -- bootstrap needs DB access
+- 05-01: Fallback defaults in beat_bootstrap.py match seed.py defaults -- correct behavior even if seed hasn't run yet
+- 05-01: Critical check default lowered from 60s to 30s (DB query is cheap, more responsive safety net)
+- 05-02: Deferred import of update_redbeat_entry inside _propagate_to_redbeat() -- avoids importing celery_app at module level in API process
+- 05-02: run_in_executor for RedBeat propagation -- RedBeat uses sync StrictRedis client
+- 05-02: RedBeat propagation is best-effort with try/except -- DB is source of truth, bootstrap syncs on next restart
 
 ### Pending Todos
 
-- Before Phase 5: Run `redis-cli KEYS "redbeat:*"` against live Redis to confirm exact Beat key names before writing `RedBeatSchedulerEntry.from_key()` — mismatch creates orphaned key silently
-- Before Phase 5: Confirm that importing `celery_app` in the FastAPI API process does not trigger worker registration side effects
 - Before Phase 6: Run `npm install recharts@^3.7.0` and verify React 19 compatibility with `npm ls react-is`
 
 ### Blockers/Concerns
@@ -116,10 +124,12 @@ Recent decisions affecting current work:
 - ProphetX base URL: `https://api-ss-sandbox.betprophet.co/partner` — confirmed working (WS consumer live)
 - ProphetX status enum values confirmed from live DB: `ended`, `live`, `not_started`
 - Sports API false-positive root cause: using noon-UTC proxy instead of actual start time, time-distance guard too loose (>12h) — FIXED in 04-01 (commit 338390e)
+- RedBeat key names: bootstrap uses same names as previous beat_schedule dict (poll-prophetx, poll-sports-data, etc.) — resolved by using BEAT_NAME_MAP matching existing conventions
+- celery_app import in API process: resolved via deferred import inside handler body (_propagate_to_redbeat), only runs when admin PATCHes an interval key
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Phase 5 context gathered — CONTEXT.md written with decisions on minimums, defaults, seeding, and critical check
-Resume file: .planning/phases/05-interval-control-backend/05-CONTEXT.md
-Next: Plan Phase 5 (/gsd:plan-phase 5), then execute. Also run confidence validation script on server.
+Stopped at: Phase 5 executed and verified — all 2 plans complete, VERIFICATION.md passed, FREQ-02 + FREQ-03 satisfied
+Resume file: .planning/phases/05-interval-control-backend/05-VERIFICATION.md
+Next: Plan + execute Phase 6 (ApiUsagePage frontend). Deploy Phase 5 to Hetzner first: `docker compose build backend beat && docker compose up -d`
