@@ -38,33 +38,10 @@ celery_app.conf.update(
     task_ignore_result=True,         # Polling tasks don't need result storage
     worker_max_memory_per_child=400000,  # 400MB — recycle fork worker after task instead of OOM kill
 
-    # Beat schedule — intervals configured via POLL_INTERVAL_* env vars
-    beat_schedule={
-        "poll-prophetx": {
-            "task": "app.workers.poll_prophetx.run",
-            "schedule": float(settings.POLL_INTERVAL_PROPHETX),
-        },
-        "poll-sports-data": {
-            "task": "app.workers.poll_sports_data.run",
-            "schedule": float(settings.POLL_INTERVAL_SPORTS_DATA),
-        },
-        "poll-odds-api": {
-            "task": "app.workers.poll_odds_api.run",
-            "schedule": float(settings.POLL_INTERVAL_ODDS_API),
-        },
-        "poll-sports-api": {
-            "task": "app.workers.poll_sports_api.run",
-            "schedule": float(settings.POLL_INTERVAL_SPORTS_API),
-        },
-        "poll-espn": {
-            "task": "app.workers.poll_espn.run",
-            "schedule": float(settings.POLL_INTERVAL_ESPN),
-        },
-        "poll-critical-check": {
-            "task": "app.workers.poll_critical_check.run",
-            "schedule": 60.0,
-        },
-    },
+    # Beat schedule is intentionally empty — intervals are DB-backed (FREQ-03).
+    # beat_bootstrap.py writes RedBeat entries from system_config before Beat starts.
+    # DO NOT add entries here — they would overwrite DB-configured intervals on restart.
+    beat_schedule={},
 )
 
 # Startup assertion: fail loudly if RedBeat is not configured correctly.
