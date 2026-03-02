@@ -265,28 +265,60 @@ def run(self):
             best_match: Event | None = None
             best_score = 0.0
 
+            # Parse the game datetime once for time-proximity scoring
+            try:
+                game_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            except Exception:
+                game_dt = datetime(game_date.year, game_date.month, game_date.day, 12, 0, tzinfo=timezone.utc)
+
             for event in match_candidates:
                 home_sim = _best_similarity(event.home_team or "", home)
                 away_sim = _best_similarity(event.away_team or "", away)
-                score = (home_sim + away_sim) / 2
+                name_score = (home_sim + away_sim) / 2
+
+                # Time proximity bonus: 0.0–0.15 extra score based on how
+                # close the scheduled times are. This breaks ties when the
+                # same teams play on consecutive days — the closer game wins.
+                time_bonus = 0.0
+                if event.scheduled_start and game_dt:
+                    delta_hours = abs((event.scheduled_start - game_dt).total_seconds()) / 3600
+                    if delta_hours <= 1:
+                        time_bonus = 0.15
+                    elif delta_hours <= 6:
+                        time_bonus = 0.10
+                    elif delta_hours <= 12:
+                        time_bonus = 0.05
+
+                score = name_score + time_bonus
                 if score > best_score:
                     best_score = score
                     best_match = event
 
             if best_match and best_score >= FUZZY_THRESHOLD:
-                # Date-distance guard: reject matches where the Sports API game date is
-                # more than 24 hours from the ProphetX scheduled_start. The ±1-day index
-                # window handles timezone offsets (~max 12h), but without this check a
-                # finished game on day N can match a future event on day N+1.
+                # Same-date guard: the Sports API game date must match the ProphetX
+                # event's scheduled date. The ±1-day index window exists only to
+                # handle UTC/timezone offsets (a game at 11pm ET on Mar 1 is Mar 2
+                # UTC), so we allow a ±1 calendar day tolerance but enforce that the
+                # actual start times are within 12 hours. Without this, a finished
+                # game on day N can fuzzy-match a future event on day N+1 when the
+                # same teams play consecutive days (the root cause of false-positive
+                # critical alerts).
                 if best_match.scheduled_start:
-                    game_midday = datetime(game_date.year, game_date.month, game_date.day, 12, 0, tzinfo=timezone.utc)
-                    if abs((best_match.scheduled_start - game_midday).total_seconds()) > 86400:  # 24h
+                    game_start_utc = datetime(
+                        game_date.year, game_date.month, game_date.day,
+                        12, 0, tzinfo=timezone.utc,
+                    )
+                    hours_apart = abs(
+                        (best_match.scheduled_start - game_start_utc).total_seconds()
+                    ) / 3600
+                    if hours_apart > 12:
                         unmatched += 1
                         log.debug(
-                            "sports_api_date_too_far",
+                            "sports_api_time_too_far",
                             home=home, away=away,
                             game_date=str(game_date),
                             scheduled_start=str(best_match.scheduled_start),
+                            hours_apart=round(hours_apart, 1),
                         )
                         continue
 

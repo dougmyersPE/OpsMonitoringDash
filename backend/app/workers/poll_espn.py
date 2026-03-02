@@ -205,6 +205,9 @@ def run(self):
                 best_match = None
                 best_score = 0.0
 
+                # Build a UTC datetime for the ESPN record date for time-proximity scoring
+                record_dt = datetime(record_date.year, record_date.month, record_date.day, 12, 0, tzinfo=timezone.utc)
+
                 for event in date_candidates:
                     if not event.home_team or not event.away_team:
                         continue
@@ -212,12 +215,46 @@ def run(self):
                     # between providers, so check forward and reversed and take the best.
                     forward = (_similarity(event.home_team, home) + _similarity(event.away_team, away)) / 2
                     reversed_ = (_similarity(event.home_team, away) + _similarity(event.away_team, home)) / 2
-                    score = max(forward, reversed_)
+                    name_score = max(forward, reversed_)
+
+                    # Time proximity bonus to prefer closer matches (same logic as Sports API worker)
+                    time_bonus = 0.0
+                    if event.scheduled_start:
+                        delta_hours = abs((event.scheduled_start - record_dt).total_seconds()) / 3600
+                        if delta_hours <= 1:
+                            time_bonus = 0.15
+                        elif delta_hours <= 6:
+                            time_bonus = 0.10
+                        elif delta_hours <= 12:
+                            time_bonus = 0.05
+
+                    score = name_score + time_bonus
                     if score > best_score:
                         best_score = score
                         best_match = event
 
                 match_threshold = FUZZY_THRESHOLD
+
+            # 12-hour guard for non-tournament matches — reject cross-day mismatches
+            if (
+                not is_tournament
+                and best_match
+                and best_score >= match_threshold
+                and best_match.scheduled_start
+            ):
+                guard_midday = datetime(record_date.year, record_date.month, record_date.day, 12, 0, tzinfo=timezone.utc)
+                hours_apart = abs((best_match.scheduled_start - guard_midday).total_seconds()) / 3600
+                if hours_apart > 12:
+                    log.debug(
+                        "espn_time_too_far",
+                        home=record.get("home_name", ""),
+                        away=record.get("away_name", ""),
+                        record_date=str(record_date),
+                        scheduled_start=str(best_match.scheduled_start),
+                        hours_apart=round(hours_apart, 1),
+                    )
+                    unmatched += 1
+                    continue
 
             # Build list of events to update — golf can match multiple markets per tournament
             if best_score >= match_threshold and best_match:
