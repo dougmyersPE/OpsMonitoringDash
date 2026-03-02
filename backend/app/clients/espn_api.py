@@ -96,8 +96,10 @@ def _parse_events(data: dict, endpoint_key: str) -> list[dict]:
 
         try:
             from datetime import datetime
-            event_date = datetime.fromisoformat(date_str.replace("Z", "+00:00")).date().isoformat()
+            event_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            event_date = event_dt.date().isoformat()
         except Exception:
+            event_dt = None
             event_date = ""
 
         # Event-level status (fallback for competitions without their own status)
@@ -110,6 +112,7 @@ def _parse_events(data: dict, endpoint_key: str) -> list[dict]:
                 "away_name": "",
                 "event_name": event_name,
                 "date": event_date,
+                "datetime": event_dt,
                 "status_state": event_state,
                 "endpoint": endpoint_key,
                 "is_tournament": True,
@@ -137,6 +140,7 @@ def _parse_events(data: dict, endpoint_key: str) -> list[dict]:
                     "away_name": names[1],
                     "event_name": event_name,
                     "date": event_date,
+                    "datetime": event_dt,
                     "status_state": effective_state,
                     "endpoint": endpoint_key,
                     "is_tournament": False,

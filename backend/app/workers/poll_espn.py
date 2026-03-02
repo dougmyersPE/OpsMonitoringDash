@@ -228,8 +228,9 @@ def run(self):
                 best_match = None
                 best_score = 0.0
 
-                # Build a UTC datetime for the ESPN record date for time-proximity scoring
-                record_dt = datetime(record_date.year, record_date.month, record_date.day, 12, 0, tzinfo=timezone.utc)
+                # Use actual ESPN event datetime for time-proximity scoring;
+                # fall back to noon UTC only if the full datetime wasn't parsed
+                record_dt = record.get("datetime") or datetime(record_date.year, record_date.month, record_date.day, 12, 0, tzinfo=timezone.utc)
 
                 for event in date_candidates:
                     if not event.home_team or not event.away_team:
