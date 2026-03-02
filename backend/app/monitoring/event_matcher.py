@@ -24,6 +24,8 @@ TEAM_WEIGHT_AWAY = 0.35
 TIME_WEIGHT = 0.30
 # >= this triggers auto-action (confirmed match)
 CONFIDENCE_THRESHOLD = 0.90
+# Validated: run scripts/validate_confidence.py on the server to check threshold
+# against real data. See STAB-03 in REQUIREMENTS.md.
 # full score within ± 15 min; decays to 0 at 30 min
 TIME_WINDOW_MINUTES = 15
 # 24 hours — Redis TTL for match cache entries
