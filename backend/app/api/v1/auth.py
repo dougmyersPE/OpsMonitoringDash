@@ -28,4 +28,4 @@ async def login(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account inactive")
     expires = REMEMBER_ME_EXPIRE_MINUTES if remember_me else None
     token = create_access_token(str(user.id), user.role.value, expires_minutes=expires)
-    return TokenResponse(access_token=token, token_type="bearer")
+    return TokenResponse(access_token=token, token_type="bearer", role=user.role.value)
