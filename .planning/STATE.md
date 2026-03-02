@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 4 — Stabilization + Counter Foundation
-Plan: 2 of 2 (COMPLETE)
-Status: Phase 4 code complete; deployment to Hetzner pending
-Last activity: 2026-03-02 — Completed 04-02 (Redis call counters + usage endpoint + confidence validation)
+Phase: 4 of 6 — Stabilization + Counter Foundation — COMPLETE
+Plan: 2 of 2 — COMPLETE (deployed)
+Status: Phase 4 complete — deployed to Hetzner, /health/workers and /usage verified live
+Last activity: 2026-03-02 — Deployed Phase 4, verified endpoints on live server
 
-Progress: [██████████] 100% (v1.1 Phase 4 — 2/2 plans complete, deployment pending)
+Progress: [███░░░░░░░] 33% (v1.1 — Phase 4 done, Phases 5-6 remain)
 
 ## Performance Metrics
 
@@ -120,6 +120,6 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 04-02-PLAN.md (Redis call counters + usage endpoint + confidence validation)
+Stopped at: Phase 4 fully deployed and verified on live server. Fixed require_role bug in usage.py (needed all 3 roles explicitly). Context window running low.
 Resume file: none
-Next: Deploy Phase 4 to Hetzner server (docker compose build && docker compose up -d), then proceed to Phase 5 planning
+Next: Plan and execute Phase 5 (Interval Control Backend), then Phase 6 (ApiUsagePage). Also run confidence validation script on server (docker exec prophet-monitor-backend-1 python scripts/validate_confidence.py).
