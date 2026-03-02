@@ -304,14 +304,10 @@ def run(self):
                 # same teams play consecutive days (the root cause of false-positive
                 # critical alerts).
                 if best_match.scheduled_start:
-                    game_start_utc = datetime(
-                        game_date.year, game_date.month, game_date.day,
-                        12, 0, tzinfo=timezone.utc,
-                    )
                     hours_apart = abs(
-                        (best_match.scheduled_start - game_start_utc).total_seconds()
+                        (best_match.scheduled_start - game_dt).total_seconds()
                     ) / 3600
-                    if hours_apart > 12:
+                    if hours_apart > 6:
                         unmatched += 1
                         log.debug(
                             "sports_api_time_too_far",

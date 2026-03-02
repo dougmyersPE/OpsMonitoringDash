@@ -242,9 +242,8 @@ def run(self):
                 and best_score >= match_threshold
                 and best_match.scheduled_start
             ):
-                guard_midday = datetime(record_date.year, record_date.month, record_date.day, 12, 0, tzinfo=timezone.utc)
-                hours_apart = abs((best_match.scheduled_start - guard_midday).total_seconds()) / 3600
-                if hours_apart > 12:
+                hours_apart = abs((best_match.scheduled_start - record_dt).total_seconds()) / 3600
+                if hours_apart > 6:
                     log.debug(
                         "espn_time_too_far",
                         home=record.get("home_name", ""),
