@@ -12,8 +12,11 @@ All endpoints accept the key via x-apisports-key header.
 """
 
 import httpx
+import redis as _sync_redis
 import structlog
-from datetime import date
+from datetime import date, datetime, timezone
+
+from app.core.config import settings
 
 log = structlog.get_logger()
 
@@ -136,6 +139,23 @@ class SportsApiClient:
         try:
             resp = await client.get(config["endpoint"], params=params)
             resp.raise_for_status()
+            # Capture per-sport quota headers (api-sports.io rate limits)
+            try:
+                remaining = resp.headers.get("x-ratelimit-requests-remaining")
+                limit = resp.headers.get("x-ratelimit-requests-limit")
+                if remaining is not None:
+                    r = _sync_redis.from_url(settings.REDIS_URL)
+                    pipe = r.pipeline()
+                    pipe.set(f"api_quota:sports_api:{sport}:remaining", remaining, ex=25 * 3600)
+                    pipe.set(f"api_quota:sports_api:{sport}:limit", limit or "100", ex=25 * 3600)
+                    pipe.set(
+                        f"api_quota:sports_api:{sport}:updated_at",
+                        datetime.now(timezone.utc).isoformat(),
+                        ex=25 * 3600,
+                    )
+                    pipe.execute()
+            except Exception:
+                log.debug("sports_api_quota_capture_failed", sport=sport, exc_info=True)
             data = resp.json()
         except Exception as exc:
             log.warning("sports_api_fetch_failed", sport=sport, date=str(game_date), error=str(exc))

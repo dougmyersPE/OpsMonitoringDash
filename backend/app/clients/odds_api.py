@@ -1,3 +1,7 @@
+from datetime import datetime, timezone
+
+import httpx
+import redis as _sync_redis
 import structlog
 
 from app.clients.base import BaseAPIClient
@@ -28,6 +32,29 @@ class OddsAPIClient(BaseAPIClient):
     def __init__(self, api_key: str | None = None):
         super().__init__(base_url=BASE_URL)
         self._api_key = api_key or settings.ODDS_API_KEY
+
+    def _capture_quota_headers(self, response: httpx.Response) -> None:
+        """Capture Odds API quota headers and store in Redis with 25h TTL.
+
+        Headers: x-requests-remaining, x-requests-used (from the-odds-api.com docs).
+        """
+        try:
+            remaining = response.headers.get("x-requests-remaining")
+            used = response.headers.get("x-requests-used")
+            if remaining is None:
+                return
+            r = _sync_redis.from_url(settings.REDIS_URL)
+            pipe = r.pipeline()
+            pipe.set("api_quota:odds_api:remaining", remaining, ex=25 * 3600)
+            pipe.set("api_quota:odds_api:used", used or "0", ex=25 * 3600)
+            pipe.set(
+                "api_quota:odds_api:updated_at",
+                datetime.now(timezone.utc).isoformat(),
+                ex=25 * 3600,
+            )
+            pipe.execute()
+        except Exception:
+            log.debug("odds_api_quota_capture_failed", exc_info=True)
 
     async def get_scores(self, sport_key: str, days_from: int = 1) -> list:
         """Fetch completed/in-progress scores for a sport. daysFrom=1 includes today + yesterday."""

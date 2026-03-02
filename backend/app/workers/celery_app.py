@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 from app.core.config import settings
 import structlog
 
@@ -15,6 +16,7 @@ celery_app = Celery(
         "app.workers.poll_sports_api",
         "app.workers.poll_espn",
         "app.workers.poll_critical_check",
+        "app.workers.rollup_api_usage",
     ],
 )
 
@@ -38,10 +40,16 @@ celery_app.conf.update(
     task_ignore_result=True,         # Polling tasks don't need result storage
     worker_max_memory_per_child=400000,  # 400MB — recycle fork worker after task instead of OOM kill
 
-    # Beat schedule is intentionally empty — intervals are DB-backed (FREQ-03).
-    # beat_bootstrap.py writes RedBeat entries from system_config before Beat starts.
-    # DO NOT add entries here — they would overwrite DB-configured intervals on restart.
-    beat_schedule={},
+    # Beat schedule: only static (non-operator-configurable) tasks go here.
+    # Poll interval entries are DB-backed (FREQ-03) — beat_bootstrap.py writes
+    # RedBeat entries from system_config before Beat starts.
+    # DO NOT add poll_interval entries here — they would overwrite DB-configured intervals on restart.
+    beat_schedule={
+        "rollup-api-usage": {
+            "task": "app.workers.rollup_api_usage.run",
+            "schedule": crontab(hour=2, minute=0),  # 02:00 UTC nightly
+        },
+    },
 )
 
 # Startup assertion: fail loudly if RedBeat is not configured correctly.

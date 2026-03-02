@@ -12,6 +12,14 @@ class BaseAPIClient:
             timeout=httpx.Timeout(timeout),
         )
 
+    def _capture_quota_headers(self, response: httpx.Response) -> None:
+        """Subclass override to capture provider-specific quota headers from responses.
+
+        Default: no-op. Override in provider-specific clients to extract and store
+        quota data (remaining calls, used calls, limits) in Redis with TTL.
+        """
+        pass
+
     @retry(
         wait=wait_exponential(multiplier=1, min=1, max=4),
         stop=stop_after_attempt(3),
@@ -21,6 +29,7 @@ class BaseAPIClient:
     async def _get(self, path: str, **kwargs) -> dict | list:
         response = await self._client.get(path, **kwargs)
         response.raise_for_status()
+        self._capture_quota_headers(response)
         return response.json()
 
     @retry(
@@ -32,6 +41,7 @@ class BaseAPIClient:
     async def _post(self, path: str, **kwargs) -> dict | list:
         response = await self._client.post(path, **kwargs)
         response.raise_for_status()
+        self._capture_quota_headers(response)
         return response.json()
 
     async def close(self):
