@@ -3,7 +3,7 @@
 **Defined:** 2026-02-24
 **Core Value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
 
-## v1 Requirements
+## v1.0 Requirements (Complete)
 
 ### Core Engine
 
@@ -50,7 +50,32 @@
 - [x] **AUDIT-01**: All automated and manual actions are logged append-only: timestamp, actor (user or system), affected event/market, action type, before state, after state — no deletions permitted
 - [x] **AUDIT-02**: Operator can view the full audit log in the dashboard with basic pagination
 
+## v1.1 Requirements
+
+Requirements for milestone v1.1 (Stabilization + API Usage). Each maps to roadmap phases.
+
+### Stabilization
+
+- [ ] **STAB-01**: Sports API false-positive alerts are eliminated by using actual game start times instead of noon-UTC proxy and tightening the time-distance guard
+- [ ] **STAB-02**: Worker health endpoint (`/api/v1/health/workers`) returns correct worker status instead of 404
+- [ ] **STAB-03**: Event matching confidence threshold is validated against real ProphetX + source data and tuned if needed
+
+### API Usage Tracking
+
+- [ ] **USAGE-01**: Operator can see total API calls made per worker per day on the API Usage tab
+- [ ] **USAGE-02**: Operator can see provider-reported quota (used/remaining/limit) for Odds API and Sports API on the API Usage tab
+- [ ] **USAGE-03**: Operator can see a 7-day call volume history chart per worker on the API Usage tab
+- [ ] **USAGE-04**: Operator can see projected monthly call volume at current polling rate on the API Usage tab
+
+### Poll Frequency Controls
+
+- [ ] **FREQ-01**: Admin can adjust poll frequency per worker from the API Usage tab with changes taking effect within seconds
+- [ ] **FREQ-02**: Server enforces minimum poll interval per worker to prevent API abuse (HTTP 422 on violation)
+- [ ] **FREQ-03**: Poll interval settings persist across Beat restarts (DB-backed, not overwritten by static config)
+
 ## v2 Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
 
 ### Operational Polish
 
@@ -64,22 +89,34 @@
 - **DATA-01**: Supplementary real-world data source (The Odds API or ESPN) as fallback when SportsDataIO lacks coverage for a specific event
 - **DATA-02**: Slack digest mode — group multiple alerts within a 60-second window into a single message (e.g., during NFL Sunday bulk Live transitions)
 
+### Alerting Enhancements
+
+- **ALERT-V2-01**: Operator receives Slack alert when API quota usage exceeds configurable threshold
+- **ALERT-V2-02**: Operator can see per-sport call breakdown for Sports API (basketball, hockey, baseball, football)
+
+### Data Source Coverage
+
+- **DATA-V2-01**: SDIO NFL/NCAAF endpoints are fixed when those seasons resume and events are active
+- **DATA-V2-02**: Per-worker pause toggle from the UI (set interval to very long = effectively paused)
+
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Automated liquidity top-up | ProphetX API liquidity mechanics unconfirmed; financial risk if logic has bugs — defer until API mechanics confirmed and system has 2+ stable weeks |
-| Email / SMS alerting | Slack + in-app covers v1 team needs; additional channels add integration complexity for marginal gain |
-| Historical analytics / trend charts | Requires time-series aggregation and charting infrastructure; audit log covers debugging needs in v1 |
-| Mobile native app | Web dashboard is sufficient for ops tool; native doubles development effort |
+| Automated liquidity top-up | ProphetX API liquidity mechanics unconfirmed; financial risk if logic has bugs |
+| Email / SMS alerting | Slack + in-app covers team needs; additional channels add integration complexity |
+| Mobile native app | Web dashboard is sufficient for ops tool |
 | Market creation / odds management | Out of scope for this tool; ProphetX manages natively |
-| Real-time price / odds feed | Third polling source adds complexity; not needed for status/liquidity ops |
-| Per-user notification preferences | Premature for a small team tool; global settings sufficient in v1 |
-| Public API for external consumers | Internal-only tool; external API requires versioning and stability guarantees |
+| Automated quota throttling | Risk of oscillation; operators should make the call |
+| Real-time calls/second display | Always 0.0–0.1 at this scale; operationally meaningless |
+| Full API call log (every request in DB) | ~1.3M rows/month, no actionable use case beyond Redis counters |
+| SDIO quota tracking | SDIO plans are "unlimited calls"; no quota endpoint or headers documented |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
+
+### v1.0
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
@@ -88,7 +125,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
-| CORE-03 | Phase 2 | Complete — 02-01 |
+| CORE-03 | Phase 2 | Complete |
 | SYNC-01 | Phase 2 | Complete |
 | SYNC-02 | Phase 2 | Complete |
 | SYNC-03 | Phase 2 | Complete |
@@ -105,11 +142,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ALERT-03 | Phase 3 | Complete |
 | NOTIF-01 | Phase 3 | Complete |
 
+### v1.1
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| STAB-01 | — | Pending |
+| STAB-02 | — | Pending |
+| STAB-03 | — | Pending |
+| USAGE-01 | — | Pending |
+| USAGE-02 | — | Pending |
+| USAGE-03 | — | Pending |
+| USAGE-04 | — | Pending |
+| FREQ-01 | — | Pending |
+| FREQ-02 | — | Pending |
+| FREQ-03 | — | Pending |
+
 **Coverage:**
-- v1 requirements: 21 total
-- Mapped to phases: 21
-- Unmapped: 0
+- v1.0 requirements: 21 total — 21 complete ✓
+- v1.1 requirements: 10 total
+- Mapped to phases: 0
+- Unmapped: 10 ⚠️
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-25 — CORE-01, CORE-02 confirmed complete (Plan 01-03 — Celery Beat + API clients verified running)*
+*Last updated: 2026-03-01 after v1.1 milestone requirements defined*
