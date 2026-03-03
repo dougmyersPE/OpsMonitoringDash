@@ -118,10 +118,32 @@ def _parse_events(data: dict, endpoint_key: str) -> list[dict]:
                 "is_tournament": True,
             })
         else:
-            # Tennis / MMA: each competition is an individual match or fight
-            for comp in event.get("competitions", []):
+            # Collect competitions from both top-level and groupings.
+            # Team sports + MMA: competitions live at event["competitions"].
+            # Tennis tournaments: competitions are nested inside
+            # event["groupings"][]["competitions"] with no top-level list.
+            all_comps: list[dict] = list(event.get("competitions", []))
+            for grouping in event.get("groupings", []):
+                all_comps.extend(grouping.get("competitions", []))
+
+            for comp in all_comps:
                 comp_state = comp.get("status", {}).get("type", {}).get("state", "")
                 effective_state = comp_state if comp_state else event_state
+
+                # Use competition-level datetime when available (tennis
+                # matches have their own start times distinct from the
+                # tournament-level date).
+                comp_date_str = comp.get("date") or comp.get("startDate") or ""
+                if comp_date_str:
+                    try:
+                        comp_dt = datetime.fromisoformat(comp_date_str.replace("Z", "+00:00"))
+                        comp_date = comp_dt.date().isoformat()
+                    except Exception:
+                        comp_dt = event_dt
+                        comp_date = event_date
+                else:
+                    comp_dt = event_dt
+                    comp_date = event_date
 
                 names = []
                 for competitor in comp.get("competitors", []):
@@ -139,8 +161,8 @@ def _parse_events(data: dict, endpoint_key: str) -> list[dict]:
                     "home_name": names[0],
                     "away_name": names[1],
                     "event_name": event_name,
-                    "date": event_date,
-                    "datetime": event_dt,
+                    "date": comp_date,
+                    "datetime": comp_dt,
                     "status_state": effective_state,
                     "endpoint": endpoint_key,
                     "is_tournament": False,
