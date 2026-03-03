@@ -141,7 +141,7 @@ def _publish_update(entity_id: str) -> None:
 
 def _write_heartbeat() -> None:
     r = _sync_redis.from_url(settings.REDIS_URL)
-    r.set("worker:heartbeat:poll_sports_api", "1", ex=settings.POLL_INTERVAL_SPORTS_API * 3)
+    r.set("worker:heartbeat:poll_sports_api", "1", ex=max(settings.POLL_INTERVAL_SPORTS_API * 3, 600))
 
 
 def _increment_call_counter(worker_name: str) -> None:

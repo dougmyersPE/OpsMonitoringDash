@@ -43,10 +43,10 @@ def _publish_update(update_type: str, entity_id: str) -> None:
 
 
 def _write_heartbeat(worker_name: str) -> None:
-    """Write worker heartbeat key — TTL is 3x poll interval so health check survives slight delays."""
+    """Write worker heartbeat key — TTL must survive worker starvation from long-running tasks."""
     from app.core.config import settings
     r = _sync_redis.from_url(settings.REDIS_URL)
-    r.set(f"worker:heartbeat:{worker_name}", "1", ex=settings.POLL_INTERVAL_SPORTS_DATA * 3)
+    r.set(f"worker:heartbeat:{worker_name}", "1", ex=max(settings.POLL_INTERVAL_SPORTS_DATA * 3, 600))
 
 
 def _increment_call_counter(worker_name: str) -> None:
@@ -104,8 +104,18 @@ def run(self):
     from app.workers.source_toggle import is_source_enabled, clear_source_and_recompute
     if not is_source_enabled("sports_data"):
         clear_source_and_recompute("sports_data")
-        _write_heartbeat()
+        _write_heartbeat("poll_sports_data")
         log.info("poll_sports_data_skipped", reason="source disabled")
+        return
+
+    # Prevent concurrent SDIO runs — this task makes many sequential HTTP
+    # requests and can take 15+ minutes.  Beat fires every 30s, so without
+    # a lock, multiple instances stack up and starve other workers.
+    _r = _sync_redis.from_url(settings.REDIS_URL)
+    lock_key = "lock:poll_sports_data"
+    if not _r.set(lock_key, "1", nx=True, ex=1200):  # 20-minute max lock
+        log.info("poll_sports_data_skipped", reason="already running")
+        _write_heartbeat("poll_sports_data")
         return
 
     # Query active ProphetX soccer tournament names so we can filter SDIO
@@ -516,6 +526,9 @@ def run(self):
             px_event.last_real_world_poll = now
 
         session.commit()
+
+    # Release the concurrency lock
+    _sync_redis.from_url(settings.REDIS_URL).delete("lock:poll_sports_data")
 
     # Write heartbeat key — read by /health/workers to confirm worker is alive
     _write_heartbeat("poll_sports_data")
