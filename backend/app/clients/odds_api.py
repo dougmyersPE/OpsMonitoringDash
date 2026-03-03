@@ -11,7 +11,9 @@ log = structlog.get_logger()
 
 BASE_URL = "https://api.the-odds-api.com"
 
-# ProphetX sport_name (lowercase) → Odds API sport_keys to query
+# ProphetX sport_name (lowercase) → Odds API sport_keys to query.
+# Tennis keys rotate per tournament, so they're discovered dynamically
+# via get_active_tennis_keys() — the empty list here is a placeholder.
 SPORT_KEY_MAP: dict[str, list[str]] = {
     "basketball": ["basketball_nba", "basketball_ncaab"],
     "ice hockey": ["icehockey_nhl"],
@@ -24,8 +26,40 @@ SPORT_KEY_MAP: dict[str, list[str]] = {
         "soccer_uefa_champs_league",
         "soccer_uefa_europa_league",
     ],
-    "tennis": ["tennis_atp_dubai"],
+    "tennis": [],  # populated dynamically — see get_active_tennis_keys()
 }
+
+
+def get_active_tennis_keys(api_key: str | None = None) -> list[str]:
+    """Fetch active tennis sport keys from the Odds API /v4/sports/ endpoint.
+
+    This endpoint is free (0 quota cost). Results are cached in Redis for 6 hours
+    since tournament keys only change every few weeks.
+    """
+    r = _sync_redis.from_url(settings.REDIS_URL)
+    cache_key = "odds_api:active_tennis_keys"
+    cached = r.get(cache_key)
+    if cached:
+        keys = cached.decode().split(",") if cached.decode() else []
+        log.debug("odds_api_tennis_keys_cached", keys=keys)
+        return keys
+
+    key = api_key or settings.ODDS_API_KEY
+    try:
+        resp = httpx.get(f"{BASE_URL}/v4/sports/", params={"apiKey": key}, timeout=15)
+        resp.raise_for_status()
+        sports = resp.json()
+        keys = [
+            s["key"] for s in sports
+            if s.get("group") == "Tennis" and s.get("active")
+        ]
+        # Cache for 6 hours — tournament keys are stable within a day
+        r.set(cache_key, ",".join(keys), ex=6 * 3600)
+        log.info("odds_api_tennis_keys_discovered", keys=keys, count=len(keys))
+        return keys
+    except Exception:
+        log.warning("odds_api_tennis_keys_fetch_failed", exc_info=True)
+        return []
 
 
 class OddsAPIClient(BaseAPIClient):

@@ -19,7 +19,7 @@ import redis as _sync_redis
 import structlog
 from sqlalchemy import select
 
-from app.clients.odds_api import OddsAPIClient, SPORT_KEY_MAP
+from app.clients.odds_api import OddsAPIClient, SPORT_KEY_MAP, get_active_tennis_keys
 from app.core.config import settings
 from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
@@ -105,9 +105,14 @@ def run(self):
             ).all()
         }
 
-    # Only fetch sport keys that map to sports with active ProphetX events
+    # Only fetch sport keys that map to sports with active ProphetX events.
+    # Tennis keys are discovered dynamically since they rotate per tournament.
+    effective_map = dict(SPORT_KEY_MAP)
+    if "tennis" in active_sports:
+        effective_map["tennis"] = get_active_tennis_keys()
+
     relevant_keys: list[tuple[str, str]] = []  # (prophetx_sport, sport_key)
-    for prophetx_sport, sport_keys in SPORT_KEY_MAP.items():
+    for prophetx_sport, sport_keys in effective_map.items():
         if prophetx_sport in active_sports:
             for sport_key in sport_keys:
                 relevant_keys.append((prophetx_sport, sport_key))
@@ -210,9 +215,9 @@ def run(self):
                 game_dt = datetime(game_date.year, game_date.month, game_date.day, 12, 0, tzinfo=timezone.utc)
 
             for event in match_candidates:
-                home_sim = _similarity(event.home_team or "", home)
-                away_sim = _similarity(event.away_team or "", away)
-                name_score = (home_sim + away_sim) / 2
+                forward = (_similarity(event.home_team or "", home) + _similarity(event.away_team or "", away)) / 2
+                reversed_ = (_similarity(event.home_team or "", away) + _similarity(event.away_team or "", home)) / 2
+                name_score = max(forward, reversed_)
 
                 # Time proximity bonus — prefer closer matches
                 time_bonus = 0.0
