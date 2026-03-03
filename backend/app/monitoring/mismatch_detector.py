@@ -266,11 +266,10 @@ def compute_is_critical(
     sdio_status: str | None,
     espn_status: str | None,
 ) -> bool:
-    """True when any source reports the event as live but ProphetX does not.
+    """True when 2+ sources report the event as live but ProphetX does not.
 
-    Higher severity than a plain status_match=False: the game is live in the
-    real world but ProphetX still shows it as not started (or ended), meaning
-    markets on the platform are potentially stale and need immediate attention.
+    Requires at least 2 sources to agree the event is in-progress before
+    firing, to avoid false positives from a single source updating early.
     """
     if not px_status:
         return False
@@ -286,6 +285,7 @@ def compute_is_critical(
         (espn_status, _ESPN_CANONICAL),
     ]
 
+    live_count = 0
     for source_status, canonical_map in sources:
         if not source_status:
             continue
@@ -294,6 +294,6 @@ def compute_is_critical(
         else:
             source_canonical = canonical_map.get(source_status, source_status.lower())
         if source_canonical == "inprogress":
-            return True
+            live_count += 1
 
-    return False
+    return live_count >= 2
