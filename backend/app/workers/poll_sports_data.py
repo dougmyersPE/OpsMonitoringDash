@@ -111,7 +111,8 @@ def run(self):
     # Prevent concurrent SDIO runs — this task makes many sequential HTTP
     # requests and can take 15+ minutes.  Beat fires every 30s, so without
     # a lock, multiple instances stack up and starve other workers.
-    _r = _sync_redis.from_url(settings.REDIS_URL)
+    from app.core.config import settings as _cfg
+    _r = _sync_redis.from_url(_cfg.REDIS_URL)
     lock_key = "lock:poll_sports_data"
     if not _r.set(lock_key, "1", nx=True, ex=1200):  # 20-minute max lock
         log.info("poll_sports_data_skipped", reason="already running")
@@ -528,7 +529,7 @@ def run(self):
         session.commit()
 
     # Release the concurrency lock
-    _sync_redis.from_url(settings.REDIS_URL).delete("lock:poll_sports_data")
+    _sync_redis.from_url(_cfg.REDIS_URL).delete("lock:poll_sports_data")
 
     # Write heartbeat key — read by /health/workers to confirm worker is alive
     _write_heartbeat("poll_sports_data")
