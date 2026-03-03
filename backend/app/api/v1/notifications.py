@@ -12,7 +12,6 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_role
-from app.core.constants import RoleEnum
 from app.db.session import get_async_session
 from app.models.notification import Notification
 from app.schemas.notification import NotificationListResponse, NotificationResponse
@@ -23,7 +22,6 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 @router.get("", response_model=NotificationListResponse)
 async def list_notifications(
     session: AsyncSession = Depends(get_async_session),
-    _user: dict = Depends(require_role(RoleEnum.readonly, RoleEnum.operator, RoleEnum.admin)),
 ):
     """List all notifications, newest first."""
     result = await session.execute(
@@ -40,7 +38,6 @@ async def list_notifications(
 @router.patch("/mark-all-read", response_model=dict)
 async def mark_all_read(
     session: AsyncSession = Depends(get_async_session),
-    _user: dict = Depends(require_role(RoleEnum.operator, RoleEnum.admin)),
 ):
     """Mark all unread notifications as read."""
     await session.execute(
@@ -54,7 +51,6 @@ async def mark_all_read(
 async def mark_notification_read(
     notification_id: uuid.UUID,
     session: AsyncSession = Depends(get_async_session),
-    _user: dict = Depends(require_role(RoleEnum.operator, RoleEnum.admin)),
 ):
     """Mark a single notification as read."""
     notification = await session.get(Notification, notification_id)

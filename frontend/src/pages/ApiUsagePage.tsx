@@ -5,10 +5,7 @@ import QuotaSection from "../components/usage/QuotaSection";
 import CallVolumeSection from "../components/usage/CallVolumeSection";
 import IntervalSection from "../components/usage/IntervalSection";
 import SourceToggleSection from "../components/usage/SourceToggleSection";
-import { useAuthStore } from "../stores/auth";
-
 export default function ApiUsagePage() {
-  const role = useAuthStore((s) => s.role);
   const { data, isLoading, error } = useQuery({
     queryKey: ["usage"],
     queryFn: fetchUsageData,
@@ -42,12 +39,8 @@ export default function ApiUsagePage() {
               projections={data.projections}
               intervals={data.intervals}
             />
-            {role === "admin" && (
-              <>
-                <SourceToggleSection sourcesEnabled={data.sources_enabled} />
-                <IntervalSection intervals={data.intervals} />
-              </>
-            )}
+            <SourceToggleSection sourcesEnabled={data.sources_enabled} />
+            <IntervalSection intervals={data.intervals} />
           </>
         )}
       </div>

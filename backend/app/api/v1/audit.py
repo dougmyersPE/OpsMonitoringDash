@@ -3,7 +3,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_role
-from app.core.constants import RoleEnum
 from app.db.session import get_async_session
 from app.models.audit_log import AuditLog
 from app.schemas.audit import AuditLogPage
@@ -14,7 +13,7 @@ router = APIRouter(prefix="/audit-log", tags=["audit"])
 @router.get(
     "",
     response_model=AuditLogPage,
-    dependencies=[Depends(require_role(RoleEnum.operator, RoleEnum.admin))],
+    dependencies=[Depends(require_role())],
 )
 async def get_audit_log(
     page: int = Query(1, ge=1),

@@ -4,7 +4,6 @@ const ET_DATE = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York",
 const ET_TIME = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true });
 import { ChevronDown, ChevronUp, ChevronsUpDown, GripVertical } from "lucide-react";
 import { fetchEvents, refreshAllEvents, type EventRow } from "../api/events";
-import { useAuthStore } from "../stores/auth";
 import { cn } from "@/lib/utils";
 import { normalizeStatus } from "@/lib/statusDisplay";
 import {
@@ -350,8 +349,7 @@ function sortEvents(events: EventRow[], statusOrder: string[]): EventRow[] {
 
 export default function EventsTable() {
   const queryClient = useQueryClient();
-  const role = useAuthStore((s) => s.role);
-  const canRefresh = role === "admin" || role === "operator";
+  const canRefresh = true;
 
   const { data: events = [], isLoading, error } = useQuery({
     queryKey: ["events"],

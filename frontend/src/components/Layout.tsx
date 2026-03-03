@@ -1,10 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
-import { Activity, BarChart2, Gauge, LogOut } from "lucide-react";
+import { Activity, BarChart2, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SystemHealth from "./SystemHealth";
 import NotificationCenter from "./NotificationCenter";
 import SseProvider from "./SseProvider";
-import { useAuthStore } from "../stores/auth";
 
 const NAV_ITEMS = [
   { to: "/",        label: "Events",    Icon: Activity  },
@@ -14,7 +13,6 @@ const NAV_ITEMS = [
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { email, logout } = useAuthStore();
 
   return (
     <div className="min-h-screen bg-zinc-950 flex">
@@ -53,21 +51,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-
-        {/* User / Logout */}
-        <div className="px-3 py-3 border-t border-zinc-800">
-          {email && (
-            <div className="text-xs text-zinc-500 truncate px-3 mb-2">{email}</div>
-          )}
-          <button
-            type="button"
-            onClick={logout}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors w-full"
-          >
-            <LogOut className="h-4 w-4 shrink-0" />
-            Log out
-          </button>
-        </div>
       </aside>
 
       {/* Right column */}

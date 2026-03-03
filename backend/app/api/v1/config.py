@@ -7,7 +7,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_role
-from app.core.constants import RoleEnum
 from app.db.session import get_async_session
 from app.models.config import SystemConfig
 from app.schemas.config import ConfigItem, ConfigUpdateRequest
@@ -27,7 +26,7 @@ INTERVAL_WORKER_KEYS = {
 }
 
 
-@router.get("", response_model=List[ConfigItem], dependencies=[Depends(require_role(RoleEnum.admin))])
+@router.get("", response_model=List[ConfigItem], dependencies=[Depends(require_role())])
 async def get_config(session: AsyncSession = Depends(get_async_session)):
     result = await session.execute(select(SystemConfig))
     items = result.scalars().all()
@@ -90,7 +89,7 @@ async def _propagate_to_redbeat(worker_key: str, new_seconds: float) -> None:
         logger.exception("Failed to propagate interval to RedBeat (will sync on next Beat restart)")
 
 
-@router.patch("/{key}", response_model=ConfigItem, dependencies=[Depends(require_role(RoleEnum.admin))])
+@router.patch("/{key}", response_model=ConfigItem, dependencies=[Depends(require_role())])
 async def update_config(
     key: str,
     body: ConfigUpdateRequest,

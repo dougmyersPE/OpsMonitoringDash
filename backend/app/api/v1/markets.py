@@ -5,7 +5,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_role
-from app.core.constants import RoleEnum
 from app.db.session import get_async_session
 from app.models.event import Event
 from app.models.market import Market
@@ -17,7 +16,7 @@ router = APIRouter(prefix="/markets", tags=["markets"])
 @router.get(
     "",
     response_model=MarketListResponse,
-    dependencies=[Depends(require_role(RoleEnum.readonly, RoleEnum.operator, RoleEnum.admin))],
+    dependencies=[Depends(require_role())],
 )
 async def list_markets(session: AsyncSession = Depends(get_async_session)):
     """Return all markets with current liquidity, threshold settings, and event name."""
@@ -38,7 +37,7 @@ async def list_markets(session: AsyncSession = Depends(get_async_session)):
 @router.patch(
     "/{market_id}/config",
     response_model=MarketResponse,
-    dependencies=[Depends(require_role(RoleEnum.admin))],
+    dependencies=[Depends(require_role())],
 )
 async def update_market_config(
     market_id: str,

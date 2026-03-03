@@ -14,7 +14,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_role
-from app.core.constants import RoleEnum
 from app.db.redis import get_redis_client
 from app.db.session import get_async_session
 from app.models.api_usage_snapshot import ApiUsageSnapshot
@@ -50,7 +49,7 @@ INTERVAL_KEYS = {
 @router.get("/usage")
 async def get_usage(
     session: AsyncSession = Depends(get_async_session),
-    _=Depends(require_role(RoleEnum.readonly, RoleEnum.operator, RoleEnum.admin)),
+    _=Depends(require_role()),
 ):
     """Return comprehensive API usage data: calls today, 7-day history,
     provider quota, poll intervals, and projected monthly usage.

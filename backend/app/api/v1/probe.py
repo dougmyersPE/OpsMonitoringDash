@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 from app.api.deps import require_role
-from app.core.constants import RoleEnum
 from app.clients.prophetx import ProphetXClient
 from app.clients.sportsdataio import SportsDataIOClient
 import structlog
@@ -9,7 +8,7 @@ log = structlog.get_logger()
 router = APIRouter(prefix="/probe", tags=["probe"])
 
 
-@router.get("/clients", dependencies=[Depends(require_role(RoleEnum.admin))])
+@router.get("/clients", dependencies=[Depends(require_role())])
 async def probe_api_clients():
     """
     Phase 1 validation endpoint: test ProphetX and SportsDataIO authentication.
