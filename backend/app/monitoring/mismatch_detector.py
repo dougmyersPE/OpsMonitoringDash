@@ -27,12 +27,18 @@ class SdioStatus(str, Enum):
     FINAL = "Final"
     FINAL_OT = "F/OT"
     FINAL_SO = "F/SO"
+    FULL_TIME = "FT"           # Soccer: finished in regular time
+    AFTER_PENALTIES = "AP"     # Soccer: finished after penalty shootout
+    AFTER_EXTRA_TIME = "AET"   # Soccer: finished after extra time
     POSTPONED = "Postponed"
     CANCELED = "Canceled"
     SUSPENDED = "Suspended"
     DELAYED = "Delayed"
     FORFEIT = "Forfeit"
     NOT_NECESSARY = "NotNecessary"
+    BYE = "Bye"                    # Tennis: bracket bye (no real match)
+    WALKOVER = "Walkover"          # Tennis: opponent withdrew before match
+    RETIRED = "Retired"            # Tennis: player retired mid-match
 
 
 # Statuses that require human review — no auto-action should be taken (SYNC-02)
@@ -43,7 +49,12 @@ FLAG_ONLY_STATUSES: set[str] = {
     "Delayed",
     "Forfeit",
     "NotNecessary",
+    "Walkover",   # Tennis: opponent withdrew
+    "Retired",    # Tennis: player retired mid-match
 }
+
+# Statuses to skip entirely — not real matches
+SKIP_STATUSES: set[str] = {"Bye"}
 
 # Sports API (api-sports.io) status codes that require human review
 _SPORTS_API_FLAG_STATUSES: set[str] = {
@@ -63,10 +74,13 @@ SDIO_TO_PX_STATUS: dict[str, str] = {
     "Final": "ended",  # UNCONFIRMED ProphetX value
     "F/OT": "ended",  # UNCONFIRMED ProphetX value
     "F/SO": "ended",  # UNCONFIRMED ProphetX value
+    "FT": "ended",   # Soccer: full time
+    "AP": "ended",   # Soccer: after penalties
+    "AET": "ended",  # Soccer: after extra time
 }
 
-# All recognized SDIO statuses (union of mapping keys + flag-only statuses)
-_ALL_KNOWN_STATUSES: set[str] = set(SDIO_TO_PX_STATUS.keys()) | FLAG_ONLY_STATUSES
+# All recognized SDIO statuses (union of mapping keys + flag-only + skip statuses)
+_ALL_KNOWN_STATUSES: set[str] = set(SDIO_TO_PX_STATUS.keys()) | FLAG_ONLY_STATUSES | SKIP_STATUSES
 
 
 def get_expected_px_status(sdio_status: str) -> str | None:
@@ -159,6 +173,11 @@ _SDIO_CANONICAL: dict[str, str] = {
     "Final": "final",
     "F/OT": "final",
     "F/SO": "final",
+    "FT": "final",        # Soccer: full time
+    "AP": "final",        # Soccer: after penalties
+    "AET": "final",       # Soccer: after extra time
+    "Walkover": "final",  # Tennis: opponent withdrew
+    "Retired": "final",   # Tennis: player retired mid-match
 }
 
 # ESPN unofficial API status states (Golf/Tennis/MMA)

@@ -95,6 +95,40 @@ class SportsDataIOClient(BaseAPIClient):
             if isinstance(t, dict) and t.get("Key") and t.get("School") and t.get("Name")
         }
 
+    async def get_tennis_match(self, global_match_id: int | str) -> dict | None:
+        """Fetch a single tennis match by GlobalMatchId.
+
+        SDIO tennis uses Match/{id} instead of GamesByDate.
+        Returns None on 404 (match not found).
+        """
+        try:
+            raw = await self._get(
+                f"/tennis/scores/json/Match/{global_match_id}",
+                headers=self._headers,
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return None
+            raise
+        return raw if isinstance(raw, dict) else None
+
+    async def get_tennis_matches_by_round(self, round_id: int | str) -> list[dict]:
+        """Fetch all tennis matches for a given round.
+
+        SDIO tennis organizes matches by competition rounds.
+        Returns empty list on 404.
+        """
+        try:
+            raw = await self._get(
+                f"/tennis/scores/json/MatchesByRound/{round_id}",
+                headers=self._headers,
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return []
+            raise
+        return raw if isinstance(raw, list) else []
+
     async def probe_subscription_coverage(self) -> dict[str, int]:
         """
         Phase 1 helper: test which sports are in the current subscription.

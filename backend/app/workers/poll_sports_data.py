@@ -25,7 +25,7 @@ from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
 from app.models.event_id_mapping import EventIDMapping
 from app.monitoring.event_matcher import EventMatcher
-from app.monitoring.mismatch_detector import compute_is_flagged, compute_status_match, get_expected_px_status, is_mismatch
+from app.monitoring.mismatch_detector import SKIP_STATUSES, compute_is_flagged, compute_status_match, get_expected_px_status, is_mismatch
 from app.workers.celery_app import celery_app
 from app.workers.update_event_status import run as update_status_task
 
@@ -68,7 +68,9 @@ def _increment_call_counter(worker_name: str) -> None:
 
 # Sports to poll — must match the subscription on the configured SPORTSDATAIO_API_KEY.
 # URL path mapping (ncaab→cbb etc.) is handled in SportsDataIOClient.
+# Tennis is handled separately (round-based API, not GamesByDate).
 SUPPORTED_SPORTS = ["nba", "nfl", "mlb", "nhl", "ncaab", "ncaaf", "soccer"]
+TENNIS_SPORT = "tennis"
 
 # College/non-pro sports where SDIO returns team abbreviation codes (e.g. "TROY")
 # rather than full names — team names are resolved via get_team_names() before matching.
@@ -77,13 +79,14 @@ ABBREV_SPORTS: set[str] = {"ncaab", "ncaaf"}
 # Map SDIO logical sport names to ProphetX sport field values.
 # ProphetX uses broad categories ("Basketball") for both pro and college.
 SDIO_TO_PX_SPORT: dict[str, str] = {
-    "nba":   "basketball",
-    "nfl":   "american football",
-    "mlb":   "baseball",
-    "nhl":   "ice hockey",
-    "ncaab": "basketball",
-    "ncaaf": "american football",
+    "nba":    "basketball",
+    "nfl":    "american football",
+    "mlb":    "baseball",
+    "nhl":    "ice hockey",
+    "ncaab":  "basketball",
+    "ncaaf":  "american football",
     "soccer": "soccer",
+    "tennis": "tennis",
 }
 
 # Redis key pattern for cached team name lookups.
@@ -122,6 +125,7 @@ def run(self):
     # Query active ProphetX soccer tournament names so we can filter SDIO
     # competition queries to only competitions that ProphetX currently serves.
     px_soccer_leagues: set[str] = set()
+    px_tennis_event_ids: list[int] = []
     try:
         with SyncSessionLocal() as pre_session:
             rows = pre_session.execute(
@@ -131,8 +135,17 @@ def run(self):
                 .distinct()
             ).scalars().all()
             px_soccer_leagues = set(rows)
+
+            # Tennis: ProphetX event IDs are SDIO GlobalMatchIds — fetch them
+            # so the worker can discover active rounds and batch-fetch matches.
+            tennis_rows = pre_session.execute(
+                select(Event.prophetx_event_id)
+                .where(Event.sport == "Tennis")
+                .where(Event.prophetx_status != "ended")
+            ).scalars().all()
+            px_tennis_event_ids = [int(eid) for eid in tennis_rows if eid]
     except Exception as _e:
-        log.warning("sdio_px_soccer_leagues_query_failed", error=str(_e))
+        log.warning("sdio_px_pre_query_failed", error=str(_e))
 
     # ------------------------------------------------------------------ #
     # 1–2. Fetch SportsDataIO games for yesterday, today, and tomorrow    #
@@ -268,6 +281,47 @@ def run(self):
                                 )
                     sport_counts[sport] = count
 
+                # ----- Tennis: round-based API (no GamesByDate endpoint) -----
+                # 1. Get ProphetX tennis event IDs (they are SDIO GlobalMatchIds)
+                # 2. Sample a few to discover active round IDs
+                # 3. Fetch all matches per round via MatchesByRound
+                tennis_count = 0
+                if px_tennis_event_ids:
+                    # Sample up to 10 evenly spaced IDs to discover round IDs
+                    sample_ids = px_tennis_event_ids
+                    if len(sample_ids) > 10:
+                        step = len(sample_ids) // 10
+                        sample_ids = [px_tennis_event_ids[i * step] for i in range(10)]
+
+                    discovered_rounds: set[int] = set()
+                    for eid in sample_ids:
+                        try:
+                            match_data = await sdio.get_tennis_match(eid)
+                            if match_data and match_data.get("RoundId"):
+                                discovered_rounds.add(match_data["RoundId"])
+                        except Exception as e:
+                            log.debug("sdio_tennis_match_probe_failed", event_id=eid, error=str(e))
+
+                    log.info("sdio_tennis_rounds_discovered", round_ids=sorted(discovered_rounds), sample_size=len(sample_ids))
+
+                    # Fetch all matches for each discovered round
+                    seen_tennis_ids: set[int] = set()
+                    for round_id in discovered_rounds:
+                        try:
+                            round_matches = await sdio.get_tennis_matches_by_round(round_id)
+                            for m in round_matches:
+                                if isinstance(m, dict):
+                                    gid = m.get("GlobalMatchId")
+                                    if gid and gid not in seen_tennis_ids:
+                                        seen_tennis_ids.add(gid)
+                                        m["_sdio_sport"] = "tennis"
+                                        games.append(m)
+                                        tennis_count += 1
+                        except Exception as e:
+                            log.debug("sdio_tennis_round_fetch_failed", round_id=round_id, error=str(e))
+
+                sport_counts["tennis"] = tennis_count
+
             log.info("sdio_games_fetched", sport_counts=sport_counts)
             return games
 
@@ -289,7 +343,8 @@ def run(self):
             continue
         gid = str(
             game.get("GameID")
-            or game.get("GameId")   # SDIO soccer uses GameId
+            or game.get("GameId")       # SDIO soccer uses GameId
+            or game.get("GlobalMatchId") # SDIO tennis uses GlobalMatchId
             or game.get("game_id")
             or game.get("id")
             or ""
@@ -327,9 +382,11 @@ def run(self):
         # Build SDIO game dicts in EventMatcher format once
         sdio_games_normalized = []
         for game in deduped_games:
+            is_tennis = game.get("_sdio_sport") == "tennis"
             sdio_game_id = str(
                 game.get("GameID")
-                or game.get("GameId")   # SDIO soccer uses GameId
+                or game.get("GameId")        # SDIO soccer uses GameId
+                or game.get("GlobalMatchId") # SDIO tennis uses GlobalMatchId
                 or game.get("game_id")
                 or game.get("id")
                 or ""
@@ -339,22 +396,27 @@ def run(self):
 
             # For college sports, use full team names resolved from abbreviations.
             # For pro sports, HomeTeam/AwayTeam are already full names.
-            home_team = (
-                game.get("_home_team_full")
-                or game.get("HomeTeam")
-                or game.get("HomeTeamName")   # SDIO soccer
-                or game.get("home_team")
-                or game.get("home")
-                or ""
-            )
-            away_team = (
-                game.get("_away_team_full")
-                or game.get("AwayTeam")
-                or game.get("AwayTeamName")   # SDIO soccer
-                or game.get("away_team")
-                or game.get("away")
-                or ""
-            )
+            # For tennis, use ContestantA1Name/ContestantB1Name (individual players).
+            if is_tennis:
+                home_team = str(game.get("ContestantA1Name") or "")
+                away_team = str(game.get("ContestantB1Name") or "")
+            else:
+                home_team = (
+                    game.get("_home_team_full")
+                    or game.get("HomeTeam")
+                    or game.get("HomeTeamName")   # SDIO soccer
+                    or game.get("home_team")
+                    or game.get("home")
+                    or ""
+                )
+                away_team = (
+                    game.get("_away_team_full")
+                    or game.get("AwayTeam")
+                    or game.get("AwayTeamName")   # SDIO soccer
+                    or game.get("away_team")
+                    or game.get("away")
+                    or ""
+                )
             # Use tagged logical sport, then map to ProphetX's sport convention
             # (e.g. "ncaab" → "basketball" to match ProphetX's "Basketball" events).
             sdio_sport = str(
@@ -390,9 +452,17 @@ def run(self):
                 or "Unknown"
             )
 
-            # GlobalGameID (NBA/NFL/MLB/NHL/NCAAB/NCAAF) matches ProphetX event ID directly.
-            # Store it so we can skip fuzzy matching when IDs align exactly.
-            global_game_id = str(game.get("GlobalGameID") or "")
+            # Skip non-real matches (e.g. tennis "Bye" bracket entries)
+            if sdio_status in SKIP_STATUSES:
+                continue
+
+            # GlobalGameID (NBA/NFL/MLB/NHL/NCAAB/NCAAF) or GlobalMatchId (tennis)
+            # matches ProphetX event ID directly — skip fuzzy matching when IDs align.
+            global_game_id = str(
+                game.get("GlobalGameID")
+                or game.get("GlobalMatchId")  # SDIO tennis
+                or ""
+            )
 
             sdio_games_normalized.append({
                 "sdio_game_id": sdio_game_id,
