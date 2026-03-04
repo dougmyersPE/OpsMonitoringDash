@@ -87,6 +87,7 @@ SDIO_TO_PX_SPORT: dict[str, str] = {
     "ncaaf":  "american football",
     "soccer": "soccer",
     "tennis": "tennis",
+    "mma":    "mma",
 }
 
 # Redis key pattern for cached team name lookups.
@@ -221,13 +222,20 @@ def run(self):
                         # Match ProphetX tournament names to SDIO competition names.
                         # Normalize: lowercase, alphanumeric only — handles spacing
                         # differences like "LaLiga" vs "La Liga".
+                        # Uses containment check to handle prefix differences like
+                        # "English Championship" (PX) vs "Championship" (SDIO).
                         def _norm(s: str) -> str:
                             return "".join(c for c in s.lower() if c.isalnum())
 
-                        norm_px = {_norm(name) for name in px_soccer_leagues}
+                        norm_px = {_norm(name): name for name in px_soccer_leagues}
                         for comp in sdio_comp_data:
-                            if _norm(comp["name"]) in norm_px:
-                                soccer_competition_ids.append(comp["id"])
+                            cn = _norm(comp["name"])
+                            if not cn:
+                                continue
+                            for pn in norm_px:
+                                if cn == pn or cn in pn or pn in cn:
+                                    soccer_competition_ids.append(comp["id"])
+                                    break
                         log.info(
                             "sdio_soccer_competitions_filtered",
                             px_leagues=sorted(px_soccer_leagues),
@@ -322,6 +330,68 @@ def run(self):
 
                 sport_counts["tennis"] = tennis_count
 
+                # ----- MMA: event/fight-based API (no GamesByDate endpoint) -----
+                # 1. Fetch UFC schedule for current year
+                # 2. Filter to events within our date window
+                # 3. Fetch Event/{id} for each to get individual fights
+                # 4. Each fight's FightId = ProphetX event ID
+                mma_count = 0
+                try:
+                    mma_schedule = await sdio.get_mma_schedule("UFC")
+                    yesterday_dt = date.today() - timedelta(days=1)
+                    tomorrow_dt = date.today() + timedelta(days=1)
+
+                    for event in mma_schedule:
+                        # Parse event date to check if within our window
+                        day_raw = event.get("Day") or event.get("DateTime")
+                        if not day_raw:
+                            continue
+                        try:
+                            event_date = datetime.fromisoformat(str(day_raw)).date()
+                        except Exception:
+                            continue
+                        if not (yesterday_dt <= event_date <= tomorrow_dt):
+                            continue
+
+                        event_id = event.get("EventId")
+                        if not event_id:
+                            continue
+
+                        event_detail = await sdio.get_mma_event(event_id)
+                        if not event_detail:
+                            continue
+
+                        event_dt_raw = event_detail.get("DateTime") or event_detail.get("Day")
+
+                        for fight in event_detail.get("Fights") or []:
+                            if not isinstance(fight, dict) or not fight.get("Active"):
+                                continue
+                            fight_id = fight.get("FightId")
+                            if not fight_id:
+                                continue
+
+                            fighters = fight.get("Fighters") or []
+                            fighter_names = [
+                                f"{f.get('FirstName', '')} {f.get('LastName', '')}".strip()
+                                for f in fighters if isinstance(f, dict)
+                            ]
+                            home = fighter_names[0] if len(fighter_names) > 0 else ""
+                            away = fighter_names[1] if len(fighter_names) > 1 else ""
+
+                            games.append({
+                                "_sdio_sport": "mma",
+                                "FightId": fight_id,
+                                "HomeTeam": home,
+                                "AwayTeam": away,
+                                "Status": fight.get("Status") or "Scheduled",
+                                "DateTime": event_dt_raw,
+                            })
+                            mma_count += 1
+                except Exception as e:
+                    log.warning("sdio_mma_fetch_failed", error=str(e))
+
+                sport_counts["mma"] = mma_count
+
             log.info("sdio_games_fetched", sport_counts=sport_counts)
             return games
 
@@ -345,6 +415,7 @@ def run(self):
             game.get("GameID")
             or game.get("GameId")       # SDIO soccer uses GameId
             or game.get("GlobalMatchId") # SDIO tennis uses GlobalMatchId
+            or game.get("FightId")      # SDIO MMA uses FightId
             or game.get("game_id")
             or game.get("id")
             or ""
@@ -382,11 +453,14 @@ def run(self):
         # Build SDIO game dicts in EventMatcher format once
         sdio_games_normalized = []
         for game in deduped_games:
-            is_tennis = game.get("_sdio_sport") == "tennis"
+            sdio_sport_tag = game.get("_sdio_sport", "")
+            is_tennis = sdio_sport_tag == "tennis"
+            is_mma = sdio_sport_tag == "mma"
             sdio_game_id = str(
                 game.get("GameID")
                 or game.get("GameId")        # SDIO soccer uses GameId
                 or game.get("GlobalMatchId") # SDIO tennis uses GlobalMatchId
+                or game.get("FightId")       # SDIO MMA uses FightId
                 or game.get("game_id")
                 or game.get("id")
                 or ""
@@ -456,11 +530,13 @@ def run(self):
             if sdio_status in SKIP_STATUSES:
                 continue
 
-            # GlobalGameID (NBA/NFL/MLB/NHL/NCAAB/NCAAF) or GlobalMatchId (tennis)
-            # matches ProphetX event ID directly — skip fuzzy matching when IDs align.
+            # GlobalGameID (NBA/NFL/MLB/NHL/NCAAB/NCAAF), GlobalGameId (soccer, lowercase 'd'),
+            # GlobalMatchId (tennis), or FightId (MMA) matches ProphetX event ID directly.
             global_game_id = str(
                 game.get("GlobalGameID")
+                or game.get("GlobalGameId")   # SDIO soccer uses lowercase 'd'
                 or game.get("GlobalMatchId")  # SDIO tennis
+                or game.get("FightId")        # SDIO MMA
                 or ""
             )
 

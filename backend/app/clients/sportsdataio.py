@@ -129,6 +129,41 @@ class SportsDataIOClient(BaseAPIClient):
             raise
         return raw if isinstance(raw, list) else []
 
+    async def get_mma_schedule(self, league: str = "UFC", year: int | None = None) -> list[dict]:
+        """Fetch MMA event schedule for a league and year.
+
+        Returns list of event summaries (EventId, Name, Day, DateTime, Status).
+        """
+        if year is None:
+            from datetime import date
+            year = date.today().year
+        try:
+            raw = await self._get(
+                f"/mma/scores/json/Schedule/{league}/{year}",
+                headers=self._headers,
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return []
+            raise
+        return raw if isinstance(raw, list) else []
+
+    async def get_mma_event(self, event_id: int | str) -> dict | None:
+        """Fetch MMA event detail including nested Fights array.
+
+        Each fight has FightId (= ProphetX event ID), Fighters[], Status.
+        """
+        try:
+            raw = await self._get(
+                f"/mma/scores/json/Event/{event_id}",
+                headers=self._headers,
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return None
+            raise
+        return raw if isinstance(raw, dict) else None
+
     async def probe_subscription_coverage(self) -> dict[str, int]:
         """
         Phase 1 helper: test which sports are in the current subscription.
