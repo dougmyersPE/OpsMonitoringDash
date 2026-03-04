@@ -13,6 +13,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -26,6 +27,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -40,6 +42,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -54,6 +57,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -68,6 +72,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -92,6 +97,7 @@ services:
     build: ./frontend
     depends_on:
       - backend
+    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -106,6 +112,7 @@ services:
     depends_on:
       - backend
       - frontend
+    restart: unless-stopped
     deploy:
       resources:
         limits:
