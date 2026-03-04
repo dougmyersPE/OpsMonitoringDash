@@ -30,6 +30,12 @@ class SdioStatus(str, Enum):
     FULL_TIME = "FT"           # Soccer: finished in regular time
     AFTER_PENALTIES = "AP"     # Soccer: finished after penalty shootout
     AFTER_EXTRA_TIME = "AET"   # Soccer: finished after extra time
+    QUARTER_1 = "Q1"          # NBA/NCAAB quarters
+    QUARTER_2 = "Q2"
+    QUARTER_3 = "Q3"
+    QUARTER_4 = "Q4"
+    HALF_TIME = "HT"
+    OVERTIME = "OT"
     POSTPONED = "Postponed"
     CANCELED = "Canceled"
     SUSPENDED = "Suspended"
@@ -77,6 +83,13 @@ SDIO_TO_PX_STATUS: dict[str, str] = {
     "FT": "ended",   # Soccer: full time
     "AP": "ended",   # Soccer: after penalties
     "AET": "ended",  # Soccer: after extra time
+    # NBA/NCAAB quarter statuses
+    "Q1": "live",
+    "Q2": "live",
+    "Q3": "live",
+    "Q4": "live",
+    "HT": "live",    # Half time
+    "OT": "live",    # Overtime
 }
 
 # All recognized SDIO statuses (union of mapping keys + flag-only + skip statuses)
@@ -178,6 +191,13 @@ _SDIO_CANONICAL: dict[str, str] = {
     "AET": "final",       # Soccer: after extra time
     "Walkover": "final",  # Tennis: opponent withdrew
     "Retired": "final",   # Tennis: player retired mid-match
+    # NBA/NCAAB quarter statuses
+    "Q1": "inprogress",
+    "Q2": "inprogress",
+    "Q3": "inprogress",
+    "Q4": "inprogress",
+    "HT": "inprogress",
+    "OT": "inprogress",
 }
 
 # ESPN unofficial API status states (Golf/Tennis/MMA)
