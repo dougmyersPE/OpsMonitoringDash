@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Stabilization + API Usage
 status: shipped
-last_updated: "2026-03-02"
+last_updated: "2026-03-04"
 progress:
   total_phases: 7
   completed_phases: 7
@@ -18,7 +18,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Production cutover complete, planning next milestone
+**Current focus:** Ad-hoc bugfixes deployed; planning next milestone
 
 ## Current Position
 
@@ -42,6 +42,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - SDIO NFL/NCAAB/NCAAF endpoints 404 (off-season; deferred to v2 when seasons resume)
 - ProphetX write endpoint still stubbed (log-only until PATCH path confirmed)
 - SportsApiClient bypasses BaseAPIClient (architecturally inconsistent, functional)
+- SDIO data lag: some games (spring training baseball, occasional EPL) stay `Scheduled` in SDIO even when live — SDIO-side issue, not ours
+- WS consumer receives zero `sport_event` change_type messages (only market_selections/matched_bet) — needs investigation with ProphetX on whether broadcast channel carries status changes
 
 ### Resolved
 
@@ -52,17 +54,21 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Login endpoint now returns role in response (was defaulting all users to "operator")
 - ESPN time guard fixed: uses actual event datetime instead of fake noon UTC
 - Logout button added to sidebar
+- Auto-sync status regression: stale SDIO data was overwriting ProphetX's correct `live` status back to `not_started` — lifecycle guard added (2026-03-04)
+- SDIO soccer endpoint: was using `GamesByDateFinal` (completed games only) instead of `GamesByDate` (all games) — fixed (2026-03-04)
+- poll_prophetx was not updating `last_prophetx_poll` timestamp — fixed (2026-03-04)
+- Docker Compose: all services now have `restart: unless-stopped` for server reboot resilience (2026-03-04)
 
 ## Session Continuity
 
-Last session: 2026-03-02T21:32:56Z
-Stopped at: Production cutover complete, ad-hoc bugfixes deployed
+Last session: 2026-03-04T21:35:25Z
+Stopped at: Ad-hoc bugfixes deployed, all services running stable
 What happened this session:
-  - Added logout button to sidebar (commit 67e0bf0)
-  - Fixed login endpoint to return role so admin UI (toggles) visible (commit 0364057)
-  - Fixed ESPN worker time guard rejecting evening games (commit 340ca47)
-  - Switched ProphetX from sandbox to production (cash.api.prophetx.co)
-  - Wiped sandbox data, 105 production events loaded across 7 sports
-  - doug.myers@betprophet.co promoted to admin
-  - Container names are prophet-monitor-* (not prophetapimonitoring-*)
+  - Added `restart: unless-stopped` to all 8 Docker Compose services (commit a800b0e)
+  - Fixed poll_prophetx not writing `last_prophetx_poll` on upsert (commit 71f3ac8)
+  - Fixed auto-sync regressing ProphetX status — lifecycle guard prevents backward moves (commit 60323b9)
+  - Fixed SDIO soccer using `GamesByDateFinal` instead of `GamesByDate` (commit 03b4ef6)
+  - Root-caused ProphetX `not_started` bug: SDIO worker mismatch detector was overwriting correct `live` status
+  - Docker already set to start on boot (`systemctl is-enabled docker` = enabled)
+  - Server has no git repo — code deployed via `scp` + `docker compose build/up`
 Next: Run `/gsd:new-milestone` to start next version
