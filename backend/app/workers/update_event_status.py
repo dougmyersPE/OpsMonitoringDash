@@ -92,6 +92,28 @@ def run(self, event_id: str, target_status: str | None, actor: str = "system"):
                 )
                 return
 
+            # e. Lifecycle guard: never regress status backward.
+            # Lifecycle order: not_started → live → ended.
+            # A source that is behind (e.g. SDIO says Scheduled while
+            # ProphetX already says live) must not overwrite the more
+            # advanced ProphetX status.
+            _LIFECYCLE_ORDER = {"not_started": 0, "live": 1, "ended": 2}
+            current_rank = _LIFECYCLE_ORDER.get(
+                (event.prophetx_status or "").lower(), -1
+            )
+            target_rank = _LIFECYCLE_ORDER.get(
+                effective_target.lower(), -1
+            )
+            if actor == "system" and current_rank >= 0 and target_rank >= 0 and target_rank < current_rank:
+                log.info(
+                    "update_event_status_lifecycle_guard",
+                    event_id=event_id,
+                    current_status=event.prophetx_status,
+                    target_status=effective_target,
+                    note="refusing to regress status backward",
+                )
+                return
+
             # e. Record before_state
             before_state = {"prophetx_status": event.prophetx_status}
 
