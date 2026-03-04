@@ -65,12 +65,14 @@ class SportsDataIOClient(BaseAPIClient):
     async def get_soccer_games_by_date(self, competition_id: int | str, game_date: str) -> list:
         """Fetch games for one soccer competition on a given date.
 
-        Uses the v4 GamesByDateFinal endpoint — requires main API key, v4 base URL.
+        Uses the v4 GamesByDate endpoint — returns scheduled, in-progress, and
+        final games.  (GamesByDateFinal only returns completed games.)
+        Requires main API key, v4 base URL.
         SDIO returns 404 when no games are scheduled for that competition/date.
         """
         try:
             raw = await self._get(
-                f"/soccer/scores/json/GamesByDateFinal/{competition_id}/{game_date}",
+                f"/soccer/scores/json/GamesByDate/{competition_id}/{game_date}",
                 headers=self._headers,
             )
         except httpx.HTTPStatusError as e:
