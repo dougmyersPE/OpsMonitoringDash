@@ -27,3 +27,13 @@ export async function markRead(notificationId: string): Promise<void> {
 export async function markAllRead(): Promise<void> {
   await apiClient.patch("/notifications/mark-all-read");
 }
+
+export async function fetchAlertsEnabled(): Promise<{ enabled: boolean }> {
+  const { data } = await apiClient.get<{ enabled: boolean }>("/notifications/alerts-enabled");
+  return data;
+}
+
+export async function toggleAlertsEnabled(): Promise<{ enabled: boolean }> {
+  const { data } = await apiClient.patch<{ enabled: boolean }>("/notifications/alerts-enabled");
+  return data;
+}

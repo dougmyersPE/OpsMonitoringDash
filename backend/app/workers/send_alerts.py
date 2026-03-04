@@ -11,13 +11,24 @@ import uuid as _uuid
 import redis as sync_redis
 import structlog
 from slack_sdk.webhook import WebhookClient
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.db.sync_session import SyncSessionLocal
+from app.models.config import SystemConfig
 from app.models.notification import Notification as NotificationModel
 from app.workers.celery_app import celery_app
 
 log = structlog.get_logger()
+
+
+def are_alerts_enabled() -> bool:
+    """Check if alerts are enabled in system_config. Returns True if key missing."""
+    with SyncSessionLocal() as session:
+        result = session.execute(
+            select(SystemConfig.value).where(SystemConfig.key == "alerts_enabled")
+        ).scalar_one_or_none()
+        return result is None or result.lower() != "false"
 
 
 @celery_app.task(name="app.workers.send_alerts.run", bind=True, max_retries=3)
@@ -35,6 +46,10 @@ def run(
     Deduplication: if alert_dedup:{alert_type}:{entity_id} exists in Redis,
     this alert is skipped (already sent within the 5-minute window).
     """
+    if not are_alerts_enabled():
+        log.info("alert_skipped_disabled", alert_type=alert_type, entity_id=entity_id)
+        return
+
     r = sync_redis.from_url(settings.REDIS_URL)
     dedup_key = f"alert_dedup:{alert_type}:{entity_id}"
 

@@ -27,6 +27,12 @@ DEDUP_TTL = 300  # seconds — one alert per event per 5-minute window
 @celery_app.task(name="app.workers.poll_critical_check.run", bind=True, max_retries=2)
 def run(self):
     """Query DB for critical events and send a Slack alert for each new one."""
+    from app.workers.send_alerts import are_alerts_enabled
+
+    if not are_alerts_enabled():
+        log.info("critical_check_skipped", reason="alerts disabled")
+        return
+
     with SyncSessionLocal() as session:
         events = session.execute(select(Event)).scalars().all()
 

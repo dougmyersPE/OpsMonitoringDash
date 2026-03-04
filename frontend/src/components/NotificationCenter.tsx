@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Bell } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { fetchNotifications, markRead, markAllRead, type Notification } from "../api/notifications";
+import { fetchNotifications, markRead, markAllRead, fetchAlertsEnabled, toggleAlertsEnabled, type Notification } from "../api/notifications";
 
 export default function NotificationCenter() {
   const queryClient = useQueryClient();
@@ -24,6 +24,18 @@ export default function NotificationCenter() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
+  const { data: alertsData } = useQuery({
+    queryKey: ["alerts-enabled"],
+    queryFn: fetchAlertsEnabled,
+    staleTime: 30_000,
+  });
+
+  const toggleAlertsMutation = useMutation({
+    mutationFn: toggleAlertsEnabled,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts-enabled"] }),
+  });
+
+  const alertsEnabled = alertsData?.enabled ?? true;
   const unreadCount = data?.unread_count ?? 0;
   const notifications = data?.notifications ?? [];
 
@@ -35,11 +47,14 @@ export default function NotificationCenter() {
     <Sheet>
       <SheetTrigger asChild>
         <button
-          className="relative p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+          className={cn(
+            "relative p-1.5 rounded-lg hover:bg-zinc-800 transition-colors",
+            alertsEnabled ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-600"
+          )}
           aria-label="Notifications"
         >
-          <Bell className="h-4 w-4" />
-          {unreadCount > 0 && (
+          {alertsEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+          {unreadCount > 0 && alertsEnabled && (
             <span className="absolute -top-0.5 -right-0.5 h-4 w-4 min-w-0 rounded-full bg-indigo-600 flex items-center justify-center text-[9px] font-bold text-white leading-none">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
@@ -50,15 +65,39 @@ export default function NotificationCenter() {
       <SheetContent side="right" className="w-96 overflow-y-auto bg-zinc-900 border-zinc-800">
         <SheetHeader className="flex flex-row items-center justify-between pr-0 pb-4 border-b border-zinc-800">
           <SheetTitle className="text-zinc-100 text-sm font-semibold">Notifications</SheetTitle>
-          {unreadCount > 0 && (
+          <div className="flex items-center gap-3">
+            {unreadCount > 0 && (
+              <button
+                onClick={() => markAllMutation.mutate()}
+                disabled={markAllMutation.isPending}
+                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-40"
+              >
+                Mark all read
+              </button>
+            )}
             <button
-              onClick={() => markAllMutation.mutate()}
-              disabled={markAllMutation.isPending}
-              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-40"
+              onClick={() => toggleAlertsMutation.mutate()}
+              disabled={toggleAlertsMutation.isPending}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50 border",
+                alertsEnabled
+                  ? "bg-emerald-900/50 text-emerald-300 border-emerald-800 hover:bg-emerald-900/80"
+                  : "bg-red-900/50 text-red-300 border-red-800 hover:bg-red-900/80"
+              )}
             >
-              Mark all read
+              {alertsEnabled ? (
+                <>
+                  <Bell className="h-3 w-3" />
+                  On
+                </>
+              ) : (
+                <>
+                  <BellOff className="h-3 w-3" />
+                  Off
+                </>
+              )}
             </button>
-          )}
+          </div>
         </SheetHeader>
 
         <div className="mt-4 space-y-2">

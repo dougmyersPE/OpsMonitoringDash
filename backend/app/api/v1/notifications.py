@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_role
 from app.db.session import get_async_session
+from app.models.config import SystemConfig
 from app.models.notification import Notification
 from app.schemas.notification import NotificationListResponse, NotificationResponse
 
@@ -33,6 +34,41 @@ async def list_notifications(
         notifications=[NotificationResponse.model_validate(n) for n in notifications],
         unread_count=unread_count,
     )
+
+
+@router.get("/alerts-enabled", response_model=dict)
+async def get_alerts_enabled(
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Return whether alerts are enabled."""
+    result = await session.execute(
+        select(SystemConfig.value).where(SystemConfig.key == "alerts_enabled")
+    )
+    value = result.scalar_one_or_none()
+    enabled = value is None or value.lower() != "false"
+    return {"enabled": enabled}
+
+
+@router.patch("/alerts-enabled", response_model=dict)
+async def toggle_alerts_enabled(
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Toggle alerts on/off."""
+    result = await session.execute(
+        select(SystemConfig).where(SystemConfig.key == "alerts_enabled")
+    )
+    item = result.scalar_one_or_none()
+    if item is None:
+        # Default is enabled, so toggling creates the key as "false"
+        item = SystemConfig(key="alerts_enabled", value="false", description="Global alert toggle")
+        session.add(item)
+        new_enabled = False
+    else:
+        current = item.value.lower() != "false"
+        item.value = "false" if current else "true"
+        new_enabled = not current
+    await session.commit()
+    return {"enabled": new_enabled}
 
 
 @router.patch("/mark-all-read", response_model=dict)
