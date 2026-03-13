@@ -12,5 +12,8 @@ __pycache__/
 node_modules/
 dist/
 
+# Redis
+dump.rdb
+
 # Misc
 .DS_Store
