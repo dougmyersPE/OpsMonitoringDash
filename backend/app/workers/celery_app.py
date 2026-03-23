@@ -17,6 +17,7 @@ celery_app = Celery(
         "app.workers.poll_espn",
         "app.workers.poll_critical_check",
         "app.workers.rollup_api_usage",
+        "app.workers.cleanup_old_events",
     ],
 )
 
@@ -48,6 +49,10 @@ celery_app.conf.update(
         "rollup-api-usage": {
             "task": "app.workers.rollup_api_usage.run",
             "schedule": crontab(hour=2, minute=0),  # 02:00 UTC nightly
+        },
+        "cleanup-old-events": {
+            "task": "app.workers.cleanup_old_events.run",
+            "schedule": crontab(hour="*/6", minute=15),  # every 6 hours at :15
         },
     },
 )

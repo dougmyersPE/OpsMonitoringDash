@@ -27,9 +27,9 @@ router = APIRouter(prefix="/events", tags=["events"])
 async def list_events(session: AsyncSession = Depends(get_async_session)):
     """Return all events with prophetx_status, real_world_status, status_match, and is_flagged.
 
-    Ended events are hidden after 24 hours.
+    Ended events are hidden after 48 hours.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
     visible = or_(
         Event.prophetx_status != "ended",
         Event.last_real_world_poll >= cutoff,
