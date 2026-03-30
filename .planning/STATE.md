@@ -37,6 +37,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 (none)
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260330-nvd | Integrate OddsBlaze API as new data source | 2026-03-30 | fd00e64 | [260330-nvd-integrate-oddsblaze-api-as-new-data-sour](./quick/260330-nvd-integrate-oddsblaze-api-as-new-data-sour/) |
+
 ### Blockers/Concerns
 
 - SDIO NFL/NCAAB/NCAAF endpoints 404 (off-season; deferred to v2 when seasons resume)
@@ -61,6 +67,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
+Last activity: 2026-03-30 - Completed quick task 260330-nvd: Integrate OddsBlaze API as new data source
 Last session: 2026-03-04T21:35:25Z
 Stopped at: Ad-hoc bugfixes deployed, all services running stable
 What happened this session:
