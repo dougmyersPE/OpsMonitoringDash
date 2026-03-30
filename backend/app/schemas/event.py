@@ -20,6 +20,7 @@ class EventResponse(BaseModel):
     sports_api_status: str | None
     sdio_status: str | None
     espn_status: str | None
+    oddsblaze_status: str | None
     status_match: bool
     is_flagged: bool
     last_prophetx_poll: datetime | None
@@ -35,6 +36,7 @@ class EventResponse(BaseModel):
             self.sports_api_status,
             self.sdio_status,
             self.espn_status,
+            self.oddsblaze_status,
         )
 
 

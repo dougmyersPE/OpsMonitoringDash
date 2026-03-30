@@ -651,6 +651,7 @@ def run(self):
                         px_event.sports_api_status,
                         px_event.sdio_status,
                         px_event.espn_status,
+                        px_event.oddsblaze_status,
                     )
 
             # Flag detection: derived from current source statuses each cycle.

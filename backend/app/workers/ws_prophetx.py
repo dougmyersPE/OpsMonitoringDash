@@ -127,6 +127,7 @@ def _upsert_event(event_data: dict, op: str | None) -> None:
                     existing.sports_api_status,
                     existing.sdio_status,
                     existing.espn_status,
+                    existing.oddsblaze_status,
                 )
                 session.commit()
                 log.info("ws_prophetx_event_deleted", prophetx_event_id=prophetx_event_id)
@@ -215,6 +216,7 @@ def _upsert_event(event_data: dict, op: str | None) -> None:
                 existing.sports_api_status,
                 existing.sdio_status,
                 existing.espn_status,
+                existing.oddsblaze_status,
             )
             log.info(
                 "ws_prophetx_event_updated",

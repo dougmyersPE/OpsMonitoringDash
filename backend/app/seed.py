@@ -23,6 +23,7 @@ INTERVAL_DEFAULTS = {
     "poll_interval_odds_api": str(settings.POLL_INTERVAL_ODDS_API),        # 600
     "poll_interval_sports_api": str(settings.POLL_INTERVAL_SPORTS_API),    # 1800
     "poll_interval_espn": str(settings.POLL_INTERVAL_ESPN),                # 600
+    "poll_interval_oddsblaze": str(settings.POLL_INTERVAL_ODDSBLAZE),      # 120
     "poll_interval_critical_check": "30",                                   # lowered from 60s (DB query is cheap)
 }
 
@@ -34,6 +35,7 @@ INTERVAL_MINIMUMS = {
     "poll_interval_odds_api_min": "600",       # hard floor: 500 calls/month free tier
     "poll_interval_sports_api_min": "600",     # floor: per-sport daily quotas
     "poll_interval_espn_min": "60",
+    "poll_interval_oddsblaze_min": "30",
     "poll_interval_critical_check_min": "15",
 }
 
@@ -45,6 +47,7 @@ SOURCE_ENABLED_DEFAULTS = {
     "source_enabled_sports_api": ("true", "Enable Sports API polling source"),
     "source_enabled_sports_data": ("true", "Enable SportsDataIO polling source"),
     "source_enabled_espn": ("true", "Enable ESPN polling source"),
+    "source_enabled_oddsblaze": ("true", "Enable OddsBlaze polling source"),
 }
 
 

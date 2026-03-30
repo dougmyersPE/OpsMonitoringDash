@@ -44,6 +44,7 @@ def run(self):
             e.sports_api_status,
             e.sdio_status,
             e.espn_status,
+            e.oddsblaze_status,
         )
     ]
 

@@ -223,6 +223,7 @@ def run(self):
                     existing.sports_api_status,
                     existing.sdio_status,
                     existing.espn_status,
+                    existing.oddsblaze_status,
                 )
 
             polled_px_ids.add(prophetx_event_id)
@@ -266,6 +267,7 @@ def run(self):
                     event.sports_api_status,
                     event.sdio_status,
                     event.espn_status,
+                    event.oddsblaze_status,
                 )
                 events_marked_ended += 1
                 _publish_update("event_updated", str(event.prophetx_event_id))
@@ -282,6 +284,7 @@ def run(self):
                 event.sports_api_status,
                 event.sdio_status,
                 event.espn_status,
+                event.oddsblaze_status,
             )
             if event.status_match != computed:
                 event.status_match = computed

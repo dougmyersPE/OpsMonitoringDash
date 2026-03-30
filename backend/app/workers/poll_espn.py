@@ -294,6 +294,7 @@ def run(self):
                         event.sports_api_status,
                         event.sdio_status,
                         status_state,
+                        event.oddsblaze_status,
                     )
                     event.status_match = new_status_match
                     event.last_real_world_poll = now

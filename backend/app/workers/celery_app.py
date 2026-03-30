@@ -15,6 +15,7 @@ celery_app = Celery(
         "app.workers.poll_odds_api",
         "app.workers.poll_sports_api",
         "app.workers.poll_espn",
+        "app.workers.poll_oddsblaze",
         "app.workers.poll_critical_check",
         "app.workers.rollup_api_usage",
         "app.workers.cleanup_old_events",

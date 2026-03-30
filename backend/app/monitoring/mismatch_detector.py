@@ -207,6 +207,13 @@ _ESPN_CANONICAL: dict[str, str] = {
     "post": "final",
 }
 
+# OddsBlaze schedule API derived statuses
+_ODDSBLAZE_CANONICAL: dict[str, str] = {
+    "live": "inprogress",      # live=true in schedule response
+    "scheduled": "scheduled",   # live=false, event in future
+    "final": "final",           # live=false, event in past
+}
+
 # Sports API status codes (api-sports.io — shared across soccer, basketball, hockey, baseball, NFL)
 _SPORTS_API_CANONICAL: dict[str, str] = {
     # Not started
@@ -266,6 +273,7 @@ def compute_status_match(
     sports_api_status: str | None,
     sdio_status: str | None,
     espn_status: str | None = None,
+    oddsblaze_status: str | None = None,
 ) -> bool:
     """Return False if any source with data disagrees with ProphetX status.
 
@@ -283,6 +291,7 @@ def compute_status_match(
         (sports_api_status, None),  # uses _sports_api_to_canonical() for baseball inning support
         (sdio_status, _SDIO_CANONICAL),
         (espn_status, _ESPN_CANONICAL),
+        (oddsblaze_status, _ODDSBLAZE_CANONICAL),
     ]
 
     for source_status, canonical_map in sources:
@@ -304,6 +313,7 @@ def compute_is_critical(
     sports_api_status: str | None,
     sdio_status: str | None,
     espn_status: str | None,
+    oddsblaze_status: str | None = None,
 ) -> bool:
     """True when 2+ sources report the event as live but ProphetX does not.
 
@@ -322,6 +332,7 @@ def compute_is_critical(
         (sports_api_status, None),
         (sdio_status, _SDIO_CANONICAL),
         (espn_status, _ESPN_CANONICAL),
+        (oddsblaze_status, _ODDSBLAZE_CANONICAL),
     ]
 
     live_count = 0

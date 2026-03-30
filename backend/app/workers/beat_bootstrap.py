@@ -26,6 +26,7 @@ WORKER_TASK_MAP = {
     "odds_api":       "app.workers.poll_odds_api.run",
     "sports_api":     "app.workers.poll_sports_api.run",
     "espn":           "app.workers.poll_espn.run",
+    "oddsblaze":      "app.workers.poll_oddsblaze.run",
     "critical_check": "app.workers.poll_critical_check.run",
 }
 
@@ -36,6 +37,7 @@ BEAT_NAME_MAP = {
     "odds_api":       "poll-odds-api",
     "sports_api":     "poll-sports-api",
     "espn":           "poll-espn",
+    "oddsblaze":      "poll-oddsblaze",
     "critical_check": "poll-critical-check",
 }
 
@@ -46,6 +48,7 @@ _FALLBACK_INTERVALS = {
     "odds_api": 600.0,
     "sports_api": 1800.0,
     "espn": 600.0,
+    "oddsblaze": 120.0,
     "critical_check": 30.0,
 }
 

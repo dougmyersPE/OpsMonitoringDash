@@ -22,6 +22,7 @@ SOURCE_COLUMN_MAP = {
     "sports_api": "sports_api_status",
     "sports_data": "sdio_status",
     "espn": "espn_status",
+    "oddsblaze": "oddsblaze_status",
 }
 
 
@@ -60,6 +61,7 @@ def clear_source_and_recompute(source_key: str) -> int:
                 ev.sports_api_status if column_name != "sports_api_status" else None,
                 ev.sdio_status if column_name != "sdio_status" else None,
                 ev.espn_status if column_name != "espn_status" else None,
+                ev.oddsblaze_status if column_name != "oddsblaze_status" else None,
             )
             count += 1
 
