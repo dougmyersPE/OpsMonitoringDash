@@ -222,6 +222,7 @@ type SortCol =
   | "sports_api_status"
   | "sdio_status"
   | "espn_status"
+  | "oddsblaze_status"
   | "is_flagged"
   | "last_real_world_poll";
 
@@ -232,6 +233,7 @@ const STATUS_COLS = new Set<SortCol>([
   "sports_api_status",
   "sdio_status",
   "espn_status",
+  "oddsblaze_status",
 ]);
 
 function applySortCol(events: EventRow[], col: SortCol, dir: "asc" | "desc"): EventRow[] {
@@ -508,6 +510,7 @@ export default function EventsTable() {
               <SortableHead col="sports_api_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Sports API</SortableHead>
               <SortableHead col="sdio_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>SDIO</SortableHead>
               <SortableHead col="espn_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>ESPN</SortableHead>
+              <SortableHead col="oddsblaze_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>OddsBlaze</SortableHead>
               <SortableHead col="is_flagged" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Flag</SortableHead>
               <SortableHead col="last_real_world_poll" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Checked</SortableHead>
             </TableRow>
@@ -556,6 +559,7 @@ export default function EventsTable() {
                 <TableCell><SourceStatus status={event.sports_api_status} /></TableCell>
                 <TableCell><SourceStatus status={event.sdio_status} /></TableCell>
                 <TableCell><SourceStatus status={event.espn_status} /></TableCell>
+                <TableCell><SourceStatus status={event.oddsblaze_status} /></TableCell>
                 <TableCell><FlaggedBadge flagged={event.is_flagged} /></TableCell>
                 <TableCell className="font-mono text-[11px] text-zinc-600 whitespace-nowrap">
                   {event.last_real_world_poll
@@ -568,7 +572,7 @@ export default function EventsTable() {
             {sorted.length === 0 && (
               <TableRow className="hover:bg-transparent border-0">
                 <TableCell
-                  colSpan={11}
+                  colSpan={12}
                   className="text-center text-zinc-600 py-12 text-sm"
                 >
                   {hasActiveFilters ? "No events match the current filters" : "No events yet"}

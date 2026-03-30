@@ -11,6 +11,7 @@ export interface EventRow {
   sports_api_status: string | null;
   sdio_status: string | null;
   espn_status: string | null;
+  oddsblaze_status: string | null;
   status_match: boolean;
   is_flagged: boolean;
   is_critical: boolean;
