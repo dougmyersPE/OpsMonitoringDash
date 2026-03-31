@@ -42,6 +42,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260330-nvd | Integrate OddsBlaze API as new data source | 2026-03-30 | fd00e64 | [260330-nvd-integrate-oddsblaze-api-as-new-data-sour](./quick/260330-nvd-integrate-oddsblaze-api-as-new-data-sour/) |
+| 260331-fmz | Auto-purge events older than 48h regardless of status | 2026-03-31 | 18a9d61 | [260331-fmz-auto-purge-events-older-than-48-hours-fr](./quick/260331-fmz-auto-purge-events-older-than-48-hours-fr/) |
 
 ### Blockers/Concerns
 
@@ -67,7 +68,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last activity: 2026-03-30 - Completed quick task 260330-nvd: Integrate OddsBlaze API as new data source
+Last activity: 2026-03-31 - Completed quick task 260331-fmz: Auto-purge events older than 48h regardless of status
 Last session: 2026-03-04T21:35:25Z
 Stopped at: Ad-hoc bugfixes deployed, all services running stable
 What happened this session:
