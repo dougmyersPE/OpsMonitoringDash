@@ -1,31 +1,31 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Stabilization + API Usage
-status: shipped
-last_updated: "2026-03-04"
+milestone: v1.2
+milestone_name: WebSocket-Primary Status Authority
+status: planning
+last_updated: "2026-03-31"
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 18
-  completed_plans: 18
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-02)
+See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Ad-hoc bugfixes deployed; planning next milestone
+**Current focus:** v1.2 — WebSocket-primary status authority
 
 ## Current Position
 
-Milestone: v1.1 SHIPPED (2026-03-02)
-All milestones complete. Run `/gsd:new-milestone` to start next version.
-
-Progress: [██████████] 100% (v1.1 SHIPPED)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-31 — Milestone v1.2 started
 
 ## Accumulated Context
 

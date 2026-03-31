@@ -36,7 +36,18 @@ Operators always know the true health of their ProphetX platform — stale event
 
 ### Active
 
-(None — planning next milestone)
+See REQUIREMENTS.md for v1.2 scoped requirements.
+
+## Current Milestone: v1.2 WebSocket-Primary Status Authority
+
+**Goal:** Elevate ProphetX WebSocket messages to the authoritative real-time source for event status, with polling workers serving as reconciliation/validation.
+
+**Target features:**
+- WS sport_event messages verified working end-to-end (diagnostics, logging)
+- Status authority model: WS-delivered status treated as ground truth
+- ProphetX REST poller demoted to reconciliation fallback
+- WS connection health surfaced on dashboard
+- Tech debt: SportsApiClient aligned with BaseAPIClient, Sports API Redis reads batched
 
 ### Out of Scope
 
@@ -88,5 +99,22 @@ Known tech debt:
 | Deferred import for celery_app in API | Avoids loading Celery machinery in API process; only runs on admin PATCH | ✓ Good — clean separation |
 | Recharts for data visualization | Compatible with React 19; simpler API than D3 | ✓ Good — stacked bar chart works well |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-03-02 after v1.1 milestone*
+*Last updated: 2026-03-31 after v1.2 milestone start*
