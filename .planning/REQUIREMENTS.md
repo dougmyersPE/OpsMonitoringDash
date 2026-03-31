@@ -61,21 +61,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WSREL-01 | — | Pending |
-| WSREL-02 | — | Pending |
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| WSHLT-01 | — | Pending |
-| WSHLT-02 | — | Pending |
-| WSHLT-03 | — | Pending |
-| DEBT-01 | — | Pending |
+| WSREL-01 | Phase 8 | Pending |
+| WSREL-02 | Phase 8 | Pending |
+| AUTH-01 | Phase 9 | Pending |
+| AUTH-02 | Phase 9 | Pending |
+| AUTH-03 | Phase 9 | Pending |
+| WSHLT-01 | Phase 10 | Pending |
+| WSHLT-02 | Phase 10 | Pending |
+| WSHLT-03 | Phase 10 | Pending |
+| DEBT-01 | Phase 11 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 9 total
-- Mapped to phases: 0
-- Unmapped: 9 ⚠️
+- Mapped to phases: 9
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-31*
-*Last updated: 2026-03-31 after initial definition*
+*Last updated: 2026-03-31 — traceability filled during v1.2 roadmap creation*

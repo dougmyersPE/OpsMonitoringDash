@@ -5,7 +5,7 @@ milestone_name: WebSocket-Primary Status Authority
 status: planning
 last_updated: "2026-03-31"
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,20 +18,43 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** v1.2 — WebSocket-primary status authority
+**Current focus:** Phase 8 — WS Diagnostics and Instrumentation
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-31 — Milestone v1.2 started
+Phase: 8 of 11 (WS Diagnostics and Instrumentation)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-03-31 — v1.2 roadmap created; Phases 8-11 defined
+
+Progress: [███████░░░░░░░░░░░░░] 35% (7/11 phases complete — v1.0 + v1.1 shipped)
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 10 (v1.0 + v1.1)
+- Average duration: ~45 min/plan (estimated)
+- Total execution time: ~7.5 hours
+
+**By Phase:**
+
+| Phase | Plans | Avg/Plan |
+|-------|-------|----------|
+| v1.0 (Phases 1-3) | 11 | ~27 min |
+| v1.1 (Phases 4-7) | 7 | ~21 min |
+
+*Updated after each plan completion*
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- v1.2 roadmap: Phase 8 has a hard gate — ws:sport_event_count > 0 must confirm in production before Phase 9 begins
+- v1.2 roadmap: Phase 11 (Tech Debt) is independent and can run any time, including during the Phase 8 observation window (24-48h)
+- v1.1: DB-backed poll intervals survive Beat restarts via bootstrap reads on start
 
 ### Pending Todos
 
@@ -46,11 +69,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ### Blockers/Concerns
 
+- **Phase 8 gate (critical):** WS consumer receives zero sport_event change-type messages in production. Phase 9 is blocked until ws:sport_event_count > 0 is confirmed after 24-48h covering live game windows. If gate fails, escalate to ProphetX on channel config.
+- **Phase 10 mismatch direction:** After WS elevation, ProphetX may go live via WS before external sources update — false-positive mismatch alerts possible. Grace period in mismatch_detector.py needed.
 - SDIO NFL/NCAAB/NCAAF endpoints 404 (off-season; deferred to v2 when seasons resume)
 - ProphetX write endpoint still stubbed (log-only until PATCH path confirmed)
-- SportsApiClient bypasses BaseAPIClient (architecturally inconsistent, functional)
-- SDIO data lag: some games (spring training baseball, occasional EPL) stay `Scheduled` in SDIO even when live — SDIO-side issue, not ours
-- WS consumer receives zero `sport_event` change_type messages (only market_selections/matched_bet) — needs investigation with ProphetX on whether broadcast channel carries status changes
 
 ### Resolved
 
@@ -60,19 +82,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - RedBeat restart overwrite: fixed in Phase 5 (DB-backed bootstrap)
 - Login endpoint now returns role in response (was defaulting all users to "operator")
 - ESPN time guard fixed: uses actual event datetime instead of fake noon UTC
-- Logout button added to sidebar
-- Auto-sync status regression: stale SDIO data was overwriting ProphetX's correct `live` status back to `not_started` — lifecycle guard added (2026-03-04)
-- SDIO soccer endpoint: was using `GamesByDateFinal` (completed games only) instead of `GamesByDate` (all games) — fixed (2026-03-04)
-- poll_prophetx was not updating `last_prophetx_poll` timestamp — fixed (2026-03-04)
-- Docker Compose: all services now have `restart: unless-stopped` for server reboot resilience (2026-03-04)
+- Auto-sync status regression: lifecycle guard added (2026-03-04)
+- SDIO soccer endpoint: fixed to use `GamesByDate` instead of `GamesByDateFinal` (2026-03-04)
+- poll_prophetx `last_prophetx_poll` timestamp not updating — fixed (2026-03-04)
+- Docker Compose: all services now have `restart: unless-stopped` (2026-03-04)
 
 ## Session Continuity
 
-Last activity: 2026-03-31 - Completed quick task 260331-fmz: Auto-purge events older than 48h regardless of status
-Last session: 2026-03-31T15:15:34Z
-Stopped at: Quick task 260331-fmz complete — auto-purge events older than 48h
-What happened this session:
-  - Quick task 260331-fmz: cleanup_old_events.py now purges ALL events >48h regardless of status (commit 18a9d61)
-  - Also cleans up orphaned event_id_mappings and notifications for purged events
-  - 7 unit tests added and passing
-Next: Deploy to production server via rsync + docker compose rebuild
+Last session: 2026-03-31
+Stopped at: v1.2 roadmap created (Phases 8-11). Ready to plan Phase 8.
+Resume file: None
