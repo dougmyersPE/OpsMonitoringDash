@@ -1,29 +1,25 @@
 {
   "version": "1.0",
-  "timestamp": "2026-03-31T15:09:25.307Z",
-  "phase": "quick-260330-nvd",
-  "phase_name": "Integrate OddsBlaze API as new data source",
-  "phase_dir": ".planning/quick/260330-nvd-integrate-oddsblaze-api-as-new-data-sour",
+  "timestamp": "2026-03-31T20:06:32.256Z",
+  "phase": "quick-260331-fmz",
+  "phase_name": "Auto-purge events older than 48 hours from dashboard",
+  "phase_dir": ".planning/quick/260331-fmz-auto-purge-events-older-than-48-hours-fr",
   "plan": 1,
-  "task": 2,
-  "total_tasks": 2,
+  "task": 1,
+  "total_tasks": 1,
   "status": "deployed",
   "completed_tasks": [
-    {"id": 1, "name": "Backend — API client, DB migration, config, and all wiring", "status": "done", "commit": "c5cdb68"},
-    {"id": 2, "name": "Frontend — Add OddsBlaze status column to dashboard", "status": "done", "commit": "1e9fae6"}
+    {"id": 1, "name": "Remove ended-only filter, add cascading cleanup for mappings and notifications", "status": "done", "commit": "18a9d61"}
   ],
   "remaining_tasks": [],
-  "blockers": [
-    {"description": "OddsBlaze push feed (SSE) returns 'Invalid key' — requires Enterprise plan upgrade", "type": "external", "workaround": "Using REST polling at 30s interval instead"},
-    {"description": "DB had pre-existing odds_blaze_status column (underscore) from prior attempt — renamed to oddsblaze_status via ALTER TABLE", "type": "technical", "workaround": "Resolved manually on server"}
-  ],
+  "blockers": [],
   "human_actions_pending": [],
   "decisions": [
-    {"decision": "Poll interval set to 30 seconds", "rationale": "OddsBlaze has no published rate limits and data refreshes ~every 2 minutes on their end; 30s gives near-real-time without risk", "phase": "quick-260330-nvd"},
-    {"decision": "REST polling over SSE push feed", "rationale": "Current API key doesn't have Enterprise plan access for push feed", "phase": "quick-260330-nvd"},
-    {"decision": "Status derivation: live=true -> 'live', live=false + past 3hrs -> 'final', else -> 'scheduled'", "rationale": "OddsBlaze only provides a boolean 'live' field, no explicit completed status", "phase": "quick-260330-nvd"}
+    {"decision": "Purge ALL events >48h regardless of prophetx_status", "rationale": "Previous filter only purged 'ended' events, leaving stale scheduled/live events on dashboard indefinitely", "phase": "quick-260331-fmz"},
+    {"decision": "Cascade delete event_id_mappings and notifications for purged events", "rationale": "Prevent orphaned rows in related tables", "phase": "quick-260331-fmz"},
+    {"decision": "Audit log untouched", "rationale": "Append-only by design — never purge audit records", "phase": "quick-260331-fmz"}
   ],
   "uncommitted_files": [],
-  "next_action": "Monitor OddsBlaze matching quality — check if fuzzy matching is correctly pairing OddsBlaze events to ProphetX events across all sports. Consider tuning the match threshold if too many events show 'Not Listed' for covered sports.",
-  "context_notes": "OddsBlaze integration fully deployed to production server (46.225.233.32). All 8 Docker services running. 106 events matched on first poll (NBA, MLB, UFC, MLS, EPL, Ligue 1, La Liga). 599 events unmatched — mostly tennis/hockey which OddsBlaze doesn't cover. Old duplicate migration file (007_add_odds_blaze_status.py) was cleaned up on server. Column was renamed from odds_blaze_status to oddsblaze_status directly in production DB."
+  "next_action": "Monitor dashboard after next cleanup cycle (runs every 6h) to confirm old events are being purged. Then consider starting next milestone (/gsd:new-milestone).",
+  "context_notes": "Quick task 260331-fmz fully completed and deployed to production (Hetzner VPS at 46.225.233.32). Worker and beat services rebuilt and restarted. No active milestone — v1.1 shipped, project is in ad-hoc quick task mode. OddsBlaze integration (260330-nvd) also deployed from prior session."
 }
