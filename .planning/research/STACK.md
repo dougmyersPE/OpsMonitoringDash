@@ -1,218 +1,246 @@
-# Stack Research
+# Technology Stack
 
-**Domain:** Real-time operations monitoring dashboard — v1.1 additions only (API usage monitoring, poll frequency controls, SDIO endpoint fixes)
-**Researched:** 2026-03-01
-**Confidence:** HIGH for backend patterns; MEDIUM for Recharts React 19 compatibility (requires install verification)
+**Project:** ProphetX Market Monitor — v1.2 WebSocket-Primary Status Authority
+**Researched:** 2026-03-31
+**Scope:** NEW additions only. The v1.0/v1.1 stack (FastAPI, Celery/Redis/RedBeat, PostgreSQL, React 19, TanStack Query 5, Tailwind 4, shadcn/ui 3, pysher, structlog) is deployed, validated, and unchanged.
 
 ---
 
 ## Context: What This Covers
 
-This is a **subsequent milestone** research document. The v1.0 stack (FastAPI, Celery/Redis, PostgreSQL, React 19, TanStack Query 5, Tailwind 4, shadcn/ui 3) is already deployed and validated. This document covers only what is **new or changed** for v1.1 features:
+v1.2 adds three new capabilities on top of the existing system:
 
-1. **API usage tab** — pull usage/limits from provider response headers + a dedicated Sports API `/status` endpoint
-2. **Call volume tracking** — count outbound API calls per worker across all polling cycles
-3. **Poll frequency controls** — UI-driven adjustment of per-worker Celery Beat intervals at runtime
-4. **SDIO NFL/NCAAB/NCAAF endpoint 404s** — data/config fix, no new libraries
+1. **WS diagnostics** — surface what sport_event messages actually contain, end-to-end log tracing
+2. **Status authority model** — treat WS-delivered `prophetx_status` as ground truth; demote REST poller to reconciliation
+3. **WS connection health on dashboard** — expose connection state, last message timestamp, reconnect count to the UI
 
-Nothing in the v1.0 stack needs to be replaced or upgraded for these features.
+This document answers: what stack additions or changes are required for these three capabilities?
+
+**Answer:** No new Python packages. No new npm packages. All three capabilities are achievable with the existing stack through new columns, new Redis keys, and new API/frontend wiring.
 
 ---
 
 ## Recommended Stack
 
-### Core Technologies (existing — no changes)
+### No New Dependencies Required
 
-The full v1.0 stack continues unchanged:
+All v1.2 features use already-installed components.
 
-| Technology | Version | Status |
-|------------|---------|--------|
-| FastAPI | 0.115.x | No change |
-| Celery | 5.4.x | No change |
-| celery-redbeat | 2.3.3 | **Already installed; critical for poll frequency controls** |
-| PostgreSQL | 16.x | No change — new table added for usage tracking |
-| Redis | 7.x | No change — INCR counters added |
-| React 19 | 19.2.x | No change |
-| TanStack Query | 5.x | No change |
-
-### New Supporting Libraries
-
-| Library | Version | Purpose | Rationale |
-|---------|---------|---------|-----------|
-| recharts | ^3.7.0 | Bar/line charts for API usage history in the UI | Already the ecosystem standard for React admin dashboards. v3.7.0 (Jan 2025) is the latest stable. Works with React 19 — the react-is mismatch issue from 2.x is resolved in 3.x. No peer dependency overrides needed. Lightweight (~180KB), composable, SVG-based. Sufficient for the simple time-series call-count charts this feature needs. |
-
-That is the **only new npm dependency**. No new Python packages are required.
+| Capability | Existing Tool | How Used |
+|------------|---------------|----------|
+| WS diagnostics | structlog (already installed) | Add structured log lines at decode, validate, and DB-write steps in `ws_prophetx.py` |
+| Connection state tracking | redis-py (already installed) | `HSET worker:ws_state:prophetx field value` — store connection state, timestamps, counts |
+| Status authority model | SQLAlchemy + PostgreSQL (already installed) | New `status_source` column on `events` table; `ws_prophetx.py` sets it to `"ws"` |
+| Authority-aware mismatch detection | mismatch_detector.py (already exists) | Extend `compute_status_match()` to skip REST reconciliation when `status_source == "ws"` and WS is healthy |
+| Connection health endpoint | FastAPI (already installed) | New route `GET /api/v1/health/ws` reads the Redis hash |
+| Dashboard health panel | React + TanStack Query (already installed) | New UI component polls the health endpoint; SSE drives updates |
 
 ---
 
-## How Each Feature Maps to the Stack
+## Feature Implementation Patterns
 
-### Feature 1: API Usage Tab — Provider Usage/Limits
+### Feature 1: WS Diagnostics
 
-**How provider quotas are exposed:**
+**What to add:** Structured log lines at each decode step inside `ws_prophetx.py`.
 
-| Provider | Mechanism | Header/Endpoint | What's Available |
-|----------|-----------|-----------------|-----------------|
-| The Odds API | Response headers | `x-requests-remaining`, `x-requests-used`, `x-requests-last` | Credits remaining until monthly reset, credits used, cost of last call |
-| Sports API (api-sports.io) | Response headers | `x-ratelimit-requests-limit`, `x-ratelimit-requests-remaining` | Daily request limit and remaining per subscription; also per-minute: `X-RateLimit-Limit`, `X-RateLimit-Remaining` |
-| Sports API (api-sports.io) | Dedicated endpoint | `GET /status` (per-sport base URL) | Account subscription info — confirms remaining daily requests at any time without consuming quota |
-| SportsDataIO | None confirmed | No response headers or quota endpoint found in official docs | SDIO advertises "unlimited API calls" on paid plans; no quota tracking mechanism exposed. Track call volume internally only. |
-| ESPN | Unofficial API | No rate limit headers or quota endpoint | Unofficial API; track call volume internally only. |
-
-**Implementation:** Capture headers inside `BaseAPIClient._get()` after each response. Store latest values in Redis with per-provider keys (e.g., `api_usage:odds_api:remaining`). FastAPI endpoint reads Redis and returns combined payload to the UI. No new Python library needed — `httpx` already used, and headers are on the `response` object.
-
-**Confidence:** HIGH for Odds API (official docs verified). HIGH for Sports API (API-Football docs confirmed header names). LOW for SDIO (no quota tracking mechanism found — confirmed "unlimited" but no header evidence).
-
-### Feature 2: Call Volume Tracking
-
-**Mechanism: Redis INCR counters**
-
-Redis `INCR` is the correct tool. It is:
-- Atomic — safe for concurrent writes from 6 Celery worker processes
-- O(1) — no performance cost at this scale
-- Already present (Redis is in the stack)
-- No new library needed
-
-**Pattern:**
-```
-Key format: api_calls:{provider}:{YYYY-MM-DD}
-TTL: 8 days (covers weekly trend display)
-Increment: once per successful API call inside each client method
-```
-
-For historical trend display (last 7 days per provider), the FastAPI endpoint reads 7 keys per provider from Redis. No time-series DB or additional tooling needed at this scale.
-
-**Why not PostgreSQL for call counts?** PostgreSQL write amplification from high-frequency INCR-equivalent updates (up to ~200 writes/day/provider) is unnecessary overhead when Redis already handles it. Persist to Postgres only if audit trail of historical usage beyond 8 days is required — defer to v1.2.
-
-### Feature 3: Poll Frequency Controls
-
-**Mechanism: RedBeat schedule mutation via Python API**
-
-celery-redbeat (already installed, v2.3.3) supports runtime schedule updates without Beat restart. The mechanism:
+**Pattern — log at every transformation boundary:**
 
 ```python
-from redbeat import RedBeatSchedulerEntry
-import celery.schedules
+# After JSON parse of outer wrapper
+log.debug("ws_sport_event_received", change_type=change_type, op=op)
 
-# Update an existing task's interval
-entry = RedBeatSchedulerEntry(
-    'poll-odds-api',
-    'app.workers.poll_odds_api.run',
-    celery.schedules.schedule(run_every=new_interval_seconds),
-    app=celery_app
+# After base64 decode
+log.debug("ws_sport_event_decoded", event_id=..., status=..., field_count=len(event_data))
+
+# After _upsert_event completes
+log.info("ws_sport_event_written", prophetx_event_id=..., status=..., op=op)
+```
+
+**Why structlog over stdlib logging:** Already installed, already used in `ws_prophetx.py`. Adds `event_id` and `status` as typed key-value fields for log querying (`docker logs ws-consumer | grep ws_sport_event_decoded`). No new package needed.
+
+**Confidence:** HIGH — structlog is already in use in this exact file.
+
+---
+
+### Feature 2: Status Authority Model
+
+**What to add:** One new DB column on `events`, one Redis key, one logic change in `mismatch_detector.py`.
+
+**DB schema addition:**
+
+```sql
+ALTER TABLE events ADD COLUMN status_source VARCHAR(10) DEFAULT 'poll';
+-- Values: 'ws' | 'poll'
+-- 'ws' = prophetx_status was last written by ws_prophetx.py
+-- 'poll' = prophetx_status was last written by poll_prophetx.py
+```
+
+**SQLAlchemy model addition:**
+
+```python
+status_source: Mapped[str] = mapped_column(
+    String(10), default="poll", nullable=False
 )
-entry.save()  # writes to Redis; Beat picks up on next tick
 ```
 
-Beat polls its Redis keys on each tick (default every second). The new interval takes effect within ~1-2 seconds of `entry.save()`.
+**Why a column and not Redis?** The status_source must persist across ws-consumer restarts and Redis flushes. It is part of the event record's provenance — the right place is the same table that holds `prophetx_status`. A Redis key would be authoritative for the current connection session but not for historical "which worker last updated this event?" queries.
 
-**FastAPI endpoint:** `PATCH /api/v1/config/poll-intervals` — accepts `{worker: str, interval_seconds: int}`, validates bounds (min 30s, max 3600s), calls the RedBeat mutation, updates the `POLL_INTERVAL_*` value in the DB config table for persistence across restarts.
+**Alembic migration:** Required. One `ALTER TABLE` with a default — safe to run against live data (no backfill needed; existing rows default to `'poll'`).
 
-**Why not restart Beat?** Restarting Beat causes a ~5-10s gap in scheduling and loses the distributed lock. RedBeat's in-place mutation avoids this entirely.
+**Authority logic in `mismatch_detector.py`:**
 
-**Persistence concern:** RedBeat stores intervals in Redis. If the Redis container restarts, Beat re-reads from `celery_app.conf.beat_schedule` (the hardcoded defaults). To survive Redis restarts, the admin-configured interval must also be written to the PostgreSQL `app_config` table and loaded on startup.
+The existing `compute_status_match()` already compares ProphetX status against all real-world sources. The authority model change is conceptual, not a new algorithm: when `status_source == 'ws'` and the WS consumer is connected, `prophetx_status` is trusted as ground truth. The REST poller still runs but its writes to `prophetx_status` are conditional:
 
-### Feature 4: SDIO NFL/NCAAB/NCAAF Endpoint 404s
+```python
+# In poll_prophetx.py — add guard before updating prophetx_status
+ws_healthy = r.hget("worker:ws_state:prophetx", "state") == b"connected"
+if not ws_healthy or event.status_source != "ws":
+    event.prophetx_status = fetched_status
+    event.status_source = "poll"
+# If WS is healthy and event came from WS: skip status overwrite,
+# but still update last_prophetx_poll timestamp for reconciliation visibility
+```
 
-No new stack additions. The fix is in `sportsdataio.py`:
-- NFL uses `/nfl/scores/json/ScoresByDate/{date}` (not `GamesByDate`)
-- NCAAB path: already mapped via `SPORT_PATH_MAP["ncaab"] = "cbb"` — investigate whether the endpoint variant is wrong
-- NCAAF path: similarly mapped as `"cfb"` — verify endpoint name matches SDIO v3 docs
+**Why not a more complex state machine?** Two sources (WS and REST), two authority states. `status_source` column + a single Redis `HGET` check covers all cases without a framework. python-statemachine would add a dependency for a two-state problem.
 
-This is a data/routing fix, not a stack change.
+**Confidence:** HIGH — pattern is standard "last-write-wins with source tagging."
 
 ---
 
-## New Frontend Component: API Usage Tab
+### Feature 3: WS Connection Health (Redis + API + UI)
 
-**No new major libraries beyond Recharts.** The existing stack handles everything:
+**Redis hash schema** (written by `ws_prophetx.py`):
 
-| UI Element | Existing Tool |
-|------------|---------------|
-| Tab navigation | shadcn/ui Tabs component |
-| Usage cards (remaining/used/limit) | shadcn/ui Card |
-| 7-day call volume chart | recharts BarChart |
-| Poll interval sliders | shadcn/ui Slider |
-| Save interval button | shadcn/ui Button |
-| API request | TanStack Query `useQuery` + `useMutation` |
-| Optimistic UI on interval save | TanStack Query `onMutate` |
+```
+Key:    worker:ws_state:prophetx
+Type:   Hash
+Fields:
+  state              string    "connected" | "disconnected" | "reconnecting" | "failed"
+  connected_at       ISO-8601  last successful connection timestamp
+  last_message_at    ISO-8601  timestamp of last sport_event message processed
+  reconnect_count    integer   number of reconnect cycles since process start
+  last_error         string    last error message (empty string if none)
+  last_error_at      ISO-8601  timestamp of last error (empty string if none)
+TTL:    None — hash is live state, not ephemeral; ws-consumer sets it on each state change
+```
+
+**Why a Hash and not separate String keys?** `HGETALL` fetches all six fields in a single round-trip. The existing `worker:heartbeat:*` string keys are boolean alive/dead signals. The new hash is richer state for the dashboard display. Both coexist.
+
+**When to write each field:**
+
+| Event | Fields Written |
+|-------|----------------|
+| `pusher:connection_established` fires | `state=connected`, `connected_at=now` |
+| Any sport_event message processed | `last_message_at=now` |
+| `_on_error` fires on the socket | `state=reconnecting`, `last_error=str(e)`, `last_error_at=now` |
+| Exponential backoff sleep begins | `state=failed`, `reconnect_count=INCR` |
+| Clean disconnect (token refresh) | `state=disconnected` |
+
+**Pysher bindable events for state transitions** (confirmed from pysher source):
+- `pusher:connection_established` — connection up
+- `pusher:connection_failed` — connection failed (pysher handles this internally via `_failed_handler`)
+- `pusher:error` — protocol error with Pusher error code
+
+pysher does not expose `pusher:connection_disconnected`. The disconnect is detected via `_on_close` on the underlying `websocket.WebSocketApp`. The current `ws_prophetx.py` already handles this via the `while time.time() < _token.expires_at` exit loop — the ws_state hash write should wrap this lifecycle.
+
+**New FastAPI endpoint:**
+
+```
+GET /api/v1/health/ws
+```
+
+Returns:
+```json
+{
+  "state": "connected",
+  "connected_at": "2026-03-31T12:00:00Z",
+  "last_message_at": "2026-03-31T14:23:01Z",
+  "reconnect_count": 2,
+  "last_error": "",
+  "last_error_at": ""
+}
+```
+
+Implementation: `HGETALL worker:ws_state:prophetx` — one Redis call, returns dict, no transformation.
+
+**Dashboard UI:**
+
+Existing `GET /api/v1/health/workers` already returns boolean alive/dead per worker. Add `ws_prophetx` to that response using the hash `state` field, so the existing health panel in the UI gets the richer state without a new panel.
+
+Alternatively, add a dedicated WS connection panel near the top of the dashboard. The existing `useQuery` + TanStack Query polling pattern (already used for the worker health panel) is sufficient — no new npm packages needed.
+
+**Confidence:** HIGH for Redis hash pattern. HIGH for FastAPI endpoint. MEDIUM for exact UI placement (depends on dashboard layout decisions during implementation).
 
 ---
 
-## New Backend: API Usage Endpoint
+## Alembic Migration Required
 
-A single new FastAPI router at `/api/v1/usage`:
+| Migration | Type | Risk |
+|-----------|------|------|
+| `ADD COLUMN status_source VARCHAR(10) DEFAULT 'poll'` | DDL | Safe — non-null with default, no backfill needed |
 
-```
-GET  /api/v1/usage          → provider quotas (from Redis) + 7-day call history
-PATCH /api/v1/config/poll-intervals  → update worker schedule interval
-```
+This is the only schema change. All other additions are Redis keys, log lines, and new API routes.
 
-Both are read/write-light endpoints; no new infrastructure needed.
+---
+
+## What NOT to Add
+
+| Avoid | Why | What to Use Instead |
+|-------|-----|---------------------|
+| python-statemachine or transitions | Two authority states (ws/poll) don't justify a state machine library. String comparison on `status_source` + Redis `HGET` is sufficient. | `status_source` column + Redis HGET |
+| prometheus-client | Operational overhead for a single WS consumer process. The Redis hash is the observability surface — it already integrates with the existing dashboard. | Redis hash + `/api/v1/health/ws` endpoint |
+| websockets (Python library) | pysher is already integrated and working. Replacing it mid-milestone introduces reconnect logic regression risk. | pysher (already installed) |
+| PysherPlus (fork) | The currently installed pysher 1.0.7 works. The only known issue (error 4200 reconnect loop) is in the ProphetX error code range 4200-4299 (reconnect immediately). The existing exponential backoff in `ws_prophetx.py::run()` already handles this correctly by catching exceptions at the outer loop. | pysher (already installed) |
+| A separate "diagnostics" Celery task | WS diagnostics are log lines, not a polling task. Structlog output goes to Docker logs, readable with `docker logs ws-consumer --follow`. | structlog debug log lines in ws_prophetx.py |
+| New frontend library for connection status display | The connection state display is a small status badge + timestamp. shadcn/ui Badge + Card components handle it. | shadcn/ui (already installed) |
+| Server-Sent Events changes for WS health | SSE already pushes `event_updated` messages on every WS-triggered DB write. Connection health is a separate slow-polling concern (poll every 5s is fine). | TanStack Query `useQuery` with `refetchInterval: 5000` |
+
+---
+
+## Version Compatibility Notes
+
+| Package | Installed Version | Notes |
+|---------|-------------------|-------|
+| pysher | 1.0.7 | Maintenance mode (last release Feb 2022). Bindable events confirmed from source: `pusher:connection_established`, `pusher:connection_failed`, `pusher:pong`, `pusher:ping`, `pusher:error`. State values from source: `"initialized"`, `"connecting"`, `"connected"`, `"unavailable"`, `"failed"`. No replacement needed — works correctly for this use case. |
+| redis-py | 5.x (already installed) | `HSET`, `HGETALL`, `HINCRBY` are core commands — available in all Redis 7.x + redis-py 5.x combinations. No version concern. |
+| SQLAlchemy | 2.x (already installed) | Mapped column with String type and default is standard ORM pattern. Alembic `add_column` migration is well-supported. |
+| Alembic | already installed | `op.add_column` with server_default is the correct migration pattern for a non-null column with a default. |
+
+---
+
+## Integration Points (How New Code Connects to Existing Code)
+
+| New Code | Connects To | How |
+|----------|-------------|-----|
+| `ws_prophetx.py` Redis hash writes | `/api/v1/health/ws` endpoint | FastAPI reads same Redis key |
+| `events.status_source` column | `poll_prophetx.py` | REST poller reads `status_source` before overwriting `prophetx_status` |
+| `events.status_source` column | `ws_prophetx.py::_upsert_event()` | WS writer sets `status_source = "ws"` on every sport_event write |
+| `/api/v1/health/ws` | Frontend health panel | TanStack Query `useQuery` polls at 5s interval |
+| structlog debug lines | Docker logs | `docker logs ws-consumer --since 1h | grep ws_sport_event` |
 
 ---
 
 ## Installation
 
 ```bash
-# Frontend — only new dependency
-npm install recharts@^3.7.0
-
-# Backend — no new dependencies
-# All needed: httpx (header capture), redis-py (INCR), celery-redbeat (schedule mutation)
-# are already in pyproject.toml
+# No new dependencies — nothing to install.
+# Backend: all required packages (pysher, redis-py, structlog, sqlalchemy, alembic) already in pyproject.toml
+# Frontend: all required packages (shadcn/ui, TanStack Query, React) already in package.json
 ```
 
-**Note on Recharts + React 19:** Recharts 3.x resolves the `react-is` peer dependency mismatch that affected 2.x. Install and verify with `npm ls react-is` — all instances should resolve to 19.x. If a conflict appears, add to `package.json` overrides: `"react-is": "^19.0.0"`.
-
----
-
-## Alternatives Considered
-
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| Redis INCR for call counting | New PostgreSQL `api_call_log` table | Postgres write amplification for high-frequency counters is unnecessary overhead when Redis is already in the stack. Use Redis; persist to Postgres only if >8-day history is needed. |
-| RedBeat runtime mutation | Restart Beat container on interval change | Restart causes scheduling gap and requires orchestration. RedBeat mutation is instantaneous and designed for this use case. |
-| recharts | Nivo | Nivo is heavier (~400KB) and better suited for complex visualizations. Simple bar charts for call counts don't justify the bundle size. |
-| recharts | react-chartjs-2 | Adds Chart.js as a dependency. Recharts is native React components with cleaner TypeScript types and better shadcn/ui theme integration. |
-| Header capture in BaseAPIClient | Separate quota-polling task | Separate task wastes quota budget. Headers are free — they come with every existing poll call. |
-
----
-
-## What NOT to Add
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| Time-series database (InfluxDB, TimescaleDB) | Massive infrastructure addition for what is 5 counters per provider per day. Redis INCR with 8-day TTL is sufficient. | Redis INCR keys |
-| Prometheus + Grafana | Operational overhead far exceeds v1.1 value. The dashboard itself is the monitoring surface. | Redis counters + custom FastAPI endpoint |
-| WebSockets for poll interval updates | SSE already handles real-time push. Poll interval changes are low-frequency config mutations, not a stream. | PATCH endpoint + TanStack Query mutation |
-| New charting library (Victory, ECharts) | Victory adds complexity for minimal gain; ECharts is 1MB+. Recharts 3.x is the right weight for this use case. | recharts 3.7.x |
-| SQLAlchemy-Celery-Beat | Alternative scheduler that stores Beat config in Postgres. Project is already on RedBeat and it works. Do not switch. | celery-redbeat (already installed) |
-
----
-
-## Version Compatibility Notes
-
-| Package | Notes |
-|---------|-------|
-| recharts 3.7.x + React 19 | Recharts 3.x resolves the react-is peer dependency issue from 2.x. Should install cleanly. Verify with `npm ls react-is` post-install. |
-| celery-redbeat 2.3.3 + Celery 5.4.x | Confirmed compatible. v2.x is Celery 5 series. Already in production. |
-| Redis INCR + redis-py 5.x | INCR is a core Redis command, available in all versions. redis-py 5.x supports it via both sync and async client. |
-| RedBeat entries + Redis restart | RedBeat keys survive normal Redis operation but are lost on `redis-cli FLUSHALL` or container data wipe. Always write admin-configured intervals to Postgres as the durable source of truth; load on app startup into RedBeat. |
+The only deployment action needed is running the Alembic migration for the `status_source` column.
 
 ---
 
 ## Sources
 
-- The Odds API v4 docs (https://the-odds-api.com/liveapi/guides/v4/) — response headers `x-requests-remaining`, `x-requests-used`, `x-requests-last` confirmed. HIGH confidence.
-- API-Football rate limit docs (https://www.api-football.com/news/post/how-ratelimit-works) — headers `x-ratelimit-requests-limit`, `x-ratelimit-requests-remaining`, `X-RateLimit-Limit`, `X-RateLimit-Remaining` confirmed. HIGH confidence.
-- SportsDataIO FAQ + developer docs — no quota tracking mechanism found. Consistent with "unlimited calls" positioning. LOW confidence that no tracking exists (absence of evidence only).
-- celery-redbeat PyPI (https://pypi.org/project/celery-redbeat/) + readthedocs — v2.3.3 current, `RedBeatSchedulerEntry.save()` confirmed for runtime schedule mutation. HIGH confidence.
-- Recharts GitHub releases (https://github.com/recharts/recharts/releases/tag/v3.7.0) — v3.7.0 released Jan 21 2025, React 19 peer dep issue resolved in 3.x branch. MEDIUM confidence on React 19 claim (no explicit peerDependencies list found; install verification required).
-- Redis INCR docs (https://redis.io/docs/latest/commands/incr/) — atomic, O(1), standard counter pattern. HIGH confidence.
-- LogRocket best React chart libraries 2025 — Recharts recommended for admin dashboards. MEDIUM confidence (editorial source).
+- pysher source code (locally installed): `python3 -c "import inspect,pysher; print(inspect.getsource(pysher.connection))"` — confirmed all bindable event names and state values. HIGH confidence.
+- Pusher Channels WebSocket Protocol (https://pusher.com/docs/channels/library_auth_reference/pusher-websockets-protocol/) — confirmed `pusher:connection_established`, `pusher:error`, `pusher:ping`/`pusher:pong` as server-to-client events. `pusher:connection_failed` is legacy/internal to pysher; not a server-sent event. HIGH confidence.
+- pysher PyPI (https://pypi.org/project/Pysher/) / GitHub (https://github.com/deepbrook/Pysher) — version 1.0.7/1.0.8 (2022), maintenance mode, no active development. MEDIUM confidence on long-term support (not needed — pysher is working in production today).
+- redis-py HSET/HGETALL docs — standard hash commands, no version sensitivity. HIGH confidence.
+- Existing codebase (`ws_prophetx.py`, `poll_prophetx.py`, `health.py`, `event.py`, `mismatch_detector.py`) — confirmed current patterns, integration points, and what already exists. HIGH confidence.
 
 ---
 
-*Stack research for: ProphetX Market Monitor v1.1 — API usage monitoring + poll frequency controls*
-*Researched: 2026-03-01*
+*Stack research for: ProphetX Market Monitor v1.2 — WebSocket-Primary Status Authority*
+*Researched: 2026-03-31*

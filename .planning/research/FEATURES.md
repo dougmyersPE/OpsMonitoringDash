@@ -1,14 +1,206 @@
 # Feature Research
 
 **Domain:** Internal operations monitoring dashboard — prediction market / sports event lifecycle management
-**Researched:** 2026-03-01 (v1.1 update; original v1 research 2026-02-24)
-**Confidence:** HIGH (v1 domain is built; v1.1 features grounded in actual code + confirmed API provider capabilities)
+**Researched:** 2026-03-31 (v1.2 update; v1.1 research 2026-03-01; original v1 research 2026-02-24)
+**Confidence:** HIGH (codebase fully inspected; WS consumer live in production; patterns grounded in actual code)
 
 ---
 
-## v1.1 Feature Scope: API Usage Monitoring + Stabilization
+## v1.2 Feature Scope: WebSocket-Primary Status Authority
 
-This section covers the new features for the v1.1 milestone. The v1 feature landscape is preserved below for reference.
+This section covers the new features for the v1.2 milestone. The v1.1 feature landscape is preserved below.
+
+### Context: What Is Already Built
+
+The WS consumer (`ws_prophetx.py`) is a running Docker service that:
+- Maintains a persistent Pusher connection with token refresh and exponential backoff reconnection
+- Handles `sport_event` messages (op: create/update/delete) and upserts to the DB
+- Writes a Redis heartbeat key (`worker:heartbeat:ws_prophetx`) every 10s and on every Pusher health check
+- Publishes SSE updates via `prophet:updates` channel on every event write
+
+The `poll_prophetx` Celery task still runs at its configured interval (5 minutes) and performs the same DB upsert. There is currently no differentiation between a status written by WS vs. a status written by polling — `last_prophetx_poll` is updated by both.
+
+The `update_event_status.py` worker has lifecycle guard logic (no backward regression) but no concept of "which source wrote this status."
+
+**The gap:** When a WS message arrives saying an event is `live`, and 30 seconds later the polling worker also fires and says `not_started` (stale REST response), the poll currently overwrites the WS-delivered status. The WS consumer is working but not yet the authority.
+
+---
+
+### Table Stakes for v1.2 (Users Expect These)
+
+Features that must exist for the WS-primary model to be meaningful. Without these, the WS consumer is just a second writer that competes with polling.
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| WS-written status cannot be overwritten by stale polling data | If WS is "primary," a REST poll returning an older status must not win. The whole point of the milestone is authority, not just speed | MEDIUM | Requires `status_source` field (or timestamp comparison) on the Event model so poll_prophetx can detect a WS write is newer and skip the overwrite. The lifecycle guard already prevents backward regression — this extends that to cross-source ordering |
+| WS connection health visible on dashboard | Operators currently see 5 worker health badges (ProphetX, SDIO, Odds API, Sports API, ESPN). The WS consumer is a separate Docker service — its health is not shown. When it silently dies, operators don't know | LOW | `worker:heartbeat:ws_prophetx` key already exists. `GET /health/workers` must include it. `SystemHealth.tsx` must display it with a distinct label ("ProphetX WS" vs "ProphetX Poll") |
+| poll_prophetx demoted to reconciliation mode | poll_prophetx currently runs every 5 min and writes status unconditionally. After WS is primary, polling should only write status when: (a) the event has no WS-sourced status, or (b) the WS has been silent for longer than a configurable threshold | MEDIUM | Requires either a `status_source` column (`ws` vs `poll`) or a `last_ws_update` timestamp. Poll worker checks: if `last_ws_update` is recent, skip status write |
+| WS reconnection gap detection and logging | When Pusher disconnects and reconnects, events that changed during the gap are missed. The system needs to detect that a gap occurred and trigger a reconciliation poll to catch up | MEDIUM | On WS reconnect, log the disconnect timestamp. Compare against `last_prophetx_poll` to identify the gap window. Trigger a poll_prophetx run via `apply_async()` immediately after reconnect |
+| End-to-end diagnostic logging for WS messages | Operators (and developers) need to confirm that WS messages are flowing end-to-end: received → decoded → DB written → SSE published. Currently `ws_prophetx.py` has good logging but no way to confirm a specific event's WS message path | LOW | Already mostly exists via structlog events. What's missing: a way to query recent WS activity. Add `status_source` to the audit log or a separate `ws_diagnostics` Redis key with last N messages summary |
+
+### Differentiators for v1.2 (Operational Advantage)
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| WS connection state displayed with state machine detail | Beyond alive/dead, show the actual Pusher connection state: `connected`, `connecting`, `reconnecting`, `unavailable`. Pusher exposes six states (initialized, connecting, connected, unavailable, failed, disconnected). Surface the current state and last transition time | MEDIUM | pysher's `connection.state` attribute is accessible. Write state transitions to a Redis key `worker:ws_state:ws_prophetx` with timestamp. API endpoint reads it. Dashboard shows "WS: connected (5m)" vs "WS: reconnecting (30s)" |
+| Reconciliation run count and last reconciliation timestamp | After WS becomes primary, operators want to know how often the polling fallback was needed. A "reconciliation ran N times today, last at HH:MM" display tells them the WS is healthy (low count) or struggling (high count) | LOW | Increment a Redis counter `ws:reconciliation_runs:{YYYY-MM-DD}` each time poll_prophetx fires in reconciliation mode (gap-triggered). Display on dashboard or API usage tab |
+| Events received via WS vs polling breakdown | Show operators what fraction of event updates came from WS vs. polling. If WS is healthy, polling contribution should be near zero for status updates | LOW | Track `status_source` column in Event model. Dashboard summary: "Last 24h: 312 WS updates, 4 poll updates." Validates that WS authority model is working |
+| Disconnect duration tracking | When WS goes down, track how long it was disconnected. Surface "longest disconnect in last 7 days" and "total downtime %" metrics | LOW | Store disconnect/reconnect timestamps in Redis as a small ring buffer. Read on demand for dashboard display |
+
+### Anti-Features for v1.2 (Do Not Build)
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Full WS message replay / event sourcing buffer | "We want to replay all missed events on reconnect" | Pusher does not provide server-side message replay. Building a custom replay buffer requires persisting all incoming WS messages to Redis or DB — adds complexity for a 5-minute polling fallback that already covers the gap | Use poll_prophetx reconciliation run on reconnect. Gap window at this scale is 5 min max; events already in DB. Replay is unnecessary |
+| Message sequence numbering / gap detection at message level | "We need to know exactly which messages were missed" | Pusher's protocol does not expose sequence numbers. You cannot ask Pusher "replay messages after ID 1234." The reconnection gap is handled at the event level (DB state comparison), not the message level | Compare DB state vs. ProphetX REST state in the reconciliation poll. That covers all gaps regardless of cause |
+| WS as sole data source (remove polling entirely) | "If WS is primary, polling is waste" | WS connection is single-point-of-failure for a prediction market operator. Polling at 5-min intervals is insurance, not waste. Reconnection windows, token refresh windows (~20 min TTL), and Pusher outages all create gaps | Keep polling at 5-min interval as reconciliation. Operators can increase interval once WS track record is established |
+| Client-side (browser) WebSocket health monitoring | "Show WS status with latency and message rate in the dashboard" | The WS consumer is a server-side Python process (pysher), not a browser WebSocket. Browser-level WS monitoring (OpenTelemetry, etc.) doesn't apply. The dashboard is already SSE-based | Expose server-side WS state via existing `/health/workers` endpoint and Redis keys |
+| Automated WS failover to polling-only mode | "If WS dies, automatically increase poll frequency" | Adds feedback loop complexity. Poll interval changes require Beat restart (established pattern from v1.1). Risk of oscillation if WS flaps | Alert operators when WS has been down > N minutes. Let them decide if polling interval adjustment is needed |
+
+---
+
+## Feature Dependencies for v1.2
+
+```
+[status_source Field on Event Model]
+    └──required by──> [WS Cannot Be Overwritten by Stale Poll]
+    └──required by──> [poll_prophetx Reconciliation Mode]
+    └──required by──> [WS vs Poll Update Breakdown Display]
+    └──required by──> [Audit Log Source Attribution]
+
+[WS Reconnect Gap Detection]
+    └──required by──> [Reconciliation Poll Trigger on Reconnect]
+    └──required by──> [Disconnect Duration Tracking]
+
+[GET /health/workers includes ws_prophetx]
+    └──required by──> [WS Connection Health Badge on Dashboard]
+    └──enhances──> [WS Connection State Detail (state machine)]
+
+[worker:ws_state:ws_prophetx Redis Key]
+    └──required by──> [WS Connection State Detail Display]
+    └──required by──> [Disconnect Duration Tracking]
+
+[Existing worker:heartbeat:ws_prophetx]
+    └──already provides──> [Basic alive/dead detection]
+    └──enhances──> [WS Connection Health Badge] (just need to surface it in API + UI)
+
+[poll_prophetx Reconciliation Mode]
+    └──enhances──> [Reconciliation Run Count Display]
+    └──conflicts──> [poll_prophetx Unconditional Status Write] (must change existing behavior)
+```
+
+### Dependency Notes
+
+- **`status_source` is the load-bearing schema change.** Everything in the WS-primary model — preventing poll overwrites, tracking source attribution, driving reconciliation decisions — flows from knowing whether the current `prophetx_status` came from WS or polling. This is the v1.2 foundation, analogous to how Redis counters were the v1.1 foundation.
+- **Health badge requires only two changes:** add `ws_prophetx` to the health endpoint response dict and add it to the `WORKERS` array in `SystemHealth.tsx`. The Redis key already exists.
+- **Reconciliation mode change is a behavior change to existing code.** `poll_prophetx.py` must be modified to check `status_source` and `last_ws_update` before overwriting. This is the riskiest change — requires careful testing to ensure it doesn't create silent status stagnation if WS stops working.
+- **Reconnect gap detection requires state in the WS consumer.** `ws_prophetx.py` must write a disconnect timestamp to Redis when it disconnects and read it on reconnect to calculate the gap.
+
+---
+
+## MVP Definition for v1.2
+
+### Launch With (v1.2 Core)
+
+- [ ] `status_source` column on `events` table — values: `ws`, `poll`, `manual`. Foundation for authority model. DB migration required.
+- [ ] WS consumer writes `status_source = 'ws'` on every event upsert.
+- [ ] `poll_prophetx` respects `status_source`: if `status_source == 'ws'` and `last_prophetx_poll` (from WS) is recent (< reconciliation threshold, e.g., 10 min), skip status write. Write only metadata updates (teams, scheduled_start).
+- [ ] `GET /health/workers` includes `ws_prophetx` key (the Redis key already exists — just wire it up).
+- [ ] `SystemHealth.tsx` displays "WS" badge alongside existing worker badges.
+- [ ] WS reconnect gap detection: on reconnect, log gap duration and trigger immediate poll_prophetx run via `apply_async()`.
+- [ ] End-to-end diagnostic confirmation: verify structlog entries flow from WS receive → DB write → SSE publish for a known event.
+
+### Add After Core Is Stable (v1.2 Polish)
+
+- [ ] `worker:ws_state:ws_prophetx` Redis key with Pusher connection state + last transition timestamp — display on dashboard as "WS: connected (12m ago)."
+- [ ] Reconciliation run counter in Redis — displayed on API Usage tab or dashboard.
+- [ ] Source attribution in audit log — `before_state` and `after_state` include `status_source` field.
+
+### Defer (v1.3+)
+
+- [ ] WS vs. polling update breakdown chart — useful operational metric once WS has track record.
+- [ ] Disconnect duration history / uptime % — requires ring buffer; worth adding after data accumulates.
+- [ ] Per-sport WS message rate — too granular for current operational needs.
+
+---
+
+## Feature Prioritization Matrix (v1.2)
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| `status_source` DB column | HIGH | LOW (migration + 2 write sites) | P1 — foundation |
+| poll_prophetx reconciliation mode | HIGH | MEDIUM (behavior change + testing) | P1 — core authority model |
+| WS health badge on dashboard | HIGH | LOW (API line + UI line) | P1 — operator visibility |
+| WS reconnect gap detection + reconciliation trigger | HIGH | MEDIUM (state tracking in WS consumer) | P1 — prevents missed events |
+| End-to-end diagnostic verification | MEDIUM | LOW (inspection + log confirmation) | P1 — confidence building |
+| WS connection state detail (beyond alive/dead) | MEDIUM | MEDIUM (state machine + Redis + UI) | P2 |
+| Reconciliation run counter + display | LOW | LOW | P2 |
+| Source attribution in audit log | MEDIUM | LOW (add field) | P2 |
+
+**Priority key:**
+- P1: Required for WS-primary model to be real (not just cosmetic)
+- P2: Operational visibility enhancements, add after P1 is stable
+
+---
+
+## WS-Primary Authority Model: Technical Pattern
+
+Based on codebase inspection and domain research, the authority model works as follows:
+
+### Status Write Decision (poll_prophetx)
+
+```
+on each poll cycle, for each event:
+  if event.status_source == 'ws' and event.last_prophetx_poll is recent:
+      skip status write (WS is authoritative)
+      update metadata only (teams, scheduled_start, league)
+  else:
+      write status as today (poll is filling the gap)
+      set status_source = 'poll'
+```
+
+"Recent" threshold: if `last_prophetx_poll` (the WS write timestamp) is within `RECONCILIATION_THRESHOLD` (suggested default: 10 minutes = 2x the poll interval), treat WS as fresh. If older, the WS has likely missed updates and polling should catch up.
+
+### Reconnect Gap Recovery Pattern
+
+```
+on ws_prophetx reconnect:
+  gap_seconds = now - disconnect_timestamp (from Redis)
+  log gap duration
+  if gap_seconds > POLL_INTERVAL_PROPHETX:
+      trigger poll_prophetx.run.apply_async()
+      increment ws:reconciliation_runs:{date}
+  clear disconnect_timestamp
+```
+
+### Why Not Sequence Numbers
+
+Pusher does not expose message sequence numbers or server-side replay. The reconnection recovery must be event-state-based (compare DB state to REST API state), not message-log-based. This is the correct approach for this architecture. (MEDIUM confidence — confirmed via Pusher protocol docs; pysher library inspection.)
+
+---
+
+## Sources
+
+- `/Users/doug/OpsMonitoringDash/backend/app/workers/ws_prophetx.py` — existing WS consumer (full inspection)
+- `/Users/doug/OpsMonitoringDash/backend/app/workers/poll_prophetx.py` — existing poll worker
+- `/Users/doug/OpsMonitoringDash/backend/app/workers/update_event_status.py` — lifecycle guard pattern
+- `/Users/doug/OpsMonitoringDash/backend/app/models/event.py` — current Event schema
+- `/Users/doug/OpsMonitoringDash/frontend/src/components/SystemHealth.tsx` — worker health display
+- `/Users/doug/OpsMonitoringDash/backend/app/api/v1/health.py` — health endpoint (missing ws_prophetx)
+- Pusher Channels connection states documentation (`https://pusher.com/docs/channels/using_channels/connection/`) — six states confirmed (HIGH confidence)
+- WebSocket reconnection state sync patterns (`https://websocket.org/guides/reconnection/`) — sequence numbers, replay, external persistence (MEDIUM confidence — patterns confirmed; Pusher-specific limitation confirmed via Pusher protocol docs)
+- WebSocket connection health monitoring patterns (`https://oneuptime.com/blog/post/2026-01-24-websocket-connection-health-monitoring/view`) — uptime_seconds, last_ping_received, connection_status metrics (MEDIUM confidence)
+
+---
+
+*Feature research for: ProphetX Market Monitor v1.2 — WebSocket-primary status authority*
+*Researched: 2026-03-31*
+
+---
+
+## v1.1 Feature Scope: API Usage Monitoring + Stabilization (Reference)
+
+*(Preserved from 2026-03-01 research. Already shipped.)*
 
 ---
 
@@ -91,12 +283,12 @@ These are required for the API Usage tab to be genuinely useful. Without them, t
 
 ### Launch With (v1.1)
 
-- [ ] Redis `INCR` counter per worker per day in `BaseAPIClient` — every outbound call counted. Foundation for everything else.
-- [ ] Response header capture in Odds API client — capture and store `x-requests-remaining`, `x-requests-used`, `x-requests-last` from every Odds API response into Redis key `api_quota:odds_api`.
-- [ ] Response header capture in Sports API client — capture and store `x-ratelimit-requests-remaining`, `x-ratelimit-requests-limit` from every Sports API response into Redis key `api_quota:sports_api`.
-- [ ] API Usage tab in frontend — shows per-provider quota (used/remaining/limit), internal call counts by worker, projected monthly total.
-- [ ] DB-backed poll intervals — migrate `beat_schedule` intervals from hardcoded `celery_app.py` to a `worker_schedule` table in PostgreSQL. Read at Beat startup. Admin can update via API.
-- [ ] UI controls for poll intervals — slider or number input per worker in the API Usage tab. Admin-only. Displays "requires Beat restart to take effect" warning.
+- [x] Redis `INCR` counter per worker per day in `BaseAPIClient` — every outbound call counted. Foundation for everything else.
+- [x] Response header capture in Odds API client — capture and store `x-requests-remaining`, `x-requests-used`, `x-requests-last` from every Odds API response into Redis key `api_quota:odds_api`.
+- [x] Response header capture in Sports API client — capture and store `x-ratelimit-requests-remaining`, `x-ratelimit-requests-limit` from every Sports API response into Redis key `api_quota:sports_api`.
+- [x] API Usage tab in frontend — shows per-provider quota (used/remaining/limit), internal call counts by worker, projected monthly total.
+- [x] DB-backed poll intervals — migrate `beat_schedule` intervals from hardcoded `celery_app.py` to a `worker_schedule` table in PostgreSQL. Read at Beat startup. Admin can update via API.
+- [x] UI controls for poll intervals — slider or number input per worker in the API Usage tab. Admin-only. Displays "requires Beat restart to take effect" warning.
 
 ### Defer (v1.2+)
 
@@ -142,12 +334,6 @@ Actual call volume based on production code and current intervals:
 **Critical finding**: Odds API free tier is 500 calls/month. At current 600s interval with ~5 sport keys, the system burns ~21,600 calls/month — 43x the free tier. The existing 600s interval was set to conserve usage but is not conservative enough for the free tier. The API Usage tab will make this visible; operators need interval controls to manage it.
 
 **Sports API (api-sports.io)**: Free tier is 100 calls/day. Current 1800s interval generates ~720 calls/day — 7x the free tier. Same issue as Odds API.
-
-**Data sources for quota info:**
-- Odds API: Response headers `x-requests-remaining`, `x-requests-used` (confirmed — HIGH confidence from official docs)
-- Sports API (api-sports.io): Response headers `x-ratelimit-requests-remaining`, `x-ratelimit-requests-limit` (confirmed — HIGH confidence from api-football.com rate limit documentation)
-- SDIO: No documented quota API; advertises "unlimited API calls" (HIGH confidence)
-- ESPN: No documented quota API; unofficial API with no published limits (MEDIUM confidence — rate limiting exists but thresholds unpublished)
 
 ---
 
@@ -227,15 +413,16 @@ Keep RedBeat. Add a Redis key `worker:interval:{name}` that workers check at tas
 
 ## Sources
 
-- `/Users/doug/Prophet API Monitoring/.planning/PROJECT.md` — v1.1 milestone target features
-- `/Users/doug/Prophet API Monitoring/backend/app/workers/celery_app.py` — current beat_schedule and intervals
-- `/Users/doug/Prophet API Monitoring/backend/app/clients/odds_api.py`, `sports_api.py`, `base.py` — current client implementation
-- The Odds API v4 documentation (`https://the-odds-api.com/liveapi/guides/v4/`) — response headers `x-requests-remaining`, `x-requests-used`, `x-requests-last` confirmed (HIGH confidence)
-- api-football.com rate limit documentation (`https://www.api-football.com/news/post/how-ratelimit-works`) — response headers `x-ratelimit-requests-remaining`, `x-ratelimit-requests-limit`, `x-ratelimit-remaining`, `x-ratelimit-limit` confirmed (HIGH confidence)
-- SportsDataIO official site (`https://sportsdata.io/apis`) — "unlimited API calls" confirmed (HIGH confidence)
-- sqlalchemy-celery-beat PyPI (`https://pypi.org/project/sqlalchemy-celery-beat/`) — Option B library (MEDIUM confidence)
-- Redis distributed counter pattern — standard Redis INCR/EXPIRE pattern (HIGH confidence)
+- `/Users/doug/OpsMonitoringDash/.planning/PROJECT.md` — v1.2 milestone target features
+- `/Users/doug/OpsMonitoringDash/backend/app/workers/ws_prophetx.py` — full WS consumer inspection
+- `/Users/doug/OpsMonitoringDash/backend/app/api/v1/health.py` — worker health endpoint (ws_prophetx missing)
+- `/Users/doug/OpsMonitoringDash/frontend/src/components/SystemHealth.tsx` — worker health display
+- Pusher Channels connection documentation (`https://pusher.com/docs/channels/using_channels/connection/`) — six connection states (HIGH confidence)
+- WebSocket reconnection state sync guide (`https://websocket.org/guides/reconnection/`) — sequence numbers, external persistence patterns (MEDIUM confidence)
+- WebSocket connection health monitoring (`https://oneuptime.com/blog/post/2026-01-24-websocket-connection-health-monitoring/view`) — dashboard metrics patterns (MEDIUM confidence)
+- The Odds API v4 documentation — quota headers confirmed (HIGH confidence, from v1.1 research)
+- api-football.com rate limit documentation — quota headers confirmed (HIGH confidence, from v1.1 research)
 
 ---
-*Feature research for: ProphetX Market Monitor v1.1 — API usage monitoring + stabilization*
-*Researched: 2026-03-01*
+*Feature research for: ProphetX Market Monitor v1.2 — WebSocket-primary status authority + v1.1/v1 reference*
+*Researched: 2026-03-31*
