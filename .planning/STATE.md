@@ -69,14 +69,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 ## Session Continuity
 
 Last activity: 2026-03-31 - Completed quick task 260331-fmz: Auto-purge events older than 48h regardless of status
-Last session: 2026-03-04T21:35:25Z
-Stopped at: Ad-hoc bugfixes deployed, all services running stable
+Last session: 2026-03-31T15:15:34Z
+Stopped at: Quick task 260331-fmz complete — auto-purge events older than 48h
 What happened this session:
-  - Added `restart: unless-stopped` to all 8 Docker Compose services (commit a800b0e)
-  - Fixed poll_prophetx not writing `last_prophetx_poll` on upsert (commit 71f3ac8)
-  - Fixed auto-sync regressing ProphetX status — lifecycle guard prevents backward moves (commit 60323b9)
-  - Fixed SDIO soccer using `GamesByDateFinal` instead of `GamesByDate` (commit 03b4ef6)
-  - Root-caused ProphetX `not_started` bug: SDIO worker mismatch detector was overwriting correct `live` status
-  - Docker already set to start on boot (`systemctl is-enabled docker` = enabled)
-  - Server has no git repo — code deployed via `scp` + `docker compose build/up`
-Next: Run `/gsd:new-milestone` to start next version
+  - Quick task 260331-fmz: cleanup_old_events.py now purges ALL events >48h regardless of status (commit 18a9d61)
+  - Also cleans up orphaned event_id_mappings and notifications for purged events
+  - 7 unit tests added and passing
+Next: Deploy to production server via rsync + docker compose rebuild
