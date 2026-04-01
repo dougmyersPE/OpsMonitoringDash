@@ -40,6 +40,8 @@ Operators always know the true health of their ProphetX platform — stale event
 - ✓ status_source tracking (ws/poll/manual) on every prophetx_status write (AUTH-01) — v1.2 Phase 9
 - ✓ WS authority window: poll cannot overwrite WS-delivered status within 10 minutes (AUTH-02) — v1.2 Phase 9
 - ✓ Metadata-only updates when WS is authoritative (AUTH-03) — v1.2 Phase 9
+- ✓ WS health badge on dashboard alongside poll worker badges (WSHLT-01, WSHLT-02) — v1.2 Phase 10
+- ✓ Pusher connection state detail with transition timestamp in badge tooltip (WSHLT-03) — v1.2 Phase 10
 
 ### Active
 
@@ -124,4 +126,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-31 after Phase 9 complete*
+*Last updated: 2026-04-01 after Phase 10 complete*
