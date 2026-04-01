@@ -9,8 +9,8 @@ Requirements for WebSocket-Primary Status Authority milestone. Each maps to road
 
 ### WS Diagnostics & Reliability
 
-- [ ] **WSREL-01**: System detects WS disconnection gaps and triggers immediate poll_prophetx reconciliation run on reconnect
-- [ ] **WSREL-02**: WS consumer computes status_match when creating new events (fix NULL bug)
+- [x] **WSREL-01**: System detects WS disconnection gaps and triggers immediate poll_prophetx reconciliation run on reconnect
+- [x] **WSREL-02**: WS consumer computes status_match when creating new events (fix NULL bug)
 
 ### Status Authority
 
@@ -61,8 +61,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WSREL-01 | Phase 8 | Pending |
-| WSREL-02 | Phase 8 | Pending |
+| WSREL-01 | Phase 8 | Complete |
+| WSREL-02 | Phase 8 | Complete |
 | AUTH-01 | Phase 9 | Pending |
 | AUTH-02 | Phase 9 | Pending |
 | AUTH-03 | Phase 9 | Pending |

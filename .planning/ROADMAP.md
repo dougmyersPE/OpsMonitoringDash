@@ -49,7 +49,7 @@
   4. ws:sport_event_count increments when a sport_event change-type message is received (production gate: confirms ProphetX sends these messages)
 **Plans:** 1 plan
 Plans:
-- [ ] 08-01-PLAN.md — Fix WSREL-02 + WSREL-01, add Redis WS diagnostic keys
+- [x] 08-01-PLAN.md — Fix WSREL-02 + WSREL-01, add Redis WS diagnostic keys
 **Gate**: ws:sport_event_count > 0 must be confirmed in production before Phase 9 begins. If zero after 24-48h covering live game windows, escalate to ProphetX channel investigation.
 
 ### Phase 9: Status Authority Model

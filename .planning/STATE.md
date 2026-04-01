@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: WebSocket-Primary Status Authority
-status: planning
-stopped_at: Phase 8 context gathered
-last_updated: "2026-04-01T01:24:37.787Z"
-last_activity: 2026-03-31 — v1.2 roadmap created; Phases 8-11 defined
+status: verifying
+stopped_at: Completed 08-ws-diagnostics-and-instrumentation plan 01 — WSREL-01, WSREL-02 fixed, Redis diagnostics added
+last_updated: "2026-04-01T02:25:34.080Z"
+last_activity: 2026-04-01
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
   percent: 35
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 8 — WS Diagnostics and Instrumentation
+**Current focus:** Phase 08 — ws-diagnostics-and-instrumentation
 
 ## Current Position
 
-Phase: 8 of 11 (WS Diagnostics and Instrumentation)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-03-31 — v1.2 roadmap created; Phases 8-11 defined
+Phase: 08 (ws-diagnostics-and-instrumentation) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-04-01
 
 Progress: [███████░░░░░░░░░░░░░] 35% (7/11 phases complete — v1.0 + v1.1 shipped)
 
@@ -48,6 +48,7 @@ Progress: [███████░░░░░░░░░░░░░] 35% (7/
 | v1.1 (Phases 4-7) | 7 | ~21 min |
 
 *Updated after each plan completion*
+| Phase 08-ws-diagnostics-and-instrumentation P01 | 17 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -59,6 +60,9 @@ Recent decisions affecting current work:
 - v1.2 roadmap: Phase 8 has a hard gate — ws:sport_event_count > 0 must confirm in production before Phase 9 begins
 - v1.2 roadmap: Phase 11 (Tech Debt) is independent and can run any time, including during the Phase 8 observation window (24-48h)
 - v1.1: DB-backed poll intervals survive Beat restarts via bootstrap reads on start
+- [Phase 08-ws-diagnostics-and-instrumentation]: WSREL-02: compute_status_match(status, None, None, None, None, None) on WS create path — all-None sources always return True (no conflict = no mismatch)
+- [Phase 08-ws-diagnostics-and-instrumentation]: WSREL-01: fire reconciliation immediately on _on_connect with no stabilization delay; broker failures caught silently via try/except
+- [Phase 08-ws-diagnostics-and-instrumentation]: WS diagnostic keys: ws:connection_state and ws:last_message_at have 120s TTL (self-expire if dead); ws:sport_event_count and ws:last_sport_event_at have no TTL (accumulate for Phase 9 gate)
 
 ### Pending Todos
 
@@ -93,6 +97,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-01T01:24:37.783Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-ws-diagnostics-and-instrumentation/08-CONTEXT.md
+Last session: 2026-04-01T02:25:34.076Z
+Stopped at: Completed 08-ws-diagnostics-and-instrumentation plan 01 — WSREL-01, WSREL-02 fixed, Redis diagnostics added
+Resume file: None
