@@ -1,6 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "../api/client";
 import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
+
+interface WsProphetXHealth {
+  connected: boolean;
+  state: string | null;
+  since: string | null;
+}
 
 interface WorkerHealth {
   poll_prophetx: boolean;
@@ -8,6 +15,7 @@ interface WorkerHealth {
   poll_odds_api: boolean;
   poll_sports_api: boolean;
   poll_espn: boolean;
+  ws_prophetx?: WsProphetXHealth;
 }
 
 async function fetchWorkerHealth(): Promise<WorkerHealth> {
@@ -22,6 +30,13 @@ const WORKERS: { key: keyof WorkerHealth; label: string }[] = [
   { key: "poll_sports_api",  label: "Sports API" },
   { key: "poll_espn",        label: "ESPN" },
 ];
+
+function wsTitle(ws: WsProphetXHealth): string {
+  const state = ws.state ?? "unknown";
+  if (!ws.since) return `ProphetX WS: ${state}`;
+  const sinceStr = formatDistanceToNow(new Date(ws.since), { addSuffix: true });
+  return `ProphetX WS: ${state}\nSince: ${sinceStr}`;
+}
 
 export default function SystemHealth() {
   const { data } = useQuery({
@@ -62,6 +77,29 @@ export default function SystemHealth() {
           </span>
         );
       })}
+      {data.ws_prophetx && (() => {
+        const active = data.ws_prophetx.connected;
+        return (
+          <span
+            key="ws_prophetx"
+            title={wsTitle(data.ws_prophetx)}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
+              active
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                : "bg-red-500/10 text-red-400 border-red-500/20"
+            )}
+          >
+            <span
+              className={cn(
+                "h-1.5 w-1.5 rounded-full shrink-0",
+                active ? "bg-emerald-400 animate-pulse" : "bg-red-500"
+              )}
+            />
+            WS
+          </span>
+        );
+      })()}
     </div>
   );
 }
