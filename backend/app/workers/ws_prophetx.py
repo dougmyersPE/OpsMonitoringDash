@@ -35,6 +35,7 @@ from app.core.config import settings
 from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
 from app.monitoring.mismatch_detector import compute_status_match
+from app.workers.celery_app import celery_app
 
 log = structlog.get_logger()
 
@@ -324,6 +325,15 @@ def _connect_and_run() -> None:
     def _on_connect(data: str) -> None:
         log.info("ws_prophetx_connected")
         connection_ready.set()
+        # WSREL-01: trigger immediate reconciliation on every reconnect
+        try:
+            celery_app.send_task(
+                "app.workers.poll_prophetx.run",
+                kwargs={"trigger": "ws_reconnect"},
+            )
+            log.info("ws_prophetx_reconnect_reconciliation_queued")
+        except Exception:
+            log.exception("ws_prophetx_reconnect_reconciliation_dispatch_failed")
 
     pusher_client.connection.bind("pusher:connection_established", _on_connect)
     pusher_client.connect()

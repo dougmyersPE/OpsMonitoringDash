@@ -61,8 +61,9 @@ def _increment_call_counter(worker_name: str) -> None:
 
 
 @celery_app.task(name="app.workers.poll_prophetx.run", bind=True, max_retries=3)
-def run(self):
+def run(self, trigger: str = "scheduled"):
     """Fetch ProphetX events, upsert to DB, mark stale events ended."""
+    log.info("poll_prophetx_started", trigger=trigger)
     try:
         # ------------------------------------------------------------------ #
         # 1. Fetch from ProphetX API (async client, run in sync Celery task)  #
