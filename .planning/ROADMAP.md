@@ -33,7 +33,7 @@
 
 - [ ] **Phase 8: WS Diagnostics and Instrumentation** - Instrument WS consumer with Redis health keys and fix pre-existing bugs; gate for Phase 9
 - [ ] **Phase 9: Status Authority Model** - Add ws_delivered_at column and demote poll_prophetx to reconciliation fallback
-- [ ] **Phase 10: WS Health Dashboard** - Surface WS connection health on dashboard with state detail
+- [x] **Phase 10: WS Health Dashboard** - Surface WS connection health on dashboard with state detail (completed 2026-04-01)
 - [ ] **Phase 11: Tech Debt** - Align SportsApiClient with BaseAPIClient pattern
 
 ## Phase Details
@@ -75,7 +75,7 @@ Plans:
   2. Dashboard displays a ProphetX WS health badge alongside existing worker badges (WSHLT-02)
   3. Dashboard shows Pusher connection state detail (connected / connecting / reconnecting / unavailable) with the timestamp of the last state transition (WSHLT-03)
   4. WS health badge reflects current state within 30 seconds of a connection change
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [x] 10-01-PLAN.md — Extend health endpoint with ws_prophetx + WS badge in SystemHealth.tsx
 **UI hint**: yes
@@ -103,7 +103,7 @@ Plans:
 | 7. Documentation Gap Closure | v1.1 | 1/1 | Complete | 2026-03-02 |
 | 8. WS Diagnostics and Instrumentation | v1.2 | 1/1 | Complete | 2026-03-31 |
 | 9. Status Authority Model | v1.2 | 2/2 | Complete | 2026-03-31 |
-| 10. WS Health Dashboard | v1.2 | 1/1 | Complete | 2026-04-01 |
+| 10. WS Health Dashboard | v1.2 | 1/1 | Complete    | 2026-04-01 |
 | 11. Tech Debt | v1.2 | 0/? | Not started | - |
 
 ---
