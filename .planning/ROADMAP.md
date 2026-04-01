@@ -88,7 +88,7 @@ Plans:
   1. No Sports API client, worker, config, or DB column exists in the codebase
   2. All other poll workers and mismatch detection continue working with remaining sources (Odds API, SDIO, ESPN, OddsBlaze)
   3. API Usage page displays only active sources; no Sports API quota/interval/toggle remains
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 11-01-PLAN.md — Remove Sports API backend (client, worker, migration, mismatch, config, tests)
 - [x] 11-02-PLAN.md — Remove Sports API frontend + update docs
@@ -107,7 +107,7 @@ Plans:
 | 8. WS Diagnostics and Instrumentation | v1.2 | 1/1 | Complete | 2026-03-31 |
 | 9. Status Authority Model | v1.2 | 2/2 | Complete | 2026-03-31 |
 | 10. WS Health Dashboard | v1.2 | 1/1 | Complete    | 2026-04-01 |
-| 11. Tech Debt | v1.2 | 2/2 | Complete | 2026-04-01 |
+| 11. Tech Debt | v1.2 | 2/2 | Complete   | 2026-04-01 |
 
 ---
 *Full phase details for completed milestones archived in milestones/v1.0-ROADMAP.md and milestones/v1.1-ROADMAP.md*
