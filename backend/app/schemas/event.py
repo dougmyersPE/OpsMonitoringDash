@@ -17,7 +17,6 @@ class EventResponse(BaseModel):
     scheduled_start: datetime | None
     prophetx_status: str | None
     odds_api_status: str | None
-    sports_api_status: str | None
     sdio_status: str | None
     espn_status: str | None
     oddsblaze_status: str | None
@@ -33,7 +32,6 @@ class EventResponse(BaseModel):
         return compute_is_critical(
             self.prophetx_status,
             self.odds_api_status,
-            self.sports_api_status,
             self.sdio_status,
             self.espn_status,
             self.oddsblaze_status,

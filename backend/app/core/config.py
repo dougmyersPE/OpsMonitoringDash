@@ -43,7 +43,6 @@ class Settings(BaseSettings):
     SPORTSDATAIO_API_KEY: str
     SPORTSDATAIO_SOCCER_API_KEY: str | None = None
     ODDS_API_KEY: str | None = None
-    SPORTS_API_KEY: str | None = None
     ODDSBLAZE_API_KEY: str | None = None
 
     # Admin seed
@@ -57,7 +56,6 @@ class Settings(BaseSettings):
     POLL_INTERVAL_PROPHETX: int = 300  # reconciliation-only — ws-consumer handles real-time updates
     POLL_INTERVAL_SPORTS_DATA: int = 30
     POLL_INTERVAL_ODDS_API: int = 600    # conserves free tier (500 calls/month)
-    POLL_INTERVAL_SPORTS_API: int = 1800  # conserves free tier daily quota
     POLL_INTERVAL_ESPN: int = 600
     POLL_INTERVAL_ODDSBLAZE: int = 120  # 2 min — OddsBlaze has no published rate limits
 
