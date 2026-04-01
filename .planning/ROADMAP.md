@@ -107,7 +107,7 @@ Plans:
 | 8. WS Diagnostics and Instrumentation | v1.2 | 1/1 | Complete | 2026-03-31 |
 | 9. Status Authority Model | v1.2 | 2/2 | Complete | 2026-03-31 |
 | 10. WS Health Dashboard | v1.2 | 1/1 | Complete    | 2026-04-01 |
-| 11. Tech Debt | v1.2 | 2/2 | Complete   | 2026-04-01 |
+| 11. Tech Debt | v1.2 | 2/2 | Complete    | 2026-04-01 |
 
 ---
 *Full phase details for completed milestones archived in milestones/v1.0-ROADMAP.md and milestones/v1.1-ROADMAP.md*
