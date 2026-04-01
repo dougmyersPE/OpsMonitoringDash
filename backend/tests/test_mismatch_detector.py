@@ -4,6 +4,7 @@ import pytest
 from app.monitoring.mismatch_detector import (
     FLAG_ONLY_STATUSES,
     SDIO_TO_PX_STATUS,
+    compute_status_match,
     get_expected_px_status,
     is_flag_only,
     is_mismatch,
@@ -91,3 +92,17 @@ class TestIsFlagOnly:
 
     def test_final_not_flag_only(self):
         assert is_flag_only("Final") is False
+
+
+class TestComputeStatusMatchAllNoneSources:
+    def test_not_started_all_none_sources_returns_true(self):
+        """compute_status_match with all external sources None returns True (no disagreement)."""
+        assert compute_status_match("not_started", None, None, None, None, None) is True
+
+    def test_live_all_none_sources_returns_true(self):
+        """compute_status_match with live px_status and all sources None returns True."""
+        assert compute_status_match("live", None, None, None, None, None) is True
+
+    def test_ended_all_none_sources_returns_true(self):
+        """compute_status_match with ended px_status and all sources None returns True."""
+        assert compute_status_match("ended", None, None, None, None, None) is True

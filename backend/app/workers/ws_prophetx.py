@@ -188,6 +188,7 @@ def _upsert_event(event_data: dict, op: str | None) -> None:
                 scheduled_start=scheduled_start,
                 prophetx_status=status_value,
                 last_prophetx_poll=now,
+                status_match=compute_status_match(status_value, None, None, None, None, None),
             )
             session.add(event)
             log.info(
