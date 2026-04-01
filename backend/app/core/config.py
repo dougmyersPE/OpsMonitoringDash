@@ -61,5 +61,8 @@ class Settings(BaseSettings):
     POLL_INTERVAL_ESPN: int = 600
     POLL_INTERVAL_ODDSBLAZE: int = 120  # 2 min — OddsBlaze has no published rate limits
 
+    # WS authority window (seconds) — poll defers to WS within this window (per D-01)
+    WS_AUTHORITY_WINDOW_SECONDS: int = 600  # 10 minutes
+
 
 settings = Settings()
