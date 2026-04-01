@@ -75,7 +75,9 @@ Plans:
   2. Dashboard displays a ProphetX WS health badge alongside existing worker badges (WSHLT-02)
   3. Dashboard shows Pusher connection state detail (connected / connecting / reconnecting / unavailable) with the timestamp of the last state transition (WSHLT-03)
   4. WS health badge reflects current state within 30 seconds of a connection change
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 10-01-PLAN.md — Extend health endpoint with ws_prophetx + WS badge in SystemHealth.tsx
 **UI hint**: yes
 
 ### Phase 11: Tech Debt
@@ -101,7 +103,7 @@ Plans:
 | 7. Documentation Gap Closure | v1.1 | 1/1 | Complete | 2026-03-02 |
 | 8. WS Diagnostics and Instrumentation | v1.2 | 0/1 | Planning | - |
 | 9. Status Authority Model | v1.2 | 1/2 | In Progress|  |
-| 10. WS Health Dashboard | v1.2 | 0/? | Not started | - |
+| 10. WS Health Dashboard | v1.2 | 0/1 | Planning | - |
 | 11. Tech Debt | v1.2 | 0/? | Not started | - |
 
 ---
