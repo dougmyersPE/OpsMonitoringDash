@@ -1,25 +1,57 @@
 {
   "version": "1.0",
-  "timestamp": "2026-03-31T20:06:32.256Z",
-  "phase": "quick-260331-fmz",
-  "phase_name": "Auto-purge events older than 48 hours from dashboard",
-  "phase_dir": ".planning/quick/260331-fmz-auto-purge-events-older-than-48-hours-fr",
-  "plan": 1,
-  "task": 1,
-  "total_tasks": 1,
-  "status": "deployed",
-  "completed_tasks": [
-    {"id": 1, "name": "Remove ended-only filter, add cascading cleanup for mappings and notifications", "status": "done", "commit": "18a9d61"}
-  ],
+  "timestamp": "2026-04-01T13:40:16.848Z",
+  "phase": "10",
+  "phase_name": "ws-health-dashboard",
+  "phase_dir": null,
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
+  "status": "paused",
+  "completed_tasks": [],
   "remaining_tasks": [],
-  "blockers": [],
-  "human_actions_pending": [],
-  "decisions": [
-    {"decision": "Purge ALL events >48h regardless of prophetx_status", "rationale": "Previous filter only purged 'ended' events, leaving stale scheduled/live events on dashboard indefinitely", "phase": "quick-260331-fmz"},
-    {"decision": "Cascade delete event_id_mappings and notifications for purged events", "rationale": "Prevent orphaned rows in related tables", "phase": "quick-260331-fmz"},
-    {"decision": "Audit log untouched", "rationale": "Append-only by design — never purge audit records", "phase": "quick-260331-fmz"}
+  "blockers": [
+    {
+      "description": "Phase 8 production gate: ws:sport_event_count > 0 must be confirmed in production before Phase 9 authority is trusted. Phase 9 code is deployed but gate not yet validated.",
+      "type": "human_action",
+      "workaround": "Phase 9 code works regardless — gate confirms ProphetX sends sport_event messages"
+    }
   ],
-  "uncommitted_files": [],
-  "next_action": "Monitor dashboard after next cleanup cycle (runs every 6h) to confirm old events are being purged. Then consider starting next milestone (/gsd:new-milestone).",
-  "context_notes": "Quick task 260331-fmz fully completed and deployed to production (Hetzner VPS at 46.225.233.32). Worker and beat services rebuilt and restarted. No active milestone — v1.1 shipped, project is in ad-hoc quick task mode. OddsBlaze integration (260330-nvd) also deployed from prior session."
+  "human_actions_pending": [
+    {
+      "action": "Deploy Phase 8+9 changes to production and run alembic migration 008",
+      "context": "status_source and ws_delivered_at columns need migration; WS diagnostic keys need live connection",
+      "blocking": false
+    },
+    {
+      "action": "Verify Phase 8 HUMAN-UAT: reconnect reconciliation, Redis ws:* keys, ws:sport_event_count > 0",
+      "context": "3 items in 08-HUMAN-UAT.md requiring live ProphetX WS connection",
+      "blocking": false
+    },
+    {
+      "action": "Verify Phase 9 HUMAN-UAT: authority window in prod logs, status_source visible in DB",
+      "context": "2 items in 09-HUMAN-UAT.md requiring production deployment",
+      "blocking": false
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "WS authority window is 10 minutes, configurable via WS_AUTHORITY_WINDOW_SECONDS",
+      "rationale": "Matches ROADMAP success criteria; balances freshness vs protection",
+      "phase": "09"
+    },
+    {
+      "decision": "status_source column on events table (not separate audit table)",
+      "rationale": "Simple, directly queryable, AUTH-01 only needs column visible in DB",
+      "phase": "09"
+    },
+    {
+      "decision": "ended status always bypasses authority window",
+      "rationale": "Terminal state — prevents ghost events staying artificially live",
+      "phase": "09"
+    }
+  ],
+  "uncommitted_files": [".planning/config.json"],
+  "next_action": "Run /gsd:discuss-phase 10 to gather context for WS Health Dashboard phase (frontend phase with UI hint)",
+  "context_notes": "Phases 8 and 9 complete in one session via auto-advance chain. Phase 10 is a frontend phase (has UI hint in ROADMAP) — will need /gsd:ui-phase before planning. Phase 11 (Tech Debt) is independent and can run anytime."
 }
