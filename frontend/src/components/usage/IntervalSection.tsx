@@ -8,7 +8,6 @@ const WORKER_DISPLAY_NAMES: Record<string, string> = {
   poll_prophetx: "ProphetX",
   poll_sports_data: "SportsDataIO",
   poll_odds_api: "Odds API",
-  poll_sports_api: "Sports API",
   poll_espn: "ESPN",
   poll_critical_check: "Critical Check",
 };
@@ -17,7 +16,6 @@ const WORKER_CONFIG_KEYS: Record<string, string> = {
   poll_prophetx: "poll_interval_prophetx",
   poll_sports_data: "poll_interval_sports_data",
   poll_odds_api: "poll_interval_odds_api",
-  poll_sports_api: "poll_interval_sports_api",
   poll_espn: "poll_interval_espn",
   poll_critical_check: "poll_interval_critical_check",
 };

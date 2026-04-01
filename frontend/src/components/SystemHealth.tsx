@@ -13,7 +13,6 @@ interface WorkerHealth {
   poll_prophetx: boolean;
   poll_sports_data: boolean;
   poll_odds_api: boolean;
-  poll_sports_api: boolean;
   poll_espn: boolean;
   ws_prophetx?: WsProphetXHealth;
 }
@@ -27,7 +26,6 @@ const WORKERS: { key: keyof WorkerHealth; label: string }[] = [
   { key: "poll_prophetx",    label: "ProphetX" },
   { key: "poll_sports_data", label: "SDIO" },
   { key: "poll_odds_api",    label: "Odds API" },
-  { key: "poll_sports_api",  label: "Sports API" },
   { key: "poll_espn",        label: "ESPN" },
 ];
 

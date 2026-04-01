@@ -4,7 +4,6 @@ const WORKER_DISPLAY_NAMES: Record<string, string> = {
   poll_prophetx: "ProphetX",
   poll_sports_data: "SportsDataIO",
   poll_odds_api: "Odds API",
-  poll_sports_api: "Sports API",
   poll_espn: "ESPN",
 };
 
