@@ -37,6 +37,9 @@ Operators always know the true health of their ProphetX platform — stale event
 - ✓ WS consumer computes status_match on event creation (WSREL-02 bug fix) — v1.2 Phase 8
 - ✓ WS reconnect triggers immediate poll_prophetx reconciliation (WSREL-01) — v1.2 Phase 8
 - ✓ Redis WS diagnostic keys for connection health observability — v1.2 Phase 8
+- ✓ status_source tracking (ws/poll/manual) on every prophetx_status write (AUTH-01) — v1.2 Phase 9
+- ✓ WS authority window: poll cannot overwrite WS-delivered status within 10 minutes (AUTH-02) — v1.2 Phase 9
+- ✓ Metadata-only updates when WS is authoritative (AUTH-03) — v1.2 Phase 9
 
 ### Active
 
@@ -121,4 +124,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-31 after Phase 8 complete*
+*Last updated: 2026-03-31 after Phase 9 complete*
