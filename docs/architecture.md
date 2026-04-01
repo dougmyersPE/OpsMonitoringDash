@@ -2,7 +2,7 @@
 
 ## System Overview
 
-ProphetX Market Monitor is an internal operations tool for a ProphetX prediction market operator. It continuously polls five external sports data sources, fuzzy-matches those games to ProphetX events, and detects when a game's real-world status (live, ended, postponed) disagrees with what ProphetX shows. When a mismatch is found, the system automatically writes a status correction to ProphetX, sends a Slack alert, and surfaces the issue in a real-time dashboard — all within roughly 30 seconds of the real-world change.
+ProphetX Market Monitor is an internal operations tool for a ProphetX prediction market operator. It continuously polls four external sports data sources, fuzzy-matches those games to ProphetX events, and detects when a game's real-world status (live, ended, postponed) disagrees with what ProphetX shows. When a mismatch is found, the system automatically writes a status correction to ProphetX, sends a Slack alert, and surfaces the issue in a real-time dashboard — all within roughly 30 seconds of the real-world change.
 
 The system is used exclusively by the internal ops team (admin, operator, read-only roles). It is not user-facing. The primary value is preventing bettors from placing wagers on events with stale statuses — a live game showing as "not started" in ProphetX is the worst-case scenario.
 
@@ -36,7 +36,7 @@ Tailwind v4 (via `@tailwindcss/vite` plugin, no config file) and shadcn/ui v3 fo
 ├── backend/
 │   ├── app/
 │   │   ├── api/v1/         # FastAPI route handlers (9 modules)
-│   │   ├── clients/        # External API clients (ProphetX, SDIO, Odds API, Sports API, ESPN)
+│   │   ├── clients/        # External API clients (ProphetX, SDIO, Odds API, ESPN, OddsBlaze)
 │   │   ├── core/           # Config (Pydantic Settings), security (JWT/bcrypt), constants
 │   │   ├── db/             # SQLAlchemy async engine, sync engine (for Celery), Redis pool
 │   │   ├── models/         # ORM models (Event, Market, User, AuditLog, Notification, etc.)
@@ -80,7 +80,7 @@ Celery Beat (RedBeat)
             └── Redis PUBLISH prophet:updates → SSE subscribers → frontend cache invalidation
 ```
 
-The other 4 workers (Odds API, Sports API, ESPN, poll_prophetx) follow the same pattern but run less frequently and update different `*_status` columns on the Event row.
+The other 4 workers (Odds API, SDIO, ESPN, OddsBlaze) follow the same pattern but run less frequently and update different `*_status` columns on the Event row.
 
 ### ProphetX Real-Time: WebSocket Consumer
 
@@ -109,7 +109,7 @@ No data is sent in the SSE payload beyond `{type, entity_id}`. The frontend alwa
 
 ## Key Abstractions
 
-**Event** — The central entity. An `events` row represents a single ProphetX sport event and stores status columns from every data source (`prophetx_status`, `sdio_status`, `odds_api_status`, `sports_api_status`, `espn_status`). `status_match` (all sources agree) and `is_flagged` (any source reports postponed/cancelled) are recomputed each poll cycle, not stored as sticky state.
+**Event** — The central entity. An `events` row represents a single ProphetX sport event and stores status columns from every data source (`prophetx_status`, `sdio_status`, `odds_api_status`, `espn_status`, `oddsblaze_status`). `status_match` (all sources agree) and `is_flagged` (any source reports postponed/cancelled) are recomputed each poll cycle, not stored as sticky state.
 
 **EventMatcher** (`monitoring/event_matcher.py`) — Fuzzy-matches a ProphetX event to a real-world game using team name similarity (rapidfuzz `token_sort_ratio`) and start time proximity. Weights: 35% home team, 35% away team, 30% start time. Threshold of 0.90 triggers auto-action; below that the match is flagged for manual review. The mapping is cached in `EventIDMapping` rows.
 
@@ -165,7 +165,7 @@ All configuration flows through `app/core/config.py` (Pydantic Settings, reads `
 **Optional (degrades gracefully if missing):**
 - `SPORTSDATAIO_SOCCER_API_KEY` — soccer polling disabled if absent
 - `ODDS_API_KEY` — Odds API polling skipped
-- `SPORTS_API_KEY` — Sports API polling skipped
+- `ODDSBLAZE_API_KEY` — OddsBlaze polling skipped
 - `SLACK_WEBHOOK_URL` — Slack alerts disabled; in-app notifications still work
 
 **Poll intervals** (`POLL_INTERVAL_*`) have hardcoded defaults and are optional env vars.
@@ -221,7 +221,7 @@ There is no CI/CD pipeline. All deployments are manual. Code is also mirrored to
 
 **Confidence threshold (0.90) is unvalidated.** It was set based on one known example (`'LA Lakers' vs 'Los Angeles Lakers'` scores 0.857). Needs systematic validation against a real ProphetX event dump and real SDIO game data. Until validated, there may be silent false negatives (missed matches) or false positives (wrong matches above threshold).
 
-**SDIO NFL/NCAAB/NCAAF returns 404.** These sports are in the worker code but fail silently — 404 is treated as "no games." The root cause (different URL format for those sports vs. NBA/MLB/NHL) hasn't been investigated. Fall-through to ESPN and Sports API covers the gap.
+**SDIO NFL/NCAAB/NCAAF returns 404.** These sports are in the worker code but fail silently — 404 is treated as "no games." The root cause (different URL format for those sports vs. NBA/MLB/NHL) hasn't been investigated. Fall-through to ESPN and OddsBlaze covers the gap.
 
 **Docker networking / Tailscale subnet conflict.** The Hetzner server has `172.17.0.0/16` advertised via Tailscale (company subnet). Docker's default bridge uses the same range. The fix is in `/etc/docker/daemon.json`: `default-address-pools` set to `192.168.0.0/16`. If Docker is reinstalled or reset, this config must be re-applied or the stack won't reach the internet.
 

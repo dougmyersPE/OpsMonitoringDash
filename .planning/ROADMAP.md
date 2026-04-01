@@ -34,7 +34,7 @@
 - [ ] **Phase 8: WS Diagnostics and Instrumentation** - Instrument WS consumer with Redis health keys and fix pre-existing bugs; gate for Phase 9
 - [ ] **Phase 9: Status Authority Model** - Add ws_delivered_at column and demote poll_prophetx to reconciliation fallback
 - [x] **Phase 10: WS Health Dashboard** - Surface WS connection health on dashboard with state detail (completed 2026-04-01)
-- [ ] **Phase 11: Tech Debt** - Remove Sports API integration entirely
+- [x] **Phase 11: Tech Debt** - Remove Sports API integration entirely (completed 2026-04-01)
 
 ## Phase Details
 
@@ -90,8 +90,8 @@ Plans:
   3. API Usage page displays only active sources; no Sports API quota/interval/toggle remains
 **Plans:** 2 plans
 Plans:
-- [ ] 11-01-PLAN.md — Remove Sports API backend (client, worker, migration, mismatch, config, tests)
-- [ ] 11-02-PLAN.md — Remove Sports API frontend + update docs
+- [x] 11-01-PLAN.md — Remove Sports API backend (client, worker, migration, mismatch, config, tests)
+- [x] 11-02-PLAN.md — Remove Sports API frontend + update docs
 
 ## Progress
 
@@ -107,7 +107,7 @@ Plans:
 | 8. WS Diagnostics and Instrumentation | v1.2 | 1/1 | Complete | 2026-03-31 |
 | 9. Status Authority Model | v1.2 | 2/2 | Complete | 2026-03-31 |
 | 10. WS Health Dashboard | v1.2 | 1/1 | Complete    | 2026-04-01 |
-| 11. Tech Debt | v1.2 | 0/2 | Not started | - |
+| 11. Tech Debt | v1.2 | 2/2 | Complete | 2026-04-01 |
 
 ---
 *Full phase details for completed milestones archived in milestones/v1.0-ROADMAP.md and milestones/v1.1-ROADMAP.md*

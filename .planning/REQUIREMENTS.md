@@ -26,7 +26,7 @@ Requirements for WebSocket-Primary Status Authority milestone. Each maps to road
 
 ### Tech Debt
 
-- [ ] **DEBT-01**: SportsApiClient refactored to use BaseAPIClient pattern consistently
+- [x] **DEBT-01**: Sports API integration fully removed (client, worker, DB column, config, frontend references)
 
 ## Future Requirements
 
@@ -69,7 +69,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WSHLT-01 | Phase 10 | Complete |
 | WSHLT-02 | Phase 10 | Complete |
 | WSHLT-03 | Phase 10 | Complete |
-| DEBT-01 | Phase 11 | Pending |
+| DEBT-01 | Phase 11 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 9 total
