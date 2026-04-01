@@ -5,7 +5,6 @@ import { updateInterval } from "../../api/usage";
 
 const SOURCE_DISPLAY: Record<string, string> = {
   odds_api: "Odds API",
-  sports_api: "Sports API",
   sports_data: "SportsDataIO",
   espn: "ESPN",
 };

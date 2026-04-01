@@ -15,7 +15,6 @@ const WORKER_COLORS: Record<string, string> = {
   poll_prophetx: "#6366f1",
   poll_sports_data: "#22c55e",
   poll_odds_api: "#f59e0b",
-  poll_sports_api: "#3b82f6",
   poll_espn: "#ec4899",
 };
 
@@ -23,7 +22,6 @@ const WORKER_DISPLAY_NAMES: Record<string, string> = {
   poll_prophetx: "ProphetX",
   poll_sports_data: "SportsDataIO",
   poll_odds_api: "Odds API",
-  poll_sports_api: "Sports API",
   poll_espn: "ESPN",
 };
 

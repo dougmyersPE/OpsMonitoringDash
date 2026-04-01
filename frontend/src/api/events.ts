@@ -8,7 +8,6 @@ export interface EventRow {
   scheduled_start: string | null;
   prophetx_status: string | null;
   odds_api_status: string | null;
-  sports_api_status: string | null;
   sdio_status: string | null;
   espn_status: string | null;
   status_match: boolean;

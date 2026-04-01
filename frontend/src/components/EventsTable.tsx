@@ -219,7 +219,6 @@ type SortCol =
   | "scheduled_start"
   | "prophetx_status"
   | "odds_api_status"
-  | "sports_api_status"
   | "sdio_status"
   | "espn_status"
   | "is_flagged"
@@ -229,7 +228,6 @@ const DATE_COLS = new Set<SortCol>(["scheduled_start", "last_real_world_poll"]);
 const STATUS_COLS = new Set<SortCol>([
   "prophetx_status",
   "odds_api_status",
-  "sports_api_status",
   "sdio_status",
   "espn_status",
 ]);
@@ -505,7 +503,6 @@ export default function EventsTable() {
               <SortableHead col="scheduled_start" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Starts</SortableHead>
               <SortableHead col="prophetx_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>ProphetX</SortableHead>
               <SortableHead col="odds_api_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Odds API</SortableHead>
-              <SortableHead col="sports_api_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Sports API</SortableHead>
               <SortableHead col="sdio_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>SDIO</SortableHead>
               <SortableHead col="espn_status" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>ESPN</SortableHead>
               <SortableHead col="is_flagged" sortCol={sortCol} sortDir={sortDir} onSort={handleSort}>Flag</SortableHead>
@@ -553,7 +550,6 @@ export default function EventsTable() {
                   </div>
                 </TableCell>
                 <TableCell><SourceStatus status={event.odds_api_status} /></TableCell>
-                <TableCell><SourceStatus status={event.sports_api_status} /></TableCell>
                 <TableCell><SourceStatus status={event.sdio_status} /></TableCell>
                 <TableCell><SourceStatus status={event.espn_status} /></TableCell>
                 <TableCell><FlaggedBadge flagged={event.is_flagged} /></TableCell>
@@ -568,7 +564,7 @@ export default function EventsTable() {
             {sorted.length === 0 && (
               <TableRow className="hover:bg-transparent border-0">
                 <TableCell
-                  colSpan={11}
+                  colSpan={10}
                   className="text-center text-zinc-600 py-12 text-sm"
                 >
                   {hasActiveFilters ? "No events match the current filters" : "No events yet"}

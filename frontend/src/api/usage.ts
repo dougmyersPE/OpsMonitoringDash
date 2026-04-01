@@ -9,12 +9,6 @@ export interface OddsQuota {
   updated_at: string | null;
 }
 
-export interface SportQuota {
-  remaining: number | null;
-  limit: number | null;
-  updated_at: string | null;
-}
-
 export interface IntervalInfo {
   current: number;
   minimum: number;
@@ -31,7 +25,6 @@ export interface UsageData {
   history: HistoryEntry[];
   quota: {
     odds_api: OddsQuota;
-    sports_api: Record<string, SportQuota>;
   };
   intervals: Record<string, IntervalInfo>;
   projections: {
