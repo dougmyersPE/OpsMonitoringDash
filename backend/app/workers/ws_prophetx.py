@@ -98,6 +98,31 @@ def _write_heartbeat() -> None:
     r.set("worker:heartbeat:ws_prophetx", "1", ex=90)
 
 
+def _write_ws_diagnostics(change_type: str) -> None:
+    """Write ws:* diagnostic keys on every broadcast message.
+
+    Key | TTL | Updated when
+    ws:last_message_at | 120s | Every broadcast message (all change_types)
+    ws:last_sport_event_at | None | Only sport_event change_type messages
+    ws:sport_event_count | None | Only sport_event change_type messages (INCR)
+    """
+    r = _sync_redis.from_url(settings.REDIS_URL)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    r.set("ws:last_message_at", now_iso, ex=120)
+    if change_type == "sport_event":
+        r.set("ws:last_sport_event_at", now_iso)
+        r.incr("ws:sport_event_count")
+
+
+def _write_ws_connection_state(state: str) -> None:
+    """Write ws:connection_state key with 120s TTL.
+
+    Self-expires if consumer dies — absence means disconnected.
+    """
+    r = _sync_redis.from_url(settings.REDIS_URL)
+    r.set("ws:connection_state", state, ex=120)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # DB upsert (same logic as poll_prophetx, extracted for WebSocket events)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -252,6 +277,9 @@ def _handle_broadcast_event(event_name: str, data: str) -> None:
         change_type = wrapper.get("change_type")
         op = wrapper.get("op")
 
+        # Write diagnostic keys for every broadcast message (all change_types)
+        _write_ws_diagnostics(change_type)
+
         if change_type != "sport_event":
             log.debug(
                 "ws_prophetx_non_event_update",
@@ -325,6 +353,7 @@ def _connect_and_run() -> None:
     def _on_connect(data: str) -> None:
         log.info("ws_prophetx_connected")
         connection_ready.set()
+        _write_ws_connection_state("connected")
         # WSREL-01: trigger immediate reconciliation on every reconnect
         try:
             celery_app.send_task(
