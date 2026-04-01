@@ -34,6 +34,10 @@ Operators always know the true health of their ProphetX platform — stale event
 - ✓ Server-enforced minimum poll intervals (HTTP 422) — v1.1
 - ✓ DB-backed intervals surviving Beat restarts — v1.1
 
+- ✓ WS consumer computes status_match on event creation (WSREL-02 bug fix) — v1.2 Phase 8
+- ✓ WS reconnect triggers immediate poll_prophetx reconciliation (WSREL-01) — v1.2 Phase 8
+- ✓ Redis WS diagnostic keys for connection health observability — v1.2 Phase 8
+
 ### Active
 
 See REQUIREMENTS.md for v1.2 scoped requirements.
@@ -117,4 +121,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-31 after v1.2 milestone start*
+*Last updated: 2026-03-31 after Phase 8 complete*
