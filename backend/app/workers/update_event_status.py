@@ -153,6 +153,8 @@ def run(self, event_id: str, target_status: str | None, actor: str = "system"):
 
             # g. Update local DB
             event.prophetx_status = effective_target
+            event.status_source = "manual"
+            event.ws_delivered_at = None  # Manual action clears WS authority window
 
             # h. Write audit log entry in same session
             audit_entry = AuditLog(
@@ -163,6 +165,7 @@ def run(self, event_id: str, target_status: str | None, actor: str = "system"):
                 before_state=before_state,
                 after_state={
                     "prophetx_status": effective_target,
+                    "status_source": "manual",
                     "alert_only_mode": alert_only_mode,
                 },
                 result="success",

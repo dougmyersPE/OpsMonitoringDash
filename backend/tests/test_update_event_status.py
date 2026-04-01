@@ -133,7 +133,7 @@ def test_successful_update_writes_audit_log():
             entity_type="event",
             entity_id=mock_event.id,
             before_state={"prophetx_status": before_status},
-            after_state={"prophetx_status": target_status},
+            after_state={"prophetx_status": target_status, "status_source": "manual", "alert_only_mode": False},
             result="success",
         )
 

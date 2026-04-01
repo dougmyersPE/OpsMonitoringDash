@@ -18,8 +18,10 @@ import structlog
 from sqlalchemy import select
 
 from app.clients.prophetx import ProphetXClient
+from app.core.config import settings
 from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
+from app.monitoring.authority import is_ws_authoritative
 from app.monitoring.mismatch_detector import compute_status_match
 from app.workers.celery_app import celery_app
 
@@ -201,6 +203,8 @@ def run(self, trigger: str = "scheduled"):
                     scheduled_start=scheduled_start,
                     prophetx_status=status_value,
                     last_prophetx_poll=now,
+                    status_source="poll",
+                    status_match=compute_status_match(status_value, None, None, None, None, None),
                 )
                 session.add(event)
             else:
@@ -216,16 +220,45 @@ def run(self, trigger: str = "scheduled"):
                 existing.away_team = away_team or existing.away_team
                 if scheduled_start is not None:
                     existing.scheduled_start = scheduled_start
-                existing.prophetx_status = status_value
                 existing.last_prophetx_poll = now
-                existing.status_match = compute_status_match(
-                    status_value,
-                    existing.odds_api_status,
-                    existing.sports_api_status,
-                    existing.sdio_status,
-                    existing.espn_status,
-                    existing.oddsblaze_status,
+
+                # Authority check — poll defers to WS except for terminal "ended" (D-05)
+                authoritative = is_ws_authoritative(
+                    existing.ws_delivered_at, settings.WS_AUTHORITY_WINDOW_SECONDS
                 )
+                is_ended = (status_value or "").lower() == "ended"
+
+                if not authoritative or is_ended:
+                    existing.prophetx_status = status_value
+                    existing.status_source = "poll"
+                    existing.ws_delivered_at = None  # Clear stale WS timestamp
+                    existing.status_match = compute_status_match(
+                        status_value,
+                        existing.odds_api_status,
+                        existing.sports_api_status,
+                        existing.sdio_status,
+                        existing.espn_status,
+                        existing.oddsblaze_status,
+                    )
+                else:
+                    # WS is authoritative — log discrepancy if status differs (D-06)
+                    if status_value != existing.prophetx_status:
+                        log.info(
+                            "poll_prophetx_authority_window_skip",
+                            prophetx_event_id=prophetx_event_id,
+                            ws_status=existing.prophetx_status,
+                            poll_status=status_value,
+                            ws_delivered_at=str(existing.ws_delivered_at),
+                        )
+                    # Still recompute status_match against WS-authoritative status (D-07)
+                    existing.status_match = compute_status_match(
+                        existing.prophetx_status,
+                        existing.odds_api_status,
+                        existing.sports_api_status,
+                        existing.sdio_status,
+                        existing.espn_status,
+                        existing.oddsblaze_status,
+                    )
 
             polled_px_ids.add(prophetx_event_id)
             events_upserted += 1
@@ -262,6 +295,8 @@ def run(self, trigger: str = "scheduled"):
                     scheduled_start=str(event.scheduled_start),
                 )
                 event.prophetx_status = "ended"
+                event.status_source = "poll"
+                event.ws_delivered_at = None  # Clear stale WS timestamp
                 event.status_match = compute_status_match(
                     "ended",
                     event.odds_api_status,
