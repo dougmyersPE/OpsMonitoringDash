@@ -61,7 +61,10 @@ Plans:
   2. When WS delivers a status update, poll_prophetx running within 10 minutes does not overwrite prophetx_status (observable via audit log showing no poll source entry after a ws entry)
   3. When WS is authoritative for an event, poll_prophetx still updates teams, scheduled_start, and league metadata (confirming AUTH-03 partial-update path)
   4. A stale REST status arriving after a WS live delivery does not regress the event status (no backward lifecycle transitions visible in the audit log)
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 09-01-PLAN.md — Schema + authority helper + config + tests (model columns, migration 008, is_ws_authoritative helper)
+- [ ] 09-02-PLAN.md — Wire authority logic into workers (ws_prophetx, poll_prophetx, update_event_status)
 
 ### Phase 10: WS Health Dashboard
 **Goal**: Operators can see WS connection health alongside worker badges on the dashboard
@@ -97,7 +100,7 @@ Plans:
 | 6. ApiUsagePage | v1.1 | 2/2 | Complete | 2026-03-02 |
 | 7. Documentation Gap Closure | v1.1 | 1/1 | Complete | 2026-03-02 |
 | 8. WS Diagnostics and Instrumentation | v1.2 | 0/1 | Planning | - |
-| 9. Status Authority Model | v1.2 | 0/? | Not started | - |
+| 9. Status Authority Model | v1.2 | 0/2 | Planning | - |
 | 10. WS Health Dashboard | v1.2 | 0/? | Not started | - |
 | 11. Tech Debt | v1.2 | 0/? | Not started | - |
 
