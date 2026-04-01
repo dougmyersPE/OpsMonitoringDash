@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: WebSocket-Primary Status Authority
 status: planning
-stopped_at: Phase 9 context gathered
-last_updated: "2026-04-01T02:38:22.116Z"
+stopped_at: Completed 09-01-PLAN.md — schema + authority helper
+last_updated: "2026-04-01T03:08:17.211Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 3
+  completed_plans: 2
   percent: 35
 ---
 
@@ -49,6 +49,7 @@ Progress: [███████░░░░░░░░░░░░░] 35% (7/
 
 *Updated after each plan completion*
 | Phase 08-ws-diagnostics-and-instrumentation P01 | 17 | 3 tasks | 5 files |
+| Phase 09 P01 | 4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ Recent decisions affecting current work:
 - [Phase 08-ws-diagnostics-and-instrumentation]: WSREL-02: compute_status_match(status, None, None, None, None, None) on WS create path — all-None sources always return True (no conflict = no mismatch)
 - [Phase 08-ws-diagnostics-and-instrumentation]: WSREL-01: fire reconciliation immediately on _on_connect with no stabilization delay; broker failures caught silently via try/except
 - [Phase 08-ws-diagnostics-and-instrumentation]: WS diagnostic keys: ws:connection_state and ws:last_message_at have 120s TTL (self-expire if dead); ws:sport_event_count and ws:last_sport_event_at have no TTL (accumulate for Phase 9 gate)
+- [Phase 09-status-authority-model]: is_ws_authoritative boundary check is elapsed < threshold (strictly less than): exactly at boundary returns False
+- [Phase 09-status-authority-model]: Naive datetime input coerced to UTC via replace(tzinfo=timezone.utc) in is_ws_authoritative — no exception raised
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-01T02:38:22.113Z
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-status-authority-model/09-CONTEXT.md
+Last session: 2026-04-01T03:08:04.023Z
+Stopped at: Completed 09-01-PLAN.md — schema + authority helper
+Resume file: None
