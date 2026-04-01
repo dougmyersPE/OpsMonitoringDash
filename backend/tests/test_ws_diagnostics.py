@@ -75,7 +75,7 @@ class TestWriteWsConnectionState:
             from app.workers.ws_prophetx import _write_ws_connection_state
             _write_ws_connection_state("connected")
 
-        mock_redis_client.set.assert_called_once_with("ws:connection_state", "connected", ex=120)
+        mock_redis_client.set.assert_any_call("ws:connection_state", "connected", ex=120)
 
     def test_disconnected_sets_connection_state(self):
         """_write_ws_connection_state must accept any state value."""
@@ -87,7 +87,45 @@ class TestWriteWsConnectionState:
             from app.workers.ws_prophetx import _write_ws_connection_state
             _write_ws_connection_state("disconnected")
 
-        mock_redis_client.set.assert_called_once_with("ws:connection_state", "disconnected", ex=120)
+        mock_redis_client.set.assert_any_call("ws:connection_state", "disconnected", ex=120)
+
+
+class TestWriteWsConnectionStateSince:
+    """Verify ws:connection_state_since companion key is written alongside ws:connection_state."""
+
+    def test_since_key_written_with_state(self):
+        """_write_ws_connection_state must write ws:connection_state_since with ex=120."""
+        mock_redis_client = MagicMock()
+
+        with patch("app.workers.ws_prophetx._sync_redis") as mock_sync_redis:
+            mock_sync_redis.from_url.return_value = mock_redis_client
+
+            from app.workers.ws_prophetx import _write_ws_connection_state
+            _write_ws_connection_state("connected")
+
+        # Must have exactly 2 set calls: ws:connection_state + ws:connection_state_since
+        assert mock_redis_client.set.call_count == 2
+        mock_redis_client.set.assert_any_call("ws:connection_state", "connected", ex=120)
+        mock_redis_client.set.assert_any_call("ws:connection_state_since", ANY, ex=120)
+
+    def test_since_value_is_iso_format(self):
+        """ws:connection_state_since value must be a parseable ISO 8601 timestamp."""
+        from datetime import datetime as dt
+
+        mock_redis_client = MagicMock()
+
+        with patch("app.workers.ws_prophetx._sync_redis") as mock_sync_redis:
+            mock_sync_redis.from_url.return_value = mock_redis_client
+
+            from app.workers.ws_prophetx import _write_ws_connection_state
+            _write_ws_connection_state("connected")
+
+        since_call = [c for c in mock_redis_client.set.call_args_list if c[0][0] == "ws:connection_state_since"]
+        assert len(since_call) == 1
+        iso_value = since_call[0][0][1]
+        # Must parse without error
+        parsed = dt.fromisoformat(iso_value)
+        assert parsed.tzinfo is not None, "Timestamp must be timezone-aware (UTC)"
 
 
 class TestHandleBroadcastEventCallsDiagnostics:

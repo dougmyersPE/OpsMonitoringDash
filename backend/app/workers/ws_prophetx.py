@@ -118,9 +118,12 @@ def _write_ws_connection_state(state: str) -> None:
     """Write ws:connection_state key with 120s TTL.
 
     Self-expires if consumer dies — absence means disconnected.
+    Also writes ws:connection_state_since with the transition timestamp (same TTL).
     """
     r = _sync_redis.from_url(settings.REDIS_URL)
+    now_iso = datetime.now(timezone.utc).isoformat()
     r.set("ws:connection_state", state, ex=120)
+    r.set("ws:connection_state_since", now_iso, ex=120)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

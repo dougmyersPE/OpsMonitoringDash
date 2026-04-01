@@ -23,7 +23,8 @@ async def health_check():
 
 @router.get("/health/workers")
 async def worker_health():
-    """Returns live/dead status for each poll worker based on Redis heartbeat keys."""
+    """Returns live/dead status for each poll worker based on Redis heartbeat keys,
+    plus WebSocket connection health from diagnostic keys."""
     redis = await get_redis_client()
     keys = [
         "worker:heartbeat:poll_prophetx",
@@ -31,12 +32,21 @@ async def worker_health():
         "worker:heartbeat:poll_odds_api",
         "worker:heartbeat:poll_sports_api",
         "worker:heartbeat:poll_espn",
+        "ws:connection_state",
+        "ws:connection_state_since",
     ]
     results = await redis.mget(*keys)
+    ws_state = results[5]  # str | None
+    ws_since = results[6]  # ISO str | None
     return {
         "poll_prophetx":    results[0] is not None,
         "poll_sports_data": results[1] is not None,
         "poll_odds_api":    results[2] is not None,
         "poll_sports_api":  results[3] is not None,
         "poll_espn":        results[4] is not None,
+        "ws_prophetx": {
+            "connected": ws_state == "connected",
+            "state": ws_state,
+            "since": ws_since,
+        },
     }
