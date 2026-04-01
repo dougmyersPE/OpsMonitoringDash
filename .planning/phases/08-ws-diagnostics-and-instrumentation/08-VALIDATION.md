@@ -2,8 +2,8 @@
 phase: 8
 slug: ws-diagnostics-and-instrumentation
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-31
 ---
 
@@ -36,12 +36,11 @@ created: 2026-03-31
 
 ## Per-Task Verification Map
 
-| Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 08-01-01 | 01 | 1 | WSREL-02 | unit | `pytest tests/test_ws_prophetx.py -k status_match` | ❌ W0 | ⬜ pending |
-| 08-01-02 | 01 | 1 | WSREL-01 | unit | `pytest tests/test_ws_prophetx.py -k reconnect_reconciliation` | ❌ W0 | ⬜ pending |
-| 08-02-01 | 02 | 1 | WSREL-01 | unit | `pytest tests/test_ws_prophetx.py -k redis_diagnostics` | ❌ W0 | ⬜ pending |
-| 08-02-02 | 02 | 1 | WSREL-01 | integration | `pytest tests/test_ws_prophetx.py -k ws_connection_state` | ❌ W0 | ⬜ pending |
+| Task ID | Plan | Wave | Requirement | Test Type | Automated Command | Test File | Status |
+|---------|------|------|-------------|-----------|-------------------|-----------|--------|
+| 08-01-01 | 01 | 1 | WSREL-02 | unit | `pytest tests/test_ws_upsert.py tests/test_mismatch_detector.py -x -q` | test_ws_upsert.py, test_mismatch_detector.py | ⬜ pending |
+| 08-01-02 | 01 | 1 | WSREL-01 | unit | `pytest tests/test_ws_reconnect.py -x -q` | test_ws_reconnect.py | ⬜ pending |
+| 08-01-03 | 01 | 1 | WSREL-01 | unit | `pytest tests/test_ws_diagnostics.py -x -q` | test_ws_diagnostics.py | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -49,10 +48,13 @@ created: 2026-03-31
 
 ## Wave 0 Requirements
 
-- [ ] `backend/tests/test_ws_prophetx.py` — stubs for WSREL-01 and WSREL-02 verification
-- [ ] `backend/tests/conftest.py` — mock Redis and Celery fixtures (extend existing)
+All test files are created by their respective tasks (TDD red-green cycle). No separate Wave 0 needed.
 
-*Existing pytest infrastructure covers framework needs.*
+- Task 1 creates `backend/tests/test_ws_upsert.py` and extends `backend/tests/test_mismatch_detector.py`
+- Task 2 creates `backend/tests/test_ws_reconnect.py`
+- Task 3 creates `backend/tests/test_ws_diagnostics.py`
+
+*Existing pytest infrastructure and conftest.py cover framework needs.*
 
 ---
 
@@ -67,11 +69,11 @@ created: 2026-03-31
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify commands (pytest invocations)
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covered — each task creates its own test file via TDD
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
