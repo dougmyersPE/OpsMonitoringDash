@@ -64,7 +64,7 @@ Plans:
 **Plans:** 1/2 plans executed
 Plans:
 - [x] 09-01-PLAN.md — Schema + authority helper + config + tests (model columns, migration 008, is_ws_authoritative helper)
-- [ ] 09-02-PLAN.md — Wire authority logic into workers (ws_prophetx, poll_prophetx, update_event_status)
+- [x] 09-02-PLAN.md — Wire authority logic into workers (ws_prophetx, poll_prophetx, update_event_status)
 
 ### Phase 10: WS Health Dashboard
 **Goal**: Operators can see WS connection health alongside worker badges on the dashboard

@@ -14,9 +14,9 @@ Requirements for WebSocket-Primary Status Authority milestone. Each maps to road
 
 ### Status Authority
 
-- [ ] **AUTH-01**: Events table tracks status_source (ws/poll/manual) for each prophetx_status write
-- [ ] **AUTH-02**: poll_prophetx skips prophetx_status overwrite when WS delivered the status recently (within configurable threshold)
-- [ ] **AUTH-03**: poll_prophetx updates only metadata (teams, scheduled_start, league) when WS is authoritative for an event
+- [x] **AUTH-01**: Events table tracks status_source (ws/poll/manual) for each prophetx_status write
+- [x] **AUTH-02**: poll_prophetx skips prophetx_status overwrite when WS delivered the status recently (within configurable threshold)
+- [x] **AUTH-03**: poll_prophetx updates only metadata (teams, scheduled_start, league) when WS is authoritative for an event
 
 ### WS Health Dashboard
 
@@ -63,9 +63,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | WSREL-01 | Phase 8 | Complete |
 | WSREL-02 | Phase 8 | Complete |
-| AUTH-01 | Phase 9 | Pending |
-| AUTH-02 | Phase 9 | Pending |
-| AUTH-03 | Phase 9 | Pending |
+| AUTH-01 | Phase 9 | Complete |
+| AUTH-02 | Phase 9 | Complete |
+| AUTH-03 | Phase 9 | Complete |
 | WSHLT-01 | Phase 10 | Pending |
 | WSHLT-02 | Phase 10 | Pending |
 | WSHLT-03 | Phase 10 | Pending |
