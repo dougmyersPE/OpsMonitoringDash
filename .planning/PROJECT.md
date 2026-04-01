@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An internal operations tool for a ProphetX prediction market operator. It continuously monitors sports event statuses on ProphetX against real-world game states (via SportsDataIO, ESPN, Sports API, and Odds API), automatically syncs them when mismatches are detected, monitors market liquidity levels against configurable thresholds, tracks API usage with quota monitoring and per-worker frequency controls, and surfaces all issues to the team via a real-time dashboard, Slack alerts, and an in-app notification center.
+An internal operations tool for a ProphetX prediction market operator. It continuously monitors sports event statuses on ProphetX against real-world game states (via SportsDataIO, ESPN, Odds API, and OpticOdds), automatically syncs them when mismatches are detected, monitors market liquidity levels against configurable thresholds, tracks API usage with quota monitoring and per-worker frequency controls, and surfaces all issues to the team via a real-time dashboard, Slack alerts, and an in-app notification center.
 
 ## Core Value
 
@@ -46,18 +46,18 @@ Operators always know the true health of their ProphetX platform — stale event
 
 ### Active
 
-See REQUIREMENTS.md for v1.2 scoped requirements.
+See REQUIREMENTS.md for v1.3 scoped requirements.
 
-## Current Milestone: v1.2 WebSocket-Primary Status Authority
+## Current Milestone: v1.3 OpticOdds Tennis Integration
 
-**Goal:** Elevate ProphetX WebSocket messages to the authoritative real-time source for event status, with polling workers serving as reconciliation/validation.
+**Goal:** Add OpticOdds as a real-time data source for tennis match status monitoring via RabbitMQ queue consumption.
 
 **Target features:**
-- WS sport_event messages verified working end-to-end (diagnostics, logging)
-- Status authority model: WS-delivered status treated as ground truth
-- ProphetX REST poller demoted to reconciliation fallback
-- WS connection health surfaced on dashboard
-- Tech debt: Sports API integration removed entirely (no longer needed)
+- RabbitMQ consumer for OpticOdds results stream (tennis sport)
+- Queue lifecycle management (start/stop/status via REST API)
+- Tennis match status mapped to existing event status model (not_started/live/ended)
+- OpticOdds status reflected in dashboard events table and mismatch detection
+- Health monitoring for the OpticOdds consumer (heartbeat, connection state)
 
 ### Out of Scope
 
@@ -125,4 +125,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-01 after Phase 11 complete*
+*Last updated: 2026-04-01 — Milestone v1.3 started*

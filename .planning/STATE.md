@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: WebSocket-Primary Status Authority
-status: verifying
-stopped_at: Completed 11-02-PLAN.md
-last_updated: "2026-04-01T19:45:35.659Z"
+milestone: v1.3
+milestone_name: OpticOdds Tennis Integration
+status: defining-requirements
+stopped_at: null
+last_updated: "2026-04-01T21:30:00.000Z"
 last_activity: 2026-04-01
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 6
-  completed_plans: 6
-  percent: 45
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 11 — tech-debt
+**Current focus:** Milestone v1.3 — defining requirements
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-01
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-01 — Milestone v1.3 started
 
-Progress: [█████████░░░░░░░░░░░] 45% (v1.0 + v1.1 shipped; v1.2 phases 8-10 complete; phase 11 plan 01 complete)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.3 milestone initialized)
 
 ## Performance Metrics
 
