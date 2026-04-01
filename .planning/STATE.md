@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: WebSocket-Primary Status Authority
 status: executing
-stopped_at: Phase 11 context gathered
-last_updated: "2026-04-01T18:26:52.729Z"
-last_activity: 2026-04-01
+stopped_at: Completed 11-01-PLAN.md — Sports API full removal
+last_updated: "2026-04-01T19:28:32Z"
+last_activity: 2026-04-01 -- Phase 11 plan 01 complete
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
-  percent: 40
+  total_plans: 6
+  completed_plans: 5
+  percent: 45
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 09 — status-authority-model
+**Current focus:** Phase 11 — tech-debt
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
-Status: In progress
-Last activity: 2026-04-01
+Phase: 11 (tech-debt) — EXECUTING
+Plan: 2 of 2 (next)
+Status: Plan 01 complete; Plan 02 remaining
+Last activity: 2026-04-01 -- Phase 11 plan 01 complete
 
-Progress: [████████░░░░░░░░░░░░] 40% (7/11 phases complete — v1.0 + v1.1 shipped; v1.2 phase 10 plan 01 complete)
+Progress: [█████████░░░░░░░░░░░] 45% (v1.0 + v1.1 shipped; v1.2 phases 8-10 complete; phase 11 plan 01 complete)
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [████████░░░░░░░░░░░░] 40% (7/
 | Phase 09 P01 | 4 | 2 tasks | 5 files |
 | Phase 09-status-authority-model P02 | 10 | 2 tasks | 5 files |
 | Phase 10-ws-health-dashboard P01 | 12 | 2 tasks | 5 files |
+| Phase 11-tech-debt P01 | 35 | 2 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,8 @@ Recent decisions affecting current work:
 - [Phase 09-02]: Metadata always unconditional in poll: home_team/away_team/league/scheduled_start/last_prophetx_poll written even when WS is authoritative (AUTH-03)
 - [Phase 09-02]: ended bypasses authority window (D-05): poll status 'ended' always writes regardless of WS authority
 - [Phase 09-02]: ws_delivered_at cleared on poll/manual write to prevent stale WS authority
+- [Phase 11-tech-debt P01]: Sports API removed entirely (D-01): zero references in backend/app/ or backend/tests/
+- [Phase 11-tech-debt P01]: compute_status_match reduced to 5-param signature (px + 4 sources: odds_api, sdio, espn, oddsblaze)
 
 ### Pending Todos
 
@@ -108,6 +111,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-01T18:26:52.721Z
-Stopped at: Phase 11 context gathered
-Resume file: .planning/phases/11-tech-debt/11-CONTEXT.md
+Last session: 2026-04-01T19:28:32Z
+Stopped at: Completed 11-01-PLAN.md — Sports API full removal (commits 728cb79, bf62769)
+Resume file: .planning/phases/11-tech-debt/11-02-PLAN.md
