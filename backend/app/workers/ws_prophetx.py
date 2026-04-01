@@ -146,6 +146,8 @@ def _upsert_event(event_data: dict, op: str | None) -> None:
             ).scalar_one_or_none()
             if existing and (existing.prophetx_status or "").lower() not in ("ended", "cancelled"):
                 existing.prophetx_status = "ended"
+                existing.status_source = "ws"
+                existing.ws_delivered_at = now
                 existing.last_prophetx_poll = now
                 existing.status_match = compute_status_match(
                     "ended",
@@ -215,6 +217,8 @@ def _upsert_event(event_data: dict, op: str | None) -> None:
                 prophetx_status=status_value,
                 last_prophetx_poll=now,
                 status_match=compute_status_match(status_value, None, None, None, None, None),
+                status_source="ws",
+                ws_delivered_at=now,
             )
             session.add(event)
             log.info(
@@ -236,6 +240,8 @@ def _upsert_event(event_data: dict, op: str | None) -> None:
             if scheduled_start is not None:
                 existing.scheduled_start = scheduled_start
             existing.prophetx_status = status_value
+            existing.status_source = "ws"
+            existing.ws_delivered_at = now
             existing.last_prophetx_poll = now
             existing.status_match = compute_status_match(
                 status_value,
