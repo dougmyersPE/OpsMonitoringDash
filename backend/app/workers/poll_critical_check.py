@@ -41,7 +41,6 @@ def run(self):
         if compute_is_critical(
             e.prophetx_status,
             e.odds_api_status,
-            e.sports_api_status,
             e.sdio_status,
             e.espn_status,
             e.oddsblaze_status,
@@ -68,8 +67,6 @@ def run(self):
         sources = []
         if event.odds_api_status:
             sources.append(f"OddsAPI={event.odds_api_status}")
-        if event.sports_api_status:
-            sources.append(f"SportsAPI={event.sports_api_status}")
         if event.sdio_status:
             sources.append(f"SDIO={event.sdio_status}")
         if event.espn_status:

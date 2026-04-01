@@ -20,7 +20,6 @@ WORKER_NAMES = [
     "poll_prophetx",
     "poll_sports_data",
     "poll_odds_api",
-    "poll_sports_api",
     "poll_espn",
 ]
 

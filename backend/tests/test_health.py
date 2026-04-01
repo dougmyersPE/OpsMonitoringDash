@@ -33,7 +33,6 @@ async def test_worker_health_returns_200(client):
         "poll_prophetx",
         "poll_sports_data",
         "poll_odds_api",
-        "poll_sports_api",
         "poll_espn",
     ]
     for worker in expected_workers:

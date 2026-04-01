@@ -254,7 +254,6 @@ def run(self):
                 new_status_match = compute_status_match(
                     best_match.prophetx_status,
                     real_status,
-                    best_match.sports_api_status,
                     best_match.sdio_status,
                     best_match.espn_status,
                     best_match.oddsblaze_status,

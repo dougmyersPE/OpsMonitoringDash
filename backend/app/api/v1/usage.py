@@ -25,12 +25,8 @@ WORKER_NAMES = [
     "poll_prophetx",
     "poll_sports_data",
     "poll_odds_api",
-    "poll_sports_api",
     "poll_espn",
 ]
-
-# Sports API sport families that have separate quotas
-SPORTS_API_FAMILIES = ["basketball", "hockey", "baseball", "american-football", "soccer"]
 
 # Seconds in a 30-day month (for projection calculation)
 SECONDS_PER_MONTH = 30 * 24 * 3600
@@ -40,7 +36,6 @@ INTERVAL_KEYS = {
     "poll_prophetx": ("poll_interval_prophetx", "poll_interval_prophetx_min"),
     "poll_sports_data": ("poll_interval_sports_data", "poll_interval_sports_data_min"),
     "poll_odds_api": ("poll_interval_odds_api", "poll_interval_odds_api_min"),
-    "poll_sports_api": ("poll_interval_sports_api", "poll_interval_sports_api_min"),
     "poll_espn": ("poll_interval_espn", "poll_interval_espn_min"),
     "poll_critical_check": ("poll_interval_critical_check", "poll_interval_critical_check_min"),
 }
@@ -109,21 +104,6 @@ async def get_usage(
         "updated_at": odds_vals[2],
     }
 
-    # Sports API quota (per sport family)
-    sports_api_quota: dict[str, Any] = {}
-    for sport in SPORTS_API_FAMILIES:
-        keys = [
-            f"api_quota:sports_api:{sport}:remaining",
-            f"api_quota:sports_api:{sport}:limit",
-            f"api_quota:sports_api:{sport}:updated_at",
-        ]
-        vals = await redis.mget(*keys)
-        sports_api_quota[sport] = {
-            "remaining": int(vals[0]) if vals[0] else None,
-            "limit": int(vals[1]) if vals[1] else None,
-            "updated_at": vals[2],
-        }
-
     # --- 4. Intervals + minimums + quota limits from system_config ---
     config_result = await session.execute(select(SystemConfig))
     config_rows = config_result.scalars().all()
@@ -154,7 +134,7 @@ async def get_usage(
         projections["monthly_total"] += monthly
 
     # --- 6. Source enabled toggles ---
-    source_toggle_keys = ["odds_api", "sports_api", "sports_data", "espn"]
+    source_toggle_keys = ["odds_api", "sports_data", "espn"]
     sources_enabled: dict[str, bool] = {}
     for src in source_toggle_keys:
         val = config_map.get(f"source_enabled_{src}", "true")
@@ -166,7 +146,6 @@ async def get_usage(
         "history": history,
         "quota": {
             "odds_api": odds_quota,
-            "sports_api": sports_api_quota,
         },
         "intervals": intervals,
         "projections": projections,

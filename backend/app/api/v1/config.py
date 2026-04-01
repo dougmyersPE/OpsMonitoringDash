@@ -20,7 +20,6 @@ INTERVAL_WORKER_KEYS = {
     "poll_interval_prophetx": "prophetx",
     "poll_interval_sports_data": "sports_data",
     "poll_interval_odds_api": "odds_api",
-    "poll_interval_sports_api": "sports_api",
     "poll_interval_espn": "espn",
     "poll_interval_critical_check": "critical_check",
 }

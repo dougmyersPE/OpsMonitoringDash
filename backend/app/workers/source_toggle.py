@@ -1,6 +1,6 @@
 """Source enable/disable toggle helpers for poll workers.
 
-Each real-world source (odds_api, sports_api, sports_data, espn) can be
+Each real-world source (odds_api, sports_data, espn, oddsblaze) can be
 disabled via system_config key `source_enabled_{name}`. When disabled:
 1. Worker skips polling (no API calls)
 2. Source column is NULLed on all events
@@ -19,7 +19,6 @@ log = structlog.get_logger()
 # Maps source key suffix -> Event column name
 SOURCE_COLUMN_MAP = {
     "odds_api": "odds_api_status",
-    "sports_api": "sports_api_status",
     "sports_data": "sdio_status",
     "espn": "espn_status",
     "oddsblaze": "oddsblaze_status",
@@ -58,7 +57,6 @@ def clear_source_and_recompute(source_key: str) -> int:
             ev.status_match = compute_status_match(
                 ev.prophetx_status,
                 ev.odds_api_status if column_name != "odds_api_status" else None,
-                ev.sports_api_status if column_name != "sports_api_status" else None,
                 ev.sdio_status if column_name != "sdio_status" else None,
                 ev.espn_status if column_name != "espn_status" else None,
                 ev.oddsblaze_status if column_name != "oddsblaze_status" else None,

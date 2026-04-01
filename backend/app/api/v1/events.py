@@ -13,7 +13,6 @@ from app.workers.update_event_status import run as update_status_task
 from app.workers.poll_prophetx import run as poll_prophetx_task
 from app.workers.poll_sports_data import run as poll_sports_data_task
 from app.workers.poll_odds_api import run as poll_odds_api_task
-from app.workers.poll_sports_api import run as poll_sports_api_task
 from app.workers.poll_espn import run as poll_espn_task
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -49,7 +48,6 @@ async def refresh_all():
     poll_prophetx_task.delay()
     poll_sports_data_task.delay()
     poll_odds_api_task.delay()
-    poll_sports_api_task.delay()
     poll_espn_task.delay()
     return {"queued": True}
 

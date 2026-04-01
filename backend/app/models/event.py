@@ -28,7 +28,7 @@ class Event(Base):
     # UNCONFIRMED — must be validated against live API in 02-02
     prophetx_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     odds_api_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
-sdio_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    sdio_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     espn_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     oddsblaze_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status_source: Mapped[str | None] = mapped_column(String(20), nullable=True)

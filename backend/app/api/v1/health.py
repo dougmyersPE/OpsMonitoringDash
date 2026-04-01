@@ -30,20 +30,18 @@ async def worker_health():
         "worker:heartbeat:poll_prophetx",
         "worker:heartbeat:poll_sports_data",
         "worker:heartbeat:poll_odds_api",
-        "worker:heartbeat:poll_sports_api",
         "worker:heartbeat:poll_espn",
         "ws:connection_state",
         "ws:connection_state_since",
     ]
     results = await redis.mget(*keys)
-    ws_state = results[5]  # str | None
-    ws_since = results[6]  # ISO str | None
+    ws_state = results[4]  # str | None
+    ws_since = results[5]  # ISO str | None
     return {
         "poll_prophetx":    results[0] is not None,
         "poll_sports_data": results[1] is not None,
         "poll_odds_api":    results[2] is not None,
-        "poll_sports_api":  results[3] is not None,
-        "poll_espn":        results[4] is not None,
+        "poll_espn":        results[3] is not None,
         "ws_prophetx": {
             "connected": ws_state == "connected",
             "state": ws_state,

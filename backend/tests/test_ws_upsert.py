@@ -48,7 +48,7 @@ class TestWsUpsertCreatePath:
             )
 
         # compute_status_match should have been called with all-None external sources
-        mock_csm.assert_called_once_with("not_started", None, None, None, None, None)
+        mock_csm.assert_called_once_with("not_started", None, None, None, None)
 
         # The Event added to session must have status_match set
         assert len(captured_events) == 1, "session.add() must be called exactly once for op=c"
@@ -87,7 +87,6 @@ class TestWsUpsertCreatePath:
         existing = MagicMock(spec=Event)
         existing.prophetx_status = "not_started"
         existing.odds_api_status = None
-        existing.sports_api_status = None
         existing.sdio_status = None
         existing.espn_status = None
         existing.oddsblaze_status = None

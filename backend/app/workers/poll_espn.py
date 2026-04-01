@@ -291,7 +291,6 @@ def run(self):
                     new_status_match = compute_status_match(
                         event.prophetx_status,
                         event.odds_api_status,
-                        event.sports_api_status,
                         event.sdio_status,
                         status_state,
                         event.oddsblaze_status,

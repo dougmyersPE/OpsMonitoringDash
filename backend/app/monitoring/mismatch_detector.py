@@ -11,7 +11,6 @@ Key concepts:
 - is_flag_only(): returns True for statuses requiring human review (Postponed, Canceled, etc.)
 """
 
-import re
 from enum import Enum
 
 import structlog
@@ -62,13 +61,6 @@ FLAG_ONLY_STATUSES: set[str] = {
 # Statuses to skip entirely — not real matches
 SKIP_STATUSES: set[str] = {"Bye"}
 
-# Sports API (api-sports.io) status codes that require human review
-_SPORTS_API_FLAG_STATUSES: set[str] = {
-    "CANC",  # Cancelled
-    "PSP",   # Postponed
-    "SUSP",  # Suspended
-    "ABD",   # Abandoned
-}
 
 # Mapping from SportsDataIO status to expected ProphetX status.
 # IMPORTANT: All ProphetX values are UNCONFIRMED — must be validated against
@@ -145,20 +137,14 @@ def is_flag_only(sdio_status: str) -> bool:
     return sdio_status in FLAG_ONLY_STATUSES
 
 
-def compute_is_flagged(
-    sdio_status: str | None,
-    sports_api_status: str | None,
-) -> bool:
-    """Return True when any source currently reports a flag-worthy status.
+def compute_is_flagged(sdio_status: str | None) -> bool:
+    """Return True when SDIO currently reports a flag-worthy status.
 
     Derived live from current source columns — updates automatically each poll
     cycle without manual clearing. Clears itself when no source reports a
     flag-worthy status (e.g. game rescheduled, or source had no data).
     """
-    return (
-        bool(sdio_status and sdio_status in FLAG_ONLY_STATUSES)
-        or bool(sports_api_status and sports_api_status in _SPORTS_API_FLAG_STATUSES)
-    )
+    return bool(sdio_status and sdio_status in FLAG_ONLY_STATUSES)
 
 
 # ---------------------------------------------------------------------------
@@ -214,63 +200,10 @@ _ODDSBLAZE_CANONICAL: dict[str, str] = {
     "final": "final",           # live=false, event in past
 }
 
-# Sports API status codes (api-sports.io — shared across soccer, basketball, hockey, baseball, NFL)
-_SPORTS_API_CANONICAL: dict[str, str] = {
-    # Not started
-    "NS": "scheduled",
-    "TBD": "scheduled",
-    # Soccer in-play
-    "1H": "inprogress",
-    "HT": "inprogress",
-    "2H": "inprogress",
-    "ET": "inprogress",
-    "BT": "inprogress",
-    "P": "inprogress",
-    "INT": "inprogress",
-    "LIVE": "inprogress",
-    # Basketball quarters / overtime
-    "Q1": "inprogress",
-    "Q2": "inprogress",
-    "Q3": "inprogress",
-    "Q4": "inprogress",
-    "OT": "inprogress",
-    # Hockey periods
-    "P1": "inprogress",
-    "P2": "inprogress",
-    "P3": "inprogress",
-    "AP": "inprogress",
-    "SO": "inprogress",
-    # Baseball innings: IN1, IN2, ... IN9, IN10, IN11 (extra innings)
-    # Handled via _sports_api_to_canonical() — no need to enumerate every number
-    # Finished
-    "FT": "final",
-    "AET": "final",
-    "PEN": "final",
-    "AOT": "final",
-    "POST": "final",
-    "CANC": "final",  # Cancelled — treat as terminal for status_match purposes
-    "AWD": "final",
-    "WO": "final",
-}
-
-
-def _sports_api_to_canonical(status: str) -> str:
-    """Map a Sports API status code to canonical form.
-
-    Handles the regular dict lookup plus baseball innings (IN1, IN2, ...) which
-    follow a numeric pattern too open-ended to enumerate exhaustively.
-    """
-    if status in _SPORTS_API_CANONICAL:
-        return _SPORTS_API_CANONICAL[status]
-    if re.match(r"^IN\d+$", status):  # baseball inning: IN1, IN2, ..., IN12, etc.
-        return "inprogress"
-    return status.lower()
-
 
 def compute_status_match(
     px_status: str | None,
     odds_api_status: str | None,
-    sports_api_status: str | None,
     sdio_status: str | None,
     espn_status: str | None = None,
     oddsblaze_status: str | None = None,
@@ -286,9 +219,8 @@ def compute_status_match(
 
     px_canonical = _PX_CANONICAL.get(px_status, px_status.lower())
 
-    sources: list[tuple[str | None, dict[str, str] | None]] = [
+    sources: list[tuple[str | None, dict[str, str]]] = [
         (odds_api_status, _ODDS_API_CANONICAL),
-        (sports_api_status, None),  # uses _sports_api_to_canonical() for baseball inning support
         (sdio_status, _SDIO_CANONICAL),
         (espn_status, _ESPN_CANONICAL),
         (oddsblaze_status, _ODDSBLAZE_CANONICAL),
@@ -297,10 +229,7 @@ def compute_status_match(
     for source_status, canonical_map in sources:
         if not source_status:  # None or empty string — no data from this source
             continue
-        if canonical_map is None:
-            source_canonical = _sports_api_to_canonical(source_status)
-        else:
-            source_canonical = canonical_map.get(source_status, source_status.lower())
+        source_canonical = canonical_map.get(source_status, source_status.lower())
         if px_canonical != source_canonical:
             return False
 
@@ -310,7 +239,6 @@ def compute_status_match(
 def compute_is_critical(
     px_status: str | None,
     odds_api_status: str | None,
-    sports_api_status: str | None,
     sdio_status: str | None,
     espn_status: str | None,
     oddsblaze_status: str | None = None,
@@ -327,9 +255,8 @@ def compute_is_critical(
     if px_canonical != "scheduled":
         return False  # Only critical when ProphetX shows not-started but sources say live
 
-    sources: list[tuple[str | None, dict[str, str] | None]] = [
+    sources: list[tuple[str | None, dict[str, str]]] = [
         (odds_api_status, _ODDS_API_CANONICAL),
-        (sports_api_status, None),
         (sdio_status, _SDIO_CANONICAL),
         (espn_status, _ESPN_CANONICAL),
         (oddsblaze_status, _ODDSBLAZE_CANONICAL),
@@ -339,10 +266,7 @@ def compute_is_critical(
     for source_status, canonical_map in sources:
         if not source_status:
             continue
-        if canonical_map is None:
-            source_canonical = _sports_api_to_canonical(source_status)
-        else:
-            source_canonical = canonical_map.get(source_status, source_status.lower())
+        source_canonical = canonical_map.get(source_status, source_status.lower())
         if source_canonical == "inprogress":
             live_count += 1
 

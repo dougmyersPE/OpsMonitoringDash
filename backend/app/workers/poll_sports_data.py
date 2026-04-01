@@ -648,7 +648,6 @@ def run(self):
                     px_event.status_match = compute_status_match(
                         px_event.prophetx_status,
                         px_event.odds_api_status,
-                        px_event.sports_api_status,
                         px_event.sdio_status,
                         px_event.espn_status,
                         px_event.oddsblaze_status,
@@ -657,17 +656,13 @@ def run(self):
             # Flag detection: derived from current source statuses each cycle.
             # Clears automatically when no source reports a flag-worthy status (SYNC-02).
             was_flagged = px_event.is_flagged
-            px_event.is_flagged = compute_is_flagged(
-                px_event.sdio_status,
-                px_event.sports_api_status,
-            )
+            px_event.is_flagged = compute_is_flagged(px_event.sdio_status)
             if px_event.is_flagged and not was_flagged:
                 log.warning(
                     "event_flagged",
                     event_id=str(px_event.id),
                     prophetx_event_id=str(px_event.prophetx_event_id),
                     sdio_status=px_event.sdio_status,
-                    sports_api_status=px_event.sports_api_status,
                 )
                 flagged_count += 1
 

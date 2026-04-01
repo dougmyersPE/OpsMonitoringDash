@@ -204,7 +204,7 @@ def run(self, trigger: str = "scheduled"):
                     prophetx_status=status_value,
                     last_prophetx_poll=now,
                     status_source="poll",
-                    status_match=compute_status_match(status_value, None, None, None, None, None),
+                    status_match=compute_status_match(status_value, None, None, None, None),
                 )
                 session.add(event)
             else:
@@ -235,7 +235,6 @@ def run(self, trigger: str = "scheduled"):
                     existing.status_match = compute_status_match(
                         status_value,
                         existing.odds_api_status,
-                        existing.sports_api_status,
                         existing.sdio_status,
                         existing.espn_status,
                         existing.oddsblaze_status,
@@ -254,7 +253,6 @@ def run(self, trigger: str = "scheduled"):
                     existing.status_match = compute_status_match(
                         existing.prophetx_status,
                         existing.odds_api_status,
-                        existing.sports_api_status,
                         existing.sdio_status,
                         existing.espn_status,
                         existing.oddsblaze_status,
@@ -300,7 +298,6 @@ def run(self, trigger: str = "scheduled"):
                 event.status_match = compute_status_match(
                     "ended",
                     event.odds_api_status,
-                    event.sports_api_status,
                     event.sdio_status,
                     event.espn_status,
                     event.oddsblaze_status,
@@ -317,7 +314,6 @@ def run(self, trigger: str = "scheduled"):
             computed = compute_status_match(
                 event.prophetx_status,
                 event.odds_api_status,
-                event.sports_api_status,
                 event.sdio_status,
                 event.espn_status,
                 event.oddsblaze_status,

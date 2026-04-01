@@ -105,7 +105,6 @@ class TestWsAuthorityColumns:
         existing = MagicMock(spec=Event)
         existing.prophetx_status = "not_started"
         existing.odds_api_status = None
-        existing.sports_api_status = None
         existing.sdio_status = None
         existing.espn_status = None
         existing.oddsblaze_status = None
@@ -141,7 +140,6 @@ class TestWsAuthorityColumns:
         existing = MagicMock(spec=Event)
         existing.prophetx_status = "live"
         existing.odds_api_status = None
-        existing.sports_api_status = None
         existing.sdio_status = None
         existing.espn_status = None
         existing.oddsblaze_status = None
@@ -175,7 +173,6 @@ class TestPollAuthorityColumns:
         existing.ws_delivered_at = ws_delivered_at
         existing.prophetx_status = prophetx_status
         existing.odds_api_status = None
-        existing.sports_api_status = None
         existing.sdio_status = None
         existing.espn_status = None
         existing.oddsblaze_status = None
@@ -497,7 +494,6 @@ class TestPollAuthorityColumns:
         stale_event.scheduled_start = stale_start
         stale_event.ws_delivered_at = five_min_ago
         stale_event.odds_api_status = None
-        stale_event.sports_api_status = None
         stale_event.sdio_status = None
         stale_event.espn_status = None
         stale_event.oddsblaze_status = None
