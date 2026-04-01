@@ -20,9 +20,9 @@ Requirements for WebSocket-Primary Status Authority milestone. Each maps to road
 
 ### WS Health Dashboard
 
-- [ ] **WSHLT-01**: /health/workers endpoint includes ws_prophetx connection status
-- [ ] **WSHLT-02**: SystemHealth.tsx displays WS health badge alongside existing worker badges
-- [ ] **WSHLT-03**: Dashboard shows Pusher connection state detail (connected/connecting/reconnecting/unavailable) with last transition time
+- [x] **WSHLT-01**: /health/workers endpoint includes ws_prophetx connection status
+- [x] **WSHLT-02**: SystemHealth.tsx displays WS health badge alongside existing worker badges
+- [x] **WSHLT-03**: Dashboard shows Pusher connection state detail (connected/connecting/reconnecting/unavailable) with last transition time
 
 ### Tech Debt
 
@@ -66,9 +66,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 9 | Complete |
 | AUTH-02 | Phase 9 | Complete |
 | AUTH-03 | Phase 9 | Complete |
-| WSHLT-01 | Phase 10 | Pending |
-| WSHLT-02 | Phase 10 | Pending |
-| WSHLT-03 | Phase 10 | Pending |
+| WSHLT-01 | Phase 10 | Complete |
+| WSHLT-02 | Phase 10 | Complete |
+| WSHLT-03 | Phase 10 | Complete |
 | DEBT-01 | Phase 11 | Pending |
 
 **Coverage:**

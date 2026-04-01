@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: WebSocket-Primary Status Authority
-status: planning
-stopped_at: Phase 10 context gathered
-last_updated: "2026-04-01T14:14:21.962Z"
+status: in_progress
+stopped_at: Phase 10 Plan 01 complete
+last_updated: "2026-04-01T15:05:00Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
-  percent: 35
+  total_plans: 4
+  completed_plans: 4
+  percent: 40
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 ## Current Position
 
 Phase: 10
-Plan: Not started
-Status: Ready to plan
+Plan: 01 COMPLETE
+Status: In progress
 Last activity: 2026-04-01
 
-Progress: [███████░░░░░░░░░░░░░] 35% (7/11 phases complete — v1.0 + v1.1 shipped)
+Progress: [████████░░░░░░░░░░░░] 40% (7/11 phases complete — v1.0 + v1.1 shipped; v1.2 phase 10 plan 01 complete)
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [███████░░░░░░░░░░░░░] 35% (7/
 | Phase 08-ws-diagnostics-and-instrumentation P01 | 17 | 3 tasks | 5 files |
 | Phase 09 P01 | 4 | 2 tasks | 5 files |
 | Phase 09-status-authority-model P02 | 10 | 2 tasks | 5 files |
+| Phase 10-ws-health-dashboard P01 | 12 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -59,6 +60,9 @@ Progress: [███████░░░░░░░░░░░░░] 35% (7/
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 10-ws-health-dashboard]: ws_prophetx returned as nested object with connected/state/since — richer than boolean, enables tooltip state detail without breaking existing poll worker response shape
+- [Phase 10-ws-health-dashboard]: ws_prophetx? optional field on WorkerHealth TypeScript interface — frontend doesn't crash on partial deploy
+- [Phase 10-ws-health-dashboard]: WS badge rendered separately from WORKERS.map() (ws_prophetx is object, not boolean)
 - v1.2 roadmap: Phase 8 has a hard gate — ws:sport_event_count > 0 must confirm in production before Phase 9 begins
 - v1.2 roadmap: Phase 11 (Tech Debt) is independent and can run any time, including during the Phase 8 observation window (24-48h)
 - v1.1: DB-backed poll intervals survive Beat restarts via bootstrap reads on start
@@ -104,6 +108,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-01T14:14:21.958Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-ws-health-dashboard/10-CONTEXT.md
+Last session: 2026-04-01T15:05:00Z
+Stopped at: Completed Phase 10 Plan 01 — WS health badge on dashboard
+Resume file: .planning/phases/10-ws-health-dashboard/10-01-SUMMARY.md

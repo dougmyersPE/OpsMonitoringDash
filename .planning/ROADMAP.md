@@ -77,7 +77,7 @@ Plans:
   4. WS health badge reflects current state within 30 seconds of a connection change
 **Plans:** 1 plan
 Plans:
-- [ ] 10-01-PLAN.md — Extend health endpoint with ws_prophetx + WS badge in SystemHealth.tsx
+- [x] 10-01-PLAN.md — Extend health endpoint with ws_prophetx + WS badge in SystemHealth.tsx
 **UI hint**: yes
 
 ### Phase 11: Tech Debt
@@ -101,9 +101,9 @@ Plans:
 | 5. Interval Control Backend | v1.1 | 2/2 | Complete | 2026-03-02 |
 | 6. ApiUsagePage | v1.1 | 2/2 | Complete | 2026-03-02 |
 | 7. Documentation Gap Closure | v1.1 | 1/1 | Complete | 2026-03-02 |
-| 8. WS Diagnostics and Instrumentation | v1.2 | 0/1 | Planning | - |
-| 9. Status Authority Model | v1.2 | 1/2 | In Progress|  |
-| 10. WS Health Dashboard | v1.2 | 0/1 | Planning | - |
+| 8. WS Diagnostics and Instrumentation | v1.2 | 1/1 | Complete | 2026-03-31 |
+| 9. Status Authority Model | v1.2 | 2/2 | Complete | 2026-03-31 |
+| 10. WS Health Dashboard | v1.2 | 1/1 | Complete | 2026-04-01 |
 | 11. Tech Debt | v1.2 | 0/? | Not started | - |
 
 ---
