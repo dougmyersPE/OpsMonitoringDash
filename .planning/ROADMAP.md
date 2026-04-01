@@ -34,7 +34,7 @@
 - [ ] **Phase 8: WS Diagnostics and Instrumentation** - Instrument WS consumer with Redis health keys and fix pre-existing bugs; gate for Phase 9
 - [ ] **Phase 9: Status Authority Model** - Add ws_delivered_at column and demote poll_prophetx to reconciliation fallback
 - [x] **Phase 10: WS Health Dashboard** - Surface WS connection health on dashboard with state detail (completed 2026-04-01)
-- [ ] **Phase 11: Tech Debt** - Align SportsApiClient with BaseAPIClient pattern
+- [ ] **Phase 11: Tech Debt** - Remove Sports API integration entirely
 
 ## Phase Details
 
@@ -81,14 +81,17 @@ Plans:
 **UI hint**: yes
 
 ### Phase 11: Tech Debt
-**Goal**: SportsApiClient uses BaseAPIClient consistently, eliminating the architectural inconsistency
+**Goal**: Sports API integration fully removed — client, worker, DB column, and all references eliminated
 **Depends on**: Nothing (independent of Phases 8-10; can run any time)
 **Requirements**: DEBT-01
 **Success Criteria** (what must be TRUE):
-  1. SportsApiClient inherits from BaseAPIClient and uses its shared request/retry/logging machinery
-  2. Sports API poll worker behavior is unchanged (same data fetched, same Redis writes, same call counter increments)
-  3. No regression in Sports API quota display or call count tracking on the API Usage page
-**Plans**: TBD
+  1. No Sports API client, worker, config, or DB column exists in the codebase
+  2. All other poll workers and mismatch detection continue working with remaining sources (Odds API, SDIO, ESPN, OddsBlaze)
+  3. API Usage page displays only active sources; no Sports API quota/interval/toggle remains
+**Plans:** 2 plans
+Plans:
+- [ ] 11-01-PLAN.md — Remove Sports API backend (client, worker, migration, mismatch, config, tests)
+- [ ] 11-02-PLAN.md — Remove Sports API frontend + update docs
 
 ## Progress
 
@@ -104,7 +107,7 @@ Plans:
 | 8. WS Diagnostics and Instrumentation | v1.2 | 1/1 | Complete | 2026-03-31 |
 | 9. Status Authority Model | v1.2 | 2/2 | Complete | 2026-03-31 |
 | 10. WS Health Dashboard | v1.2 | 1/1 | Complete    | 2026-04-01 |
-| 11. Tech Debt | v1.2 | 0/? | Not started | - |
+| 11. Tech Debt | v1.2 | 0/2 | Not started | - |
 
 ---
 *Full phase details for completed milestones archived in milestones/v1.0-ROADMAP.md and milestones/v1.1-ROADMAP.md*
