@@ -47,7 +47,9 @@
   2. New events created by the WS consumer have a non-NULL status_match value (bug WSREL-02 closed)
   3. Redis keys ws:connection_state, ws:last_message_at, ws:last_sport_event_at, and ws:sport_event_count are present and updating during a live WS session
   4. ws:sport_event_count increments when a sport_event change-type message is received (production gate: confirms ProphetX sends these messages)
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 08-01-PLAN.md — Fix WSREL-02 + WSREL-01, add Redis WS diagnostic keys
 **Gate**: ws:sport_event_count > 0 must be confirmed in production before Phase 9 begins. If zero after 24-48h covering live game windows, escalate to ProphetX channel investigation.
 
 ### Phase 9: Status Authority Model
@@ -94,7 +96,7 @@
 | 5. Interval Control Backend | v1.1 | 2/2 | Complete | 2026-03-02 |
 | 6. ApiUsagePage | v1.1 | 2/2 | Complete | 2026-03-02 |
 | 7. Documentation Gap Closure | v1.1 | 1/1 | Complete | 2026-03-02 |
-| 8. WS Diagnostics and Instrumentation | v1.2 | 0/? | Not started | - |
+| 8. WS Diagnostics and Instrumentation | v1.2 | 0/1 | Planning | - |
 | 9. Status Authority Model | v1.2 | 0/? | Not started | - |
 | 10. WS Health Dashboard | v1.2 | 0/? | Not started | - |
 | 11. Tech Debt | v1.2 | 0/? | Not started | - |
