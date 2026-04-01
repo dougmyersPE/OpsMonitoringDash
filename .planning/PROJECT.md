@@ -42,6 +42,7 @@ Operators always know the true health of their ProphetX platform — stale event
 - ✓ Metadata-only updates when WS is authoritative (AUTH-03) — v1.2 Phase 9
 - ✓ WS health badge on dashboard alongside poll worker badges (WSHLT-01, WSHLT-02) — v1.2 Phase 10
 - ✓ Pusher connection state detail with transition timestamp in badge tooltip (WSHLT-03) — v1.2 Phase 10
+- ✓ Sports API integration fully removed — client, worker, DB column, config, frontend references (DEBT-01) — v1.2 Phase 11
 
 ### Active
 
@@ -56,7 +57,7 @@ See REQUIREMENTS.md for v1.2 scoped requirements.
 - Status authority model: WS-delivered status treated as ground truth
 - ProphetX REST poller demoted to reconciliation fallback
 - WS connection health surfaced on dashboard
-- Tech debt: SportsApiClient aligned with BaseAPIClient, Sports API Redis reads batched
+- Tech debt: Sports API integration removed entirely (no longer needed)
 
 ### Out of Scope
 
@@ -77,12 +78,10 @@ Deployed on Hetzner CX23 (Tailscale access at http://100.111.249.12).
 GitHub: https://github.com/dougmyersPE/OpsMonitoringDash (private).
 
 ProphetX REST API + WebSocket consumer live at `https://api-ss-sandbox.betprophet.co/partner`.
-5 poll workers: ProphetX WS, SportsDataIO, ESPN, Sports API, Odds API.
+4 poll workers: ProphetX WS, SportsDataIO, ESPN, Odds API. (Sports API removed in Phase 11.)
 Sports focus: NFL, NBA, MLB, NHL, NCAAB, NCAAF, Soccer.
 
 Known tech debt:
-- SportsApiClient bypasses BaseAPIClient (works but architecturally inconsistent)
-- Sports API quota reads: 15 sequential Redis reads instead of MGET
 - SDIO NFL/NCAAB/NCAAF endpoints 404 (off-season; deferred until seasons resume)
 - ProphetX write endpoint still stubbed (log-only until PATCH path confirmed)
 
@@ -126,4 +125,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-01 after Phase 10 complete*
+*Last updated: 2026-04-01 after Phase 11 complete*
