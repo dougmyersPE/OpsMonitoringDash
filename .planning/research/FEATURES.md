@@ -1,8 +1,316 @@
 # Feature Research
 
 **Domain:** Internal operations monitoring dashboard — prediction market / sports event lifecycle management
-**Researched:** 2026-03-31 (v1.2 update; v1.1 research 2026-03-01; original v1 research 2026-02-24)
-**Confidence:** HIGH (codebase fully inspected; WS consumer live in production; patterns grounded in actual code)
+**Researched:** 2026-04-01 (v1.3 update; v1.2 research 2026-03-31; v1.1 research 2026-03-01; original v1 research 2026-02-24)
+**Confidence:** HIGH (codebase fully inspected; OpticOdds developer docs consulted; patterns grounded in actual code)
+
+---
+
+## v1.3 Feature Scope: OpticOdds Tennis Integration via RabbitMQ
+
+This section covers the new features for the v1.3 milestone. Prior milestone feature landscapes are preserved below.
+
+### Context: What Is Already Built
+
+The system has a well-established pattern for real-world data source integration:
+
+- Each source gets its own column on the `events` table (`sdio_status`, `odds_api_status`, `espn_status`, `oddsblaze_status`)
+- Each worker fuzzy-matches events to ProphetX events by sport + team names + scheduled time
+- After writing a source column, the worker calls `compute_status_match()` to recompute the aggregate mismatch indicator
+- Worker health is tracked via a Redis heartbeat key (`worker:heartbeat:{name}`) with a TTL; health endpoint reads it
+- The WS consumer for ProphetX (`ws_prophetx.py`) runs as a standalone Docker service (not a Celery task) — persistent connection, reconnect logic, Redis heartbeat and connection state keys
+- The OddsBlaze worker (`poll_oddsblaze.py`) is the closest existing analogue for a third-party status source: fuzzy match by team names + sport, derive status from `is_live` boolean + start time, write `oddsblaze_status`, recompute `status_match`, publish SSE update
+
+**The gap for v1.3:** Tennis matches on ProphetX are monitored, but no OpticOdds status column exists. OpticOdds delivers results via RabbitMQ push (not polling) — a persistent consumer process is needed, modeled after `ws_prophetx.py` rather than the Celery poll workers.
+
+### OpticOdds RabbitMQ Transport: Confirmed Facts
+
+Based on official OpticOdds developer documentation:
+
+- **Host:** `v3-rmq.opticodds.com` (port 5672, vhost `api`)
+- **Auth:** API key as username; password from sales rep. Per-API-key credentials.
+- **Queue lifecycle:** POST `/v3/copilot/queue/start` returns queue name; consumer then connects to that named queue
+- **Results endpoint:** `/copilot/results/queue/[start|stop|status]` (added Oct 2025 — copilot-specific fixture results)
+- **Message format:** JSON-encoded byte streams; all messages have `event` type field + `timestamp` + `data`
+- **Queue overflow:** If unread messages exceed 10,000, the queue is cleared and deleted; call `/queue/start` to recreate
+- **Python library:** `pika` (standard AMQP 0-9-1 client)
+- **Message types seen in results stream:** `ping` (heartbeat), `fixture-results` (status + score update)
+- **Results data format:** Matches the `/fixtures/results` REST endpoint structure
+
+**Confidence:** MEDIUM — connection parameters and lifecycle confirmed via official docs; exact `fixture-results` message JSON schema not publicly documented at field level; tennis-specific score structure not confirmed beyond generic period model.
+
+### OpticOdds Fixture Status Values (Confirmed)
+
+From the Fixtures Lifecycle documentation:
+
+| OpticOdds Status | Meaning | Maps To (canonical) |
+|-----------------|---------|---------------------|
+| `unplayed` | Match not yet started | `scheduled` |
+| `live` | Match in progress | `inprogress` |
+| `half` | Halftime/set break (less relevant for tennis) | `inprogress` |
+| `completed` | Match finished | `final` |
+| `cancelled` | Match cancelled | flag-only |
+| `suspended` | Match temporarily suspended | flag-only |
+| `delayed` | Match delayed | flag-only |
+
+**Tennis-specific note:** OpticOdds status values are sport-agnostic. Tennis does not have a `half` status in practice. The `completed` status covers all match-ending scenarios (normal finish, retirement, walkover). Score data uses generic `periods` model where each period = one set.
+
+### Tennis Score Data: What OpticOdds Provides
+
+From fixture schema inspection:
+
+```json
+{
+  "id": "opticodds-fixture-id",
+  "status": "live",
+  "is_live": true,
+  "start_date": "2026-04-01T14:00:00Z",
+  "home_competitors": [{"id": "...", "name": "Djokovic N."}],
+  "away_competitors": [{"id": "...", "name": "Alcaraz C."}],
+  "scores": {
+    "home": {
+      "total": 1,
+      "periods": {"1": 6, "2": 4, "3": 3}
+    },
+    "away": {
+      "total": 2,
+      "periods": {"1": 4, "2": 6, "3": 6}
+    }
+  }
+}
+```
+
+Period keys are set numbers (1, 2, 3). The `total` field is sets won. There is no confirmed separate field for current game score within a set (e.g., 40-15) or tiebreak points — this is a polling-resolution limitation, not a fundamental gap. For the v1.3 goal (status monitoring, not score display), this is sufficient.
+
+**Confidence:** MEDIUM — schema structure confirmed via API reference; exact tennis period field semantics inferred from generic model; no official tennis-specific documentation found.
+
+---
+
+### Table Stakes for v1.3 (Users Expect These)
+
+Features the integration is pointless without. Missing any of these means OpticOdds tennis data has no operational effect.
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| `opticodds_status` column on `events` table | The entire source column pattern — sdio, odds_api, espn, oddsblaze — all have dedicated columns. OpticOdds must follow this pattern or it cannot participate in `compute_status_match()` | LOW | DB migration adds one nullable `String(50)` column. Follows `oddsblaze_status` exactly. |
+| RabbitMQ consumer process that connects, authenticates, and consumes messages | The source delivers push messages — without a persistent consumer, no data arrives. This is the core delivery mechanism | MEDIUM | Standalone Docker service (`rmq-opticodds`), not a Celery task. Models `ws_prophetx.py`: persistent loop, reconnect on failure, exponential backoff. Uses `pika` library (AMQP). |
+| Queue lifecycle: start queue via REST before consuming | OpticOdds requires a POST to `/copilot/results/queue/start` to obtain the queue name. Without this step, there is no queue to connect to | LOW | HTTP call at consumer startup (httpx, same pattern as ProphetX token fetch in ws_prophetx.py). Store queue name in Redis or module-level variable for reconnect. |
+| Tennis event matching (OpticOdds fixture → ProphetX event) | OpticOdds uses its own fixture IDs. The system must match incoming messages to existing `events` rows by sport + competitor names + start time | MEDIUM | Follows `poll_oddsblaze.py` fuzzy-match pattern: SequenceMatcher on team names, 0.80 threshold, date window. Tennis sport filter ensures only tennis events are matched. |
+| Status normalization: OpticOdds → canonical → ProphetX | `unplayed/live/completed/cancelled` must be mapped to `scheduled/inprogress/final/flag-only` to participate in `compute_status_match()` | LOW | Add `_OPTICODDS_CANONICAL` dict in `mismatch_detector.py` following the exact pattern of `_ODDSBLAZE_CANONICAL`. Update `compute_status_match()` signature to accept `opticodds_status`. |
+| `compute_status_match()` updated to include OpticOdds source | OpticOdds status must vote in mismatch detection. Without this, the column is written but ignored | LOW | One new source tuple added to the `sources` list in `compute_status_match()`. Also update `compute_is_critical()`. |
+| Consumer writes heartbeat to Redis | The health monitoring pattern requires a heartbeat key with TTL. Without this, `/health/workers` cannot report OpticOdds consumer health | LOW | `r.set("worker:heartbeat:rmq_opticodds", "1", ex=90)` written on every message received and every ping. Mirrors `ws_prophetx.py` heartbeat pattern. |
+| `/health/workers` endpoint includes OpticOdds consumer | Operators currently see all worker health badges. OpticOdds consumer must appear here when running | LOW | Add `"rmq_opticodds": results[N] is not None` to the health endpoint dict. Single line addition to `health.py`. |
+| Dashboard health badge for OpticOdds consumer | The health badge in `SystemHealth.tsx` surfaces when the consumer is dead. Operators need to see this alongside other workers | LOW | Add `"rmq_opticodds"` to the `WORKERS` array in `SystemHealth.tsx`. Same pattern as adding `ws_prophetx` in v1.2. |
+| REST API for queue lifecycle control (start/stop/status) | Operators need a way to start and stop the consumer without SSH access. "Queue stuck? Restart it." Must be an API action | MEDIUM | New endpoints: `POST /api/v1/opticodds/queue/start`, `POST /api/v1/opticodds/queue/stop`, `GET /api/v1/opticodds/queue/status`. Store queue state (running/stopped/queue_name) in Redis. Consumer process reads Redis to know if it should reconnect or exit. |
+| SSE update published after status write | Every status write must trigger a dashboard refresh via the existing `prophet:updates` Redis channel | LOW | `r.publish("prophet:updates", json.dumps({"type": "event_updated", "entity_id": ...}))` — copy from `poll_oddsblaze.py` exactly. |
+
+### Differentiators for v1.3 (Operational Advantage)
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| `opticodds_status` column visible as its own source column in events table | Operators can see OpticOdds reporting `live` while ProphetX still shows `not_started` — per-source transparency that distinguishes OpticOdds from all other sources | LOW | Add `opticodds_status` column to `EventsTable.tsx` alongside existing `oddsblaze_status` column. `SourceStatus` component already handles null/unknown values. |
+| Queue connection state in Redis with transition timestamp | Beyond alive/dead heartbeat, track whether the AMQP connection is `connected`, `connecting`, `disconnected`. Mirrors the `ws:connection_state` / `ws:connection_state_since` pattern from v1.2 | LOW | Write `rmq:connection_state` and `rmq:connection_state_since` Redis keys on connection events. Read in `/health/workers` response. Dashboard tooltip shows state + duration. |
+| Tennis-specific flag-only statuses handled correctly | Tennis has retirement and walkover scenarios where a match "ends" but requires human review. OpticOdds `cancelled` and `suspended` should not auto-advance ProphetX status | LOW | Add `cancelled` and `suspended` to the flag-only check in the consumer's event handler. Set `is_flagged = True` on matched event. Follow `SKIP_STATUSES` / `FLAG_ONLY_STATUSES` pattern from `mismatch_detector.py`. |
+| Queue overflow protection: detect and auto-reinitialize | If consumer falls behind (>10K unread messages), OpticOdds deletes the queue. The consumer must detect this (AMQP channel closure with specific error code) and call `/queue/start` again to reinitialize | MEDIUM | In `pika` channel error callback: if error indicates queue deleted, re-call queue start endpoint and reconnect with new queue name. Log the overflow event. This prevents silent data loss without operator intervention. |
+
+### Anti-Features for v1.3 (Do Not Build)
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Live tennis score display (sets, games, current game score) | "Show me 6-4, 3-2 (40-15) in the dashboard" | The dashboard is a status monitor, not a score tracker. Adding score display columns creates UI clutter for every sport and requires frontend schema changes. Score data is available in the OpticOdds payload but the existing dashboard has no score concept | Status columns (`live`, `completed`) are the operational signal operators need. Scores are not actionable for ProphetX status management |
+| Extend OpticOdds consumer to non-tennis sports | "While we're here, why not add all sports?" | Tennis is the only sport confirmed as the v1.3 scope. Extending to all sports before the consumer is validated adds risk (different sport ID formats, match structure variations) with no defined operator need | Validate tennis integration end-to-end first. Expand sport coverage in v1.4+ once consumer reliability is established |
+| ProphetX write action triggered by OpticOdds data alone | "If OpticOdds says live, update ProphetX automatically" | `update_event_status.py` requires multi-source agreement (`status_match = False` triggers a flag, not an immediate write). OpticOdds is one new voice in the consensus — not sufficient alone. Adding a fast-path write from a single source re-introduces the false-positive risk the multi-source model was built to prevent | Let OpticOdds participate in `compute_status_match()`. If OpticOdds + 2 other sources agree the event is live and ProphetX disagrees, the existing mismatch detection + `update_event_status` worker handles the correction automatically |
+| Polling fallback for OpticOdds (HTTP /fixtures/results) | "What if RabbitMQ goes down? Add an HTTP fallback" | The system has 4 other polling sources (SDIO, ESPN, Odds API, OddsBlaze) already running as fallbacks. Adding HTTP polling for OpticOdds tennis-only creates a 5th redundancy for one sport. The existing sources already cover tennis (SDIO has `Walkover`/`Retired` statuses; ESPN covers ATP/WTA). OpticOdds polling would also consume API credits on a potentially metered endpoint | Rely on existing polling sources as fallback. If OpticOdds RabbitMQ is down, the consumer health badge alerts operators. |
+| RabbitMQ consumer as Celery task | "Keep it consistent with other workers" | AMQP consumers are blocking I/O loops, not periodic tasks. Running `channel.start_consuming()` inside a Celery task would block the Celery worker thread indefinitely. The `ws_prophetx.py` standalone Docker service pattern is the correct architecture for persistent connection consumers | Follow the `ws_prophetx.py` pattern: standalone Python module run as a separate Docker service (`rmq-opticodds`). |
+| Per-message audit log entries | "Log every OpticOdds message to the audit table" | Tennis matches generate high message frequency during live play. An audit log entry per message would grow the audit table at a rate that obscures meaningful action entries (status changes, manual overrides). The audit log is an action log, not a message log | Log status changes to audit table (before/after `opticodds_status`) only when the value changes. Structlog already captures every message at debug level. |
+
+---
+
+## Feature Dependencies for v1.3
+
+```
+[opticodds_status DB Column + Migration]
+    └──required by──> [OpticOdds Status Written to Events Table]
+    └──required by──> [compute_status_match() OpticOdds Support]
+    └──required by──> [Dashboard opticodds_status Column]
+
+[_OPTICODDS_CANONICAL dict in mismatch_detector.py]
+    └──required by──> [compute_status_match() OpticOdds Support]
+    └──required by──> [compute_is_critical() OpticOdds Support]
+
+[compute_status_match() Updated Signature]
+    └──required by──> [RabbitMQ Consumer Writes status_match After Each Update]
+
+[Queue Lifecycle: POST /copilot/results/queue/start]
+    └──required by──> [RabbitMQ Consumer: Knows Queue Name to Connect To]
+    └──required by──> [REST API Queue Start Endpoint]
+
+[RabbitMQ Consumer Process (rmq-opticodds Docker service)]
+    └──required by──> [All Real-Time OpticOdds Data Delivery]
+    └──required by──> [Consumer Heartbeat in Redis]
+    └──required by──> [Queue Connection State Redis Keys]
+
+[Redis Heartbeat Key (worker:heartbeat:rmq_opticodds)]
+    └──required by──> [/health/workers OpticOdds Entry]
+    └──required by──> [Dashboard Health Badge]
+
+[/health/workers API Update]
+    └──required by──> [Dashboard Health Badge (SystemHealth.tsx)]
+
+[REST API Queue Lifecycle Endpoints]
+    └──enhances──> [Operator Control Without SSH]
+    └──required by──> [Queue Overflow Auto-Reinitialize]
+
+[Tennis Event Matching (fuzzy name + sport + date)]
+    └──required by──> [opticodds_status Written to Correct Event Row]
+    └──depends on──> [events table has tennis sport rows]
+```
+
+### Dependency Notes
+
+- **DB migration is the unblocking first step.** `opticodds_status` column must exist before the consumer can write to it, before `compute_status_match()` can be updated, and before the frontend column can be added. Do the migration in Phase 1.
+- **`mismatch_detector.py` changes are pure additions.** Adding `_OPTICODDS_CANONICAL` and updating `compute_status_match()` does not change existing behavior — the new parameter is optional and defaults to `None`, so all existing callers are unaffected.
+- **Consumer process is independent of Celery.** No Beat schedule changes are needed. The Docker service restarts independently via `restart: unless-stopped`.
+- **Frontend column addition is a last step.** Add `opticodds_status` to `EventsTable.tsx` only after the column is populated with real data. Adding an empty column before data flows creates confusion.
+- **Queue lifecycle REST API is a table-stakes feature but lower risk than the consumer itself.** The consumer can be built to auto-start via environment variable config (reads queue name from Redis at startup, calls `/queue/start` if not present). The REST API endpoint adds operator control on top of that baseline.
+
+---
+
+## MVP Definition for v1.3
+
+### Launch With (v1.3 Core)
+
+- [ ] DB migration: add `opticodds_status` nullable `String(50)` column to `events` table
+- [ ] `_OPTICODDS_CANONICAL` dict in `mismatch_detector.py` mapping `unplayed/live/half/completed` to `scheduled/inprogress/inprogress/final`
+- [ ] `compute_status_match()` updated to accept `opticodds_status` parameter (optional, defaults to `None`)
+- [ ] `compute_is_critical()` updated to include OpticOdds source
+- [ ] `rmq_opticodds.py` consumer worker: connects to RabbitMQ, calls queue/start to get queue name, consumes `fixture-results` messages, fuzzy-matches to events, writes `opticodds_status`, recomputes `status_match`, publishes SSE update, writes heartbeat
+- [ ] Redis heartbeat key `worker:heartbeat:rmq_opticodds` written every message + every ping
+- [ ] `rmq-opticodds` Docker service added to `docker-compose.yml`
+- [ ] `/health/workers` endpoint updated to include `rmq_opticodds`
+- [ ] `SystemHealth.tsx` updated to display OpticOdds consumer badge
+- [ ] REST API endpoints: `POST /api/v1/opticodds/queue/start`, `POST /api/v1/opticodds/queue/stop`, `GET /api/v1/opticodds/queue/status`
+
+### Add After Core Is Stable (v1.3 Polish)
+
+- [ ] `opticodds_status` column visible in `EventsTable.tsx` — add only after real data is flowing
+- [ ] `rmq:connection_state` and `rmq:connection_state_since` Redis keys — connection state detail in health badge tooltip
+- [ ] Queue overflow protection: detect channel deletion error → auto-reinitialize queue → reconnect with new queue name
+
+### Defer (v1.4+)
+
+- [ ] OpticOdds coverage for non-tennis sports — validate tennis reliability first
+- [ ] Per-sport message rate display — too granular until operational baseline is established
+
+---
+
+## Feature Prioritization Matrix (v1.3)
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| `opticodds_status` DB column | HIGH | LOW (migration only) | P1 — unblocks everything |
+| `_OPTICODDS_CANONICAL` + `compute_status_match()` update | HIGH | LOW (pure addition, no behavior change) | P1 — enables mismatch detection |
+| RabbitMQ consumer process (`rmq_opticodds.py`) | HIGH | MEDIUM (new consumer, pika, reconnect logic) | P1 — core delivery mechanism |
+| Docker service + heartbeat | HIGH | LOW (copy ws_prophetx pattern) | P1 — required for health monitoring |
+| `/health/workers` + dashboard badge | HIGH | LOW (1-2 lines each) | P1 — operator visibility |
+| Queue lifecycle REST API | HIGH | MEDIUM (new router, Redis state) | P1 — operator control |
+| Tennis event fuzzy matching | HIGH | LOW (copy oddsblaze pattern, tennis sport filter) | P1 — required for data to reach correct rows |
+| `opticodds_status` dashboard column | MEDIUM | LOW (copy oddsblaze column) | P2 — add after data is flowing |
+| Connection state Redis keys | MEDIUM | LOW (copy ws:connection_state pattern) | P2 |
+| Queue overflow auto-reinitialize | MEDIUM | MEDIUM (pika error handling) | P2 |
+| Tennis flag-only handling (cancelled/suspended) | MEDIUM | LOW (extend FLAG_ONLY check) | P2 |
+
+**Priority key:**
+- P1: Required for OpticOdds tennis data to flow and be monitored
+- P2: Operational polish and resilience, add after P1 is stable and verified
+
+---
+
+## OpticOdds Consumer: Technical Pattern
+
+### Consumer Lifecycle
+
+```
+startup:
+  1. Read OPTICODDS_RMQ_* env vars (host, port, vhost, username, password)
+  2. Call POST /copilot/results/queue/start → get queue_name
+  3. Store queue_name in Redis key rmq:opticodds:queue_name
+  4. Connect to RabbitMQ via pika.BlockingConnection
+  5. channel.basic_qos(prefetch_count=100)
+  6. channel.basic_consume(queue=queue_name, on_message_callback=_on_message, auto_ack=True)
+  7. Write rmq:connection_state = "connected"
+  8. channel.start_consuming()  # blocks
+
+on_message(ch, method, properties, body):
+  1. Parse JSON body → get event_type + data
+  2. If event_type == "ping": write heartbeat, log, return
+  3. If event_type == "fixture-results": process_fixture_result(data)
+  4. Write heartbeat on every message
+
+process_fixture_result(data):
+  1. Extract status, is_live, competitors, start_date, sport
+  2. If sport != "tennis": skip (tennis-only scope)
+  3. Normalize status → canonical via _OPTICODDS_CANONICAL
+  4. Fuzzy-match competitors to events table by name + date (0.80 threshold)
+  5. If no match: log unmatched, return
+  6. Write opticodds_status to matched event
+  7. Recompute status_match via compute_status_match()
+  8. Publish SSE update
+  9. Log structured event with fixture_id, matched_prophetx_id, status
+
+on_failure:
+  1. Write rmq:connection_state = "disconnected"
+  2. Exponential backoff (1s, 2s, 4s, 8s, cap 60s)
+  3. Re-call queue/start (queue may have been deleted on overflow)
+  4. Reconnect and resume
+```
+
+### Environment Variables Needed
+
+```
+OPTICODDS_RMQ_HOST=v3-rmq.opticodds.com
+OPTICODDS_RMQ_PORT=5672
+OPTICODDS_RMQ_VHOST=api
+OPTICODDS_RMQ_USERNAME=<api_key>
+OPTICODDS_RMQ_PASSWORD=<from_sales_rep>
+OPTICODDS_API_BASE_URL=https://api.opticodds.com  (for queue/start HTTP call)
+```
+
+### Queue Start HTTP Call
+
+```python
+resp = httpx.post(
+    f"{settings.OPTICODDS_API_BASE_URL}/v3/copilot/results/queue/start",
+    headers={"X-Api-Key": settings.OPTICODDS_RMQ_USERNAME},
+    timeout=15,
+)
+resp.raise_for_status()
+queue_name = resp.json()["queue_name"]
+```
+
+**Confidence:** MEDIUM — endpoint path pattern confirmed; exact request/response format inferred from changelog description and REST queue pattern. Must verify against live credentials before implementation.
+
+---
+
+## Sources
+
+- `/Users/doug/OpsMonitoringDash/.planning/PROJECT.md` — v1.3 milestone target features
+- `/Users/doug/OpsMonitoringDash/backend/app/workers/ws_prophetx.py` — standalone consumer pattern (full inspection)
+- `/Users/doug/OpsMonitoringDash/backend/app/workers/poll_oddsblaze.py` — fuzzy-match + source column pattern (full inspection)
+- `/Users/doug/OpsMonitoringDash/backend/app/monitoring/mismatch_detector.py` — canonical status maps, compute_status_match() signature (full inspection)
+- `/Users/doug/OpsMonitoringDash/backend/app/models/event.py` — Event schema (full inspection)
+- `/Users/doug/OpsMonitoringDash/backend/app/api/v1/health.py` — worker health endpoint pattern (full inspection)
+- `/Users/doug/OpsMonitoringDash/docker-compose.yml` — Docker service patterns (full inspection)
+- OpticOdds developer documentation — RabbitMQ connection parameters, queue lifecycle, message types: `https://developer.opticodds.com/docs/getting-started` (MEDIUM confidence)
+- OpticOdds data ingestion guide — queue message format, pika usage, overflow behavior: `https://developer.opticodds.com/docs/data-ingestion` (MEDIUM confidence)
+- OpticOdds fixtures lifecycle — status values (unplayed/live/half/completed/cancelled/suspended/delayed): `https://developer.opticodds.com/reference/fixtures-lifecycle` (MEDIUM confidence)
+- OpticOdds fixtures API reference — score structure with periods model: `https://developer.opticodds.com/reference/get_fixtures` (MEDIUM confidence)
+- OpticOdds changelog Oct 2025 — copilot-specific results queue endpoints confirmed: `https://developer.opticodds.com/changelog?page=2` (HIGH confidence)
+
+---
+
+*Feature research for: ProphetX Market Monitor v1.3 — OpticOdds Tennis RabbitMQ integration*
+*Researched: 2026-04-01*
 
 ---
 

@@ -1,246 +1,219 @@
 # Technology Stack
 
-**Project:** ProphetX Market Monitor — v1.2 WebSocket-Primary Status Authority
-**Researched:** 2026-03-31
-**Scope:** NEW additions only. The v1.0/v1.1 stack (FastAPI, Celery/Redis/RedBeat, PostgreSQL, React 19, TanStack Query 5, Tailwind 4, shadcn/ui 3, pysher, structlog) is deployed, validated, and unchanged.
+**Project:** ProphetX Market Monitor — v1.3 OpticOdds Tennis Integration
+**Researched:** 2026-04-01
+**Confidence:** HIGH (pika and httpx verified via PyPI/official docs; OpticOdds REST endpoints verified via developer.opticodds.com/reference; threading pattern verified via pika official docs)
+**Scope:** NEW additions only. The existing validated stack (FastAPI, Celery/Redis/RedBeat, PostgreSQL, React 19, TanStack Query 5, Tailwind 4, shadcn/ui 3, pysher, structlog, httpx, redis-py) is unchanged.
 
 ---
 
 ## Context: What This Covers
 
-v1.2 adds three new capabilities on top of the existing system:
+v1.3 adds OpticOdds as a real-time data source for tennis match status monitoring via RabbitMQ. The integration has two distinct concerns:
 
-1. **WS diagnostics** — surface what sport_event messages actually contain, end-to-end log tracing
-2. **Status authority model** — treat WS-delivered `prophetx_status` as ground truth; demote REST poller to reconciliation
-3. **WS connection health on dashboard** — expose connection state, last message timestamp, reconnect count to the UI
+1. **RabbitMQ consumer** — long-running AMQP consumer connecting to OpticOdds's managed RabbitMQ broker (`v3-rmq.opticodds.com`) to receive tennis results messages
+2. **Queue lifecycle REST calls** — HTTP calls to OpticOdds REST API (`POST /fixtures/results/queue/start`, `POST /fixtures/results/queue/stop`, `GET /fixtures/results/queue/status`) to obtain and manage the queue name before connecting
 
-This document answers: what stack additions or changes are required for these three capabilities?
-
-**Answer:** No new Python packages. No new npm packages. All three capabilities are achievable with the existing stack through new columns, new Redis keys, and new API/frontend wiring.
+This document answers: what one new Python library is needed, and how does the consumer fit into the existing Docker/Celery architecture?
 
 ---
 
-## Recommended Stack
+## New Dependencies Required
 
-### No New Dependencies Required
+### One New Python Package
 
-All v1.2 features use already-installed components.
+| Package | Version | Purpose | Why |
+|---------|---------|---------|-----|
+| `pika` | `>=1.3.2` | AMQP 0-9-1 client for OpticOdds RabbitMQ broker | The only Python AMQP library directly documented and used in OpticOdds developer examples. Pure-Python, no native dependencies, supports `BlockingConnection` for a dedicated-thread consumer pattern. Version 1.3.2 is the current stable release (May 2023). A 1.4.0 beta adds adaptive heartbeats/retry logic but is not yet stable — pin `>=1.3.2,<2.0`. |
 
-| Capability | Existing Tool | How Used |
-|------------|---------------|----------|
-| WS diagnostics | structlog (already installed) | Add structured log lines at decode, validate, and DB-write steps in `ws_prophetx.py` |
-| Connection state tracking | redis-py (already installed) | `HSET worker:ws_state:prophetx field value` — store connection state, timestamps, counts |
-| Status authority model | SQLAlchemy + PostgreSQL (already installed) | New `status_source` column on `events` table; `ws_prophetx.py` sets it to `"ws"` |
-| Authority-aware mismatch detection | mismatch_detector.py (already exists) | Extend `compute_status_match()` to skip REST reconciliation when `status_source == "ws"` and WS is healthy |
-| Connection health endpoint | FastAPI (already installed) | New route `GET /api/v1/health/ws` reads the Redis hash |
-| Dashboard health panel | React + TanStack Query (already installed) | New UI component polls the health endpoint; SSE drives updates |
+**`httpx` is already installed** (`>=0.27` in pyproject.toml; dev group pins `>=0.28.1`). Use it for the OpticOdds REST lifecycle calls. No new HTTP client needed.
 
 ---
 
-## Feature Implementation Patterns
+## Recommended Stack Additions
 
-### Feature 1: WS Diagnostics
+### Core Addition: `pika` for AMQP
 
-**What to add:** Structured log lines at each decode step inside `ws_prophetx.py`.
+**Version:** `1.3.2` (stable, May 2023). Pin `>=1.3.2,<2.0`.
 
-**Pattern — log at every transformation boundary:**
+**Why pika over alternatives:**
+- OpticOdds developer docs explicitly use pika with `BlockingConnection` and provide connection parameters for it
+- `aio-pika` (async wrapper) is not needed — the consumer runs in a dedicated thread/process, not in the async FastAPI event loop
+- `kombu` (Celery's AMQP library) is already installed but is a higher-level abstraction oriented toward Celery task queues; using it to consume an external non-Celery queue would require awkward `ConsumerStep` bootstep wiring with no benefit over plain pika
 
+**Connection parameters (confirmed from OpticOdds docs):**
 ```python
-# After JSON parse of outer wrapper
-log.debug("ws_sport_event_received", change_type=change_type, op=op)
-
-# After base64 decode
-log.debug("ws_sport_event_decoded", event_id=..., status=..., field_count=len(event_data))
-
-# After _upsert_event completes
-log.info("ws_sport_event_written", prophetx_event_id=..., status=..., op=op)
-```
-
-**Why structlog over stdlib logging:** Already installed, already used in `ws_prophetx.py`. Adds `event_id` and `status` as typed key-value fields for log querying (`docker logs ws-consumer | grep ws_sport_event_decoded`). No new package needed.
-
-**Confidence:** HIGH — structlog is already in use in this exact file.
-
----
-
-### Feature 2: Status Authority Model
-
-**What to add:** One new DB column on `events`, one Redis key, one logic change in `mismatch_detector.py`.
-
-**DB schema addition:**
-
-```sql
-ALTER TABLE events ADD COLUMN status_source VARCHAR(10) DEFAULT 'poll';
--- Values: 'ws' | 'poll'
--- 'ws' = prophetx_status was last written by ws_prophetx.py
--- 'poll' = prophetx_status was last written by poll_prophetx.py
-```
-
-**SQLAlchemy model addition:**
-
-```python
-status_source: Mapped[str] = mapped_column(
-    String(10), default="poll", nullable=False
+pika.ConnectionParameters(
+    host="v3-rmq.opticodds.com",
+    port=5672,
+    virtual_host="api",
+    credentials=pika.PlainCredentials(OPTICODDS_RMQ_USERNAME, OPTICODDS_RMQ_PASSWORD),
+    heartbeat=600,            # prevent broker-side timeout on idle consumers
+    blocked_connection_timeout=300,
 )
 ```
 
-**Why a column and not Redis?** The status_source must persist across ws-consumer restarts and Redis flushes. It is part of the event record's provenance — the right place is the same table that holds `prophetx_status`. A Redis key would be authoritative for the current connection session but not for historical "which worker last updated this event?" queries.
+### Existing Package: `httpx` for REST Lifecycle Calls
 
-**Alembic migration:** Required. One `ALTER TABLE` with a default — safe to run against live data (no backfill needed; existing rows default to `'poll'`).
+Already in pyproject.toml (`>=0.27`). Use the synchronous `httpx.Client` (not async) inside the consumer process since it runs outside FastAPI's event loop.
 
-**Authority logic in `mismatch_detector.py`:**
+**OpticOdds REST endpoints for queue lifecycle:**
 
-The existing `compute_status_match()` already compares ProphetX status against all real-world sources. The authority model change is conceptual, not a new algorithm: when `status_source == 'ws'` and the WS consumer is connected, `prophetx_status` is trusted as ground truth. The REST poller still runs but its writes to `prophetx_status` are conditional:
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/fixtures/results/queue/start` | Start queue; response body contains the queue name to pass to AMQP |
+| `POST` | `/fixtures/results/queue/stop` | Stop and release the queue |
+| `GET` | `/fixtures/results/queue/status` | Poll queue health / confirm it is active |
 
+**Authentication:** `X-Api-Key: <api_key>` request header. Confirmed from OpticOdds API reference.
+
+**Rate limits** (from OpticOdds FAQ): queue lifecycle endpoints fall under "all other endpoints" — 2500 requests per 15-second window. No throttling concern for start/stop/status calls.
+
+---
+
+## Consumer Architecture: Dedicated Docker Service (Recommended)
+
+### Pattern: Mirror `ws-consumer`
+
+The existing `ws-consumer` service in `docker-compose.yml` runs `python -m app.workers.ws_prophetx` as a standalone process — not a Celery task, not a Celery worker. This is exactly the right pattern for the OpticOdds consumer.
+
+**Why a dedicated service over a Celery task:**
+- `pika.BlockingConnection.start_consuming()` blocks indefinitely on the I/O loop. Celery tasks are expected to return. Wrapping a blocking AMQP consumer in a Celery task requires `acks_late`, a `time_limit`, or forked process tricks — all fragile.
+- The `ws-consumer` pattern is already validated in production. Same process lifecycle, same health-via-Redis pattern, same Docker restart policy.
+- A dedicated process isolates AMQP failure from Celery worker failure. If the RabbitMQ consumer crashes, Celery workers keep polling.
+
+**Recommended `docker-compose.yml` addition:**
+```yaml
+  opticodds-consumer:
+    build: ./backend
+    command: python -m app.workers.opticodds_consumer
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+```
+
+No new Docker networking needed. The container reaches `v3-rmq.opticodds.com:5672` over the existing outbound internet path — same as how `ws-consumer` reaches `api-ss-sandbox.betprophet.co`. No local RabbitMQ broker required.
+
+### Threading Model Inside the Consumer Process
+
+pika's `BlockingConnection` is **not thread-safe** — all connection operations must run on one thread. The recommended pattern (from pika official docs):
+
+- **Main thread:** owns the `BlockingConnection`, runs `channel.start_consuming()` (blocks in the I/O loop)
+- **Message processing:** The `on_message` callback dispatches message body to a `threading.Thread` or directly to Redis/DB operations if they are fast (< heartbeat interval)
+
+For tennis match status updates, processing is fast (a Redis write + a DB upsert). Delegating to a thread pool is optional but should be done if processing ever approaches the 600-second heartbeat interval.
+
+**Reconnection pattern** (use exception loop, not recursion):
 ```python
-# In poll_prophetx.py — add guard before updating prophetx_status
-ws_healthy = r.hget("worker:ws_state:prophetx", "state") == b"connected"
-if not ws_healthy or event.status_source != "ws":
-    event.prophetx_status = fetched_status
-    event.status_source = "poll"
-# If WS is healthy and event came from WS: skip status overwrite,
-# but still update last_prophetx_poll timestamp for reconciliation visibility
+while True:
+    try:
+        connection = pika.BlockingConnection(params)
+        channel = connection.channel()
+        channel.basic_qos(prefetch_count=100)
+        channel.basic_consume(queue=queue_name, on_message_callback=on_message, auto_ack=True)
+        channel.start_consuming()
+    except pika.exceptions.AMQPConnectionError as e:
+        log.warning("opticodds_rmq_disconnected", error=str(e))
+        time.sleep(backoff_seconds)  # exponential backoff with cap
+    except KeyboardInterrupt:
+        break
 ```
 
-**Why not a more complex state machine?** Two sources (WS and REST), two authority states. `status_source` column + a single Redis `HGET` check covers all cases without a framework. python-statemachine would add a dependency for a two-state problem.
+This mirrors the recovery pattern in pika's official multi-host example and is consistent with how `ws_prophetx.py` handles reconnects.
 
-**Confidence:** HIGH — pattern is standard "last-write-wins with source tagging."
+### Queue Lifecycle: Start Before Connect, Stop on Shutdown
 
----
+The queue name is dynamic — obtained from `POST /fixtures/results/queue/start` before the AMQP connection is opened. The process lifecycle is:
 
-### Feature 3: WS Connection Health (Redis + API + UI)
+1. On startup: `POST /fixtures/results/queue/start` → extract `queue_name` from response
+2. Open AMQP connection to `v3-rmq.opticodds.com:5672` using `queue_name`
+3. On shutdown (SIGTERM): `POST /fixtures/results/queue/stop`, then close AMQP connection
 
-**Redis hash schema** (written by `ws_prophetx.py`):
-
-```
-Key:    worker:ws_state:prophetx
-Type:   Hash
-Fields:
-  state              string    "connected" | "disconnected" | "reconnecting" | "failed"
-  connected_at       ISO-8601  last successful connection timestamp
-  last_message_at    ISO-8601  timestamp of last sport_event message processed
-  reconnect_count    integer   number of reconnect cycles since process start
-  last_error         string    last error message (empty string if none)
-  last_error_at      ISO-8601  timestamp of last error (empty string if none)
-TTL:    None — hash is live state, not ephemeral; ws-consumer sets it on each state change
-```
-
-**Why a Hash and not separate String keys?** `HGETALL` fetches all six fields in a single round-trip. The existing `worker:heartbeat:*` string keys are boolean alive/dead signals. The new hash is richer state for the dashboard display. Both coexist.
-
-**When to write each field:**
-
-| Event | Fields Written |
-|-------|----------------|
-| `pusher:connection_established` fires | `state=connected`, `connected_at=now` |
-| Any sport_event message processed | `last_message_at=now` |
-| `_on_error` fires on the socket | `state=reconnecting`, `last_error=str(e)`, `last_error_at=now` |
-| Exponential backoff sleep begins | `state=failed`, `reconnect_count=INCR` |
-| Clean disconnect (token refresh) | `state=disconnected` |
-
-**Pysher bindable events for state transitions** (confirmed from pysher source):
-- `pusher:connection_established` — connection up
-- `pusher:connection_failed` — connection failed (pysher handles this internally via `_failed_handler`)
-- `pusher:error` — protocol error with Pusher error code
-
-pysher does not expose `pusher:connection_disconnected`. The disconnect is detected via `_on_close` on the underlying `websocket.WebSocketApp`. The current `ws_prophetx.py` already handles this via the `while time.time() < _token.expires_at` exit loop — the ws_state hash write should wrap this lifecycle.
-
-**New FastAPI endpoint:**
-
-```
-GET /api/v1/health/ws
-```
-
-Returns:
-```json
-{
-  "state": "connected",
-  "connected_at": "2026-03-31T12:00:00Z",
-  "last_message_at": "2026-03-31T14:23:01Z",
-  "reconnect_count": 2,
-  "last_error": "",
-  "last_error_at": ""
-}
-```
-
-Implementation: `HGETALL worker:ws_state:prophetx` — one Redis call, returns dict, no transformation.
-
-**Dashboard UI:**
-
-Existing `GET /api/v1/health/workers` already returns boolean alive/dead per worker. Add `ws_prophetx` to that response using the hash `state` field, so the existing health panel in the UI gets the richer state without a new panel.
-
-Alternatively, add a dedicated WS connection panel near the top of the dashboard. The existing `useQuery` + TanStack Query polling pattern (already used for the worker health panel) is sufficient — no new npm packages needed.
-
-**Confidence:** HIGH for Redis hash pattern. HIGH for FastAPI endpoint. MEDIUM for exact UI placement (depends on dashboard layout decisions during implementation).
-
----
-
-## Alembic Migration Required
-
-| Migration | Type | Risk |
-|-----------|------|------|
-| `ADD COLUMN status_source VARCHAR(10) DEFAULT 'poll'` | DDL | Safe — non-null with default, no backfill needed |
-
-This is the only schema change. All other additions are Redis keys, log lines, and new API routes.
+This is a synchronous sequence — no async needed.
 
 ---
 
 ## What NOT to Add
 
-| Avoid | Why | What to Use Instead |
-|-------|-----|---------------------|
-| python-statemachine or transitions | Two authority states (ws/poll) don't justify a state machine library. String comparison on `status_source` + Redis `HGET` is sufficient. | `status_source` column + Redis HGET |
-| prometheus-client | Operational overhead for a single WS consumer process. The Redis hash is the observability surface — it already integrates with the existing dashboard. | Redis hash + `/api/v1/health/ws` endpoint |
-| websockets (Python library) | pysher is already integrated and working. Replacing it mid-milestone introduces reconnect logic regression risk. | pysher (already installed) |
-| PysherPlus (fork) | The currently installed pysher 1.0.7 works. The only known issue (error 4200 reconnect loop) is in the ProphetX error code range 4200-4299 (reconnect immediately). The existing exponential backoff in `ws_prophetx.py::run()` already handles this correctly by catching exceptions at the outer loop. | pysher (already installed) |
-| A separate "diagnostics" Celery task | WS diagnostics are log lines, not a polling task. Structlog output goes to Docker logs, readable with `docker logs ws-consumer --follow`. | structlog debug log lines in ws_prophetx.py |
-| New frontend library for connection status display | The connection state display is a small status badge + timestamp. shadcn/ui Badge + Card components handle it. | shadcn/ui (already installed) |
-| Server-Sent Events changes for WS health | SSE already pushes `event_updated` messages on every WS-triggered DB write. Connection health is a separate slow-polling concern (poll every 5s is fine). | TanStack Query `useQuery` with `refetchInterval: 5000` |
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `aio-pika` | Async AMQP wrapper. Not needed — consumer runs in a dedicated thread/process outside FastAPI's event loop. Adds complexity with zero benefit here. | `pika` `BlockingConnection` in a dedicated thread |
+| Local RabbitMQ broker in Docker Compose | OpticOdds hosts the broker at `v3-rmq.opticodds.com`. Adding a local broker would be for a different use case (e.g., Celery broker migration). Not needed. | Outbound TCP to `v3-rmq.opticodds.com:5672` |
+| `kombu` for this consumer | Already installed as a Celery dependency, but `ConsumerStep` bootstep pattern is designed for consuming Celery-compatible messages off the Celery broker. Wiring it to an external OpticOdds queue adds indirection. | Plain `pika` |
+| `celery-message-consumer` (PyPI) | Third-party wrapper designed to consume arbitrary AMQP messages inside Celery workers. Brings in extra deps; the dedicated-service pattern is simpler and already proven in this codebase. | Dedicated `opticodds-consumer` service |
+| Celery task wrapping `start_consuming()` | Blocking tasks in Celery require `time_limit` and break normal worker semantics. High risk of silent timeout failures. | Dedicated process matching `ws-consumer` pattern |
+| `requests` for REST lifecycle calls | Already using `httpx` project-wide. No reason to introduce a second HTTP client. | `httpx.Client` (synchronous, already installed) |
 
 ---
 
-## Version Compatibility Notes
+## pyproject.toml Change
 
-| Package | Installed Version | Notes |
-|---------|-------------------|-------|
-| pysher | 1.0.7 | Maintenance mode (last release Feb 2022). Bindable events confirmed from source: `pusher:connection_established`, `pusher:connection_failed`, `pusher:pong`, `pusher:ping`, `pusher:error`. State values from source: `"initialized"`, `"connecting"`, `"connected"`, `"unavailable"`, `"failed"`. No replacement needed — works correctly for this use case. |
-| redis-py | 5.x (already installed) | `HSET`, `HGETALL`, `HINCRBY` are core commands — available in all Redis 7.x + redis-py 5.x combinations. No version concern. |
-| SQLAlchemy | 2.x (already installed) | Mapped column with String type and default is standard ORM pattern. Alembic `add_column` migration is well-supported. |
-| Alembic | already installed | `op.add_column` with server_default is the correct migration pattern for a non-null column with a default. |
+```toml
+dependencies = [
+    # ... existing entries ...
+    "pika>=1.3.2,<2.0",
+]
+```
+
+Single line addition. All other capabilities (HTTP calls, Redis state, DB writes, SSE push, health endpoint) use already-installed packages.
 
 ---
 
-## Integration Points (How New Code Connects to Existing Code)
+## Version Compatibility
+
+| Package | Version | Compatibility Notes |
+|---------|---------|---------------------|
+| `pika` | `>=1.3.2,<2.0` | Python 3.12 supported (pika supports >=3.7). No known conflicts with existing deps. |
+| `httpx` | `>=0.27` (already installed) | Synchronous `httpx.Client` usage requires no async context. Full compatibility with Python 3.12. |
+| `redis-py` | `5.x` (already installed) | Consumer will write health state via the same Redis hash pattern as `ws-consumer`. No version concerns. |
+
+---
+
+## Integration Points
 
 | New Code | Connects To | How |
 |----------|-------------|-----|
-| `ws_prophetx.py` Redis hash writes | `/api/v1/health/ws` endpoint | FastAPI reads same Redis key |
-| `events.status_source` column | `poll_prophetx.py` | REST poller reads `status_source` before overwriting `prophetx_status` |
-| `events.status_source` column | `ws_prophetx.py::_upsert_event()` | WS writer sets `status_source = "ws"` on every sport_event write |
-| `/api/v1/health/ws` | Frontend health panel | TanStack Query `useQuery` polls at 5s interval |
-| structlog debug lines | Docker logs | `docker logs ws-consumer --since 1h | grep ws_sport_event` |
+| `app/workers/opticodds_consumer.py` | `httpx.Client` | POST /fixtures/results/queue/start at process startup to get queue name |
+| `app/workers/opticodds_consumer.py` | `v3-rmq.opticodds.com:5672` | pika `BlockingConnection` consuming tennis results messages |
+| `app/workers/opticodds_consumer.py` | Redis `worker:ws_state:opticodds` hash | Writes connection state (connected/disconnected/reconnecting) — same pattern as ProphetX WS consumer |
+| `app/workers/opticodds_consumer.py` | PostgreSQL `events` table | Writes OpticOdds tennis status via SQLAlchemy (same `_upsert_event` pattern as other workers) |
+| `app/api/v1/health.py` | Redis hash | Exposes OpticOdds consumer health state via existing `/api/v1/health/workers` endpoint |
+| `compute_status_match()` | `events.opticodds_status` column | New column feeds mismatch detection alongside `espn_status`, `odds_api_status` |
 
 ---
 
-## Installation
+## Environment Variables Required
 
 ```bash
-# No new dependencies — nothing to install.
-# Backend: all required packages (pysher, redis-py, structlog, sqlalchemy, alembic) already in pyproject.toml
-# Frontend: all required packages (shadcn/ui, TanStack Query, React) already in package.json
+OPTICODDS_API_KEY=<api_key_from_sales>
+OPTICODDS_RMQ_USERNAME=<username_equals_api_key>
+OPTICODDS_RMQ_PASSWORD=<password_from_sales>
 ```
 
-The only deployment action needed is running the Alembic migration for the `status_source` column.
+Note: OpticOdds credentials are API-key-scoped — if multiple API keys exist, each has distinct RMQ credentials. The `OPTICODDS_RMQ_USERNAME` is the API key value itself (confirmed from OpticOdds docs: "Username: Your API Key").
 
 ---
 
 ## Sources
 
-- pysher source code (locally installed): `python3 -c "import inspect,pysher; print(inspect.getsource(pysher.connection))"` — confirmed all bindable event names and state values. HIGH confidence.
-- Pusher Channels WebSocket Protocol (https://pusher.com/docs/channels/library_auth_reference/pusher-websockets-protocol/) — confirmed `pusher:connection_established`, `pusher:error`, `pusher:ping`/`pusher:pong` as server-to-client events. `pusher:connection_failed` is legacy/internal to pysher; not a server-sent event. HIGH confidence.
-- pysher PyPI (https://pypi.org/project/Pysher/) / GitHub (https://github.com/deepbrook/Pysher) — version 1.0.7/1.0.8 (2022), maintenance mode, no active development. MEDIUM confidence on long-term support (not needed — pysher is working in production today).
-- redis-py HSET/HGETALL docs — standard hash commands, no version sensitivity. HIGH confidence.
-- Existing codebase (`ws_prophetx.py`, `poll_prophetx.py`, `health.py`, `event.py`, `mismatch_detector.py`) — confirmed current patterns, integration points, and what already exists. HIGH confidence.
+- OpticOdds Developer Docs — Getting Started with RabbitMQ: https://developer.opticodds.com/docs/getting-started — confirmed host, port, vhost, pika usage, queue name from /start response. MEDIUM confidence (page confirmed connection params; /start endpoint path confirmed via /reference page).
+- OpticOdds API Reference: https://developer.opticodds.com/reference/getting-started — confirmed REST endpoint paths (`/fixtures/results/queue/start`, `/stop`, `/status`), `X-Api-Key` auth header. MEDIUM confidence (retrieved via WebFetch; endpoint paths confirmed but response schema not fully documented publicly).
+- pika PyPI: https://pypi.org/project/pika/ — version 1.3.2, released May 2023, Python >=3.7. HIGH confidence.
+- pika heartbeat docs: https://pika.readthedocs.io/en/stable/examples/heartbeat_and_blocked_timeouts.html — confirmed `heartbeat=600`, `blocked_connection_timeout=300` parameters. HIGH confidence.
+- pika blocking connection docs: https://pika.readthedocs.io/en/stable/modules/adapters/blocking.html — confirmed single-thread constraint, `add_callback_threadsafe()` as only thread-safe method, recommended thread-per-message delegation pattern. HIGH confidence.
+- pika multi-host recovery example: https://pika.readthedocs.io/en/stable/examples/blocking_consume_recover_multiple_hosts.html — confirmed exception-loop reconnection pattern. HIGH confidence.
+- Existing codebase `docker-compose.yml` and `ws_prophetx.py` — confirmed `ws-consumer` dedicated-service pattern as precedent. HIGH confidence.
+- Existing `backend/pyproject.toml` — confirmed `httpx>=0.27` already installed, `pika` absent. HIGH confidence.
 
 ---
 
-*Stack research for: ProphetX Market Monitor v1.2 — WebSocket-Primary Status Authority*
-*Researched: 2026-03-31*
+*Stack research for: ProphetX Market Monitor v1.3 — OpticOdds Tennis RabbitMQ Integration*
+*Researched: 2026-04-01*
