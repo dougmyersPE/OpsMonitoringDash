@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: OpticOdds Tennis Integration
-status: defining-requirements
+status: ready-to-plan
 stopped_at: null
-last_updated: "2026-04-01T21:30:00.000Z"
+last_updated: "2026-04-01T00:00:00.000Z"
 last_activity: 2026-04-01
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,27 +18,27 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-31)
+See: .planning/PROJECT.md (updated 2026-04-01)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Milestone v1.3 — defining requirements
+**Current focus:** Milestone v1.3 — Phase 12: Consumer Foundation
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-04-01 — Milestone v1.3 started
+Phase: 12 of 14 (Consumer Foundation)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-04-01 — v1.3 roadmap created (Phases 12-14)
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.3 milestone initialized)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.3 milestone, 0/3 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 10 (v1.0 + v1.1)
-- Average duration: ~45 min/plan (estimated)
-- Total execution time: ~7.5 hours
+- Total plans completed: 17 (v1.0–v1.2)
+- Average duration: ~30 min/plan (estimated from v1.2 actuals)
+- Total execution time: ~8.5 hours
 
 **By Phase:**
 
@@ -46,14 +46,9 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.
 |-------|-------|----------|
 | v1.0 (Phases 1-3) | 11 | ~27 min |
 | v1.1 (Phases 4-7) | 7 | ~21 min |
+| v1.2 (Phases 8-11) | 6 | ~13 min |
 
 *Updated after each plan completion*
-| Phase 08-ws-diagnostics-and-instrumentation P01 | 17 | 3 tasks | 5 files |
-| Phase 09 P01 | 4 | 2 tasks | 5 files |
-| Phase 09-status-authority-model P02 | 10 | 2 tasks | 5 files |
-| Phase 10-ws-health-dashboard P01 | 12 | 2 tasks | 5 files |
-| Phase 11-tech-debt P01 | 35 | 2 tasks | 23 files |
-| Phase 11-tech-debt P02 | 4min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -62,57 +57,34 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Phase 10-ws-health-dashboard]: ws_prophetx returned as nested object with connected/state/since — richer than boolean, enables tooltip state detail without breaking existing poll worker response shape
-- [Phase 10-ws-health-dashboard]: ws_prophetx? optional field on WorkerHealth TypeScript interface — frontend doesn't crash on partial deploy
-- [Phase 10-ws-health-dashboard]: WS badge rendered separately from WORKERS.map() (ws_prophetx is object, not boolean)
-- v1.2 roadmap: Phase 8 has a hard gate — ws:sport_event_count > 0 must confirm in production before Phase 9 begins
-- v1.2 roadmap: Phase 11 (Tech Debt) is independent and can run any time, including during the Phase 8 observation window (24-48h)
-- v1.1: DB-backed poll intervals survive Beat restarts via bootstrap reads on start
-- [Phase 08-ws-diagnostics-and-instrumentation]: WSREL-02: compute_status_match(status, None, None, None, None, None) on WS create path — all-None sources always return True (no conflict = no mismatch)
-- [Phase 08-ws-diagnostics-and-instrumentation]: WSREL-01: fire reconciliation immediately on _on_connect with no stabilization delay; broker failures caught silently via try/except
-- [Phase 08-ws-diagnostics-and-instrumentation]: WS diagnostic keys: ws:connection_state and ws:last_message_at have 120s TTL (self-expire if dead); ws:sport_event_count and ws:last_sport_event_at have no TTL (accumulate for Phase 9 gate)
-- [Phase 09-status-authority-model]: is_ws_authoritative boundary check is elapsed < threshold (strictly less than): exactly at boundary returns False
-- [Phase 09-status-authority-model]: Naive datetime input coerced to UTC via replace(tzinfo=timezone.utc) in is_ws_authoritative — no exception raised
-- [Phase 09-02]: Metadata always unconditional in poll: home_team/away_team/league/scheduled_start/last_prophetx_poll written even when WS is authoritative (AUTH-03)
-- [Phase 09-02]: ended bypasses authority window (D-05): poll status 'ended' always writes regardless of WS authority
-- [Phase 09-02]: ws_delivered_at cleared on poll/manual write to prevent stale WS authority
-- [Phase 11-tech-debt P01]: Sports API removed entirely (D-01): zero references in backend/app/ or backend/tests/
-- [Phase 11-tech-debt P01]: compute_status_match reduced to 5-param signature (px + 4 sources: odds_api, sdio, espn, oddsblaze)
-- [Phase 11-tech-debt]: D-01 follow-through: frontend mirrors backend removal — zero sports_api references remain anywhere in the codebase
+- [Phase 11]: compute_status_match reduced to 5-param signature (px + odds_api, sdio, espn, oddsblaze) — Phase 13 extends to 6-param with opticodds
+- [Phase 10]: ws_prophetx health returned as nested object with connected/state/since — opticodds_consumer should follow same shape
+- [v1.3 research]: Standalone Docker service only — pika BlockingConnection blocks indefinitely; Celery incompatible
+- [v1.3 research]: Queue start REST call must be integrated into consumer startup sequence; queue name cached in Redis; abort with fatal log on failure
+- [v1.3 research]: heartbeat=30 recommended (faster dead-connection detection; tennis message processing well under 30s)
+- [v1.3 research]: auto_ack=False recommended (negligible overhead; real resilience benefit for low-volume consumer)
+- [v1.3 research]: OpticOdds REST endpoint path has a discrepancy between research files — verify exact path against live credentials before coding opticodds_api.py
 
 ### Pending Todos
 
 (none)
 
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260330-nvd | Integrate OddsBlaze API as new data source | 2026-03-30 | fd00e64 | [260330-nvd-integrate-oddsblaze-api-as-new-data-sour](./quick/260330-nvd-integrate-oddsblaze-api-as-new-data-sour/) |
-| 260331-fmz | Auto-purge events older than 48h regardless of status | 2026-03-31 | 18a9d61 | [260331-fmz-auto-purge-events-older-than-48-hours-fr](./quick/260331-fmz-auto-purge-events-older-than-48-hours-fr/) |
-
 ### Blockers/Concerns
 
-- **Phase 8 gate (critical):** WS consumer receives zero sport_event change-type messages in production. Phase 9 is blocked until ws:sport_event_count > 0 is confirmed after 24-48h covering live game windows. If gate fails, escalate to ProphetX on channel config.
-- **Phase 10 mismatch direction:** After WS elevation, ProphetX may go live via WS before external sources update — false-positive mismatch alerts possible. Grace period in mismatch_detector.py needed.
-- SDIO NFL/NCAAB/NCAAF endpoints 404 (off-season; deferred to v2 when seasons resume)
+- **Phase 12 pre-implementation:** OpticOdds REST endpoint path discrepancy (`/v3/copilot/results/queue/start` vs `/fixtures/results/queue/start`) — confirm against live credentials before coding `opticodds_api.py`
+- **Phase 12 pre-implementation:** Exact JSON field names in OpticOdds AMQP message body are MEDIUM confidence — log full raw message at DEBUG level on first few messages to confirm schema empirically
+- SDIO NFL/NCAAB/NCAAF endpoints 404 (off-season; deferred until seasons resume)
 - ProphetX write endpoint still stubbed (log-only until PATCH path confirmed)
 
 ### Resolved
 
+- Phase 8 gate (critical): ws:sport_event_count > 0 confirmed in production — Phase 9 unblocked
+- Sports API fully removed (Phase 11)
+- WS health badge deployed (Phase 10)
 - ProphetX base URL: `https://cash.api.prophetx.co/partner` — production, switched from sandbox 2026-03-02
-- ProphetX status enum values confirmed: `ended`, `live`, `not_started`
-- Sports API false-positive root cause: fixed in Phase 4
-- RedBeat restart overwrite: fixed in Phase 5 (DB-backed bootstrap)
-- Login endpoint now returns role in response (was defaulting all users to "operator")
-- ESPN time guard fixed: uses actual event datetime instead of fake noon UTC
-- Auto-sync status regression: lifecycle guard added (2026-03-04)
-- SDIO soccer endpoint: fixed to use `GamesByDate` instead of `GamesByDateFinal` (2026-03-04)
-- poll_prophetx `last_prophetx_poll` timestamp not updating — fixed (2026-03-04)
-- Docker Compose: all services now have `restart: unless-stopped` (2026-03-04)
 
 ## Session Continuity
 
-Last session: 2026-04-01T19:37:12.602Z
-Stopped at: Completed 11-02-PLAN.md
+Last session: 2026-04-01
+Stopped at: v1.3 roadmap created — ready to plan Phase 12
 Resume file: None

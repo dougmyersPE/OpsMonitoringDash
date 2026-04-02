@@ -95,21 +95,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WSHLT-02 | Phase 10 | Complete |
 | WSHLT-03 | Phase 10 | Complete |
 | DEBT-01 | Phase 11 | Complete |
-| AMQP-01 | — | Pending |
-| AMQP-02 | — | Pending |
-| AMQP-03 | — | Pending |
-| TNNS-01 | — | Pending |
-| TNNS-02 | — | Pending |
-| TNNS-03 | — | Pending |
-| DASH-01 | — | Pending |
-| DASH-02 | — | Pending |
-| MISM-01 | — | Pending |
+| AMQP-01 | Phase 12 | Pending |
+| AMQP-02 | Phase 12 | Pending |
+| TNNS-01 | Phase 12 | Pending |
+| TNNS-02 | Phase 13 | Pending |
+| TNNS-03 | Phase 13 | Pending |
+| AMQP-03 | Phase 13 | Pending |
+| MISM-01 | Phase 13 | Pending |
+| DASH-01 | Phase 14 | Pending |
+| DASH-02 | Phase 14 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 9 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 9
+- Mapped to phases: 9 (roadmap complete)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 — v1.3 requirements defined*
+*Last updated: 2026-04-01 — v1.3 roadmap created, all requirements mapped*
