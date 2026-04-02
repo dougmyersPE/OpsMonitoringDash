@@ -1,11 +1,34 @@
 # Requirements: ProphetX Market Monitor
 
-**Defined:** 2026-03-31
+**Defined:** 2026-04-02
 **Core Value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
 
-## v1.2 Requirements
+## v1.3 Requirements
 
-Requirements for WebSocket-Primary Status Authority milestone. Each maps to roadmap phases.
+Requirements for OpticOdds Tennis Integration milestone. Each maps to roadmap phases.
+
+### AMQP Consumer Infrastructure
+
+- [ ] **AMQP-01**: OpticOdds RabbitMQ consumer runs as standalone Docker service with pika, auto-reconnect on failure, and heartbeat management
+- [ ] **AMQP-02**: Consumer starts OpticOdds results queue via REST API on startup and caches queue name in Redis
+- [ ] **AMQP-03**: Redis keys track OpticOdds connection state (connected/reconnecting/disconnected) and last message timestamp
+
+### Tennis Status Integration
+
+- [ ] **TNNS-01**: Events table has `opticodds_status` column (nullable) populated by the consumer for tennis matches
+- [ ] **TNNS-02**: Consumer matches OpticOdds tennis fixtures to ProphetX events by competitor names + date window (fuzzy match)
+- [ ] **TNNS-03**: Walkover, retired, and suspended statuses display their actual value in the OpticOdds column and trigger Slack alerts
+
+### Health & Dashboard
+
+- [ ] **DASH-01**: Health endpoint includes OpticOdds consumer connection state; SystemHealth shows OpticOdds badge with connection state tooltip
+- [ ] **DASH-02**: Events table shows OpticOdds status column alongside existing source columns
+
+### Mismatch Detection
+
+- [ ] **MISM-01**: OpticOdds status included in `compute_status_match` for tennis events; NULL safely skipped for non-tennis events
+
+## v1.2 Requirements (Complete)
 
 ### WS Diagnostics & Reliability
 
@@ -54,6 +77,8 @@ Explicitly excluded. Documented to prevent scope creep.
 | Client-side (browser) WebSocket health monitoring | WS consumer is server-side Python (pysher), not browser WebSocket |
 | Automated liquidity top-up | ProphetX API liquidity mechanics unconfirmed; financial risk |
 | Market creation or odds-making | Not an operator tool |
+| OpticOdds for non-tennis sports | Tennis-only scope for v1.3; expand later if data quality is validated |
+| OpticOdds odds/pricing data | Only consuming results/scores stream, not odds stream |
 
 ## Traceability
 
@@ -70,12 +95,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WSHLT-02 | Phase 10 | Complete |
 | WSHLT-03 | Phase 10 | Complete |
 | DEBT-01 | Phase 11 | Complete |
+| AMQP-01 | — | Pending |
+| AMQP-02 | — | Pending |
+| AMQP-03 | — | Pending |
+| TNNS-01 | — | Pending |
+| TNNS-02 | — | Pending |
+| TNNS-03 | — | Pending |
+| DASH-01 | — | Pending |
+| DASH-02 | — | Pending |
+| MISM-01 | — | Pending |
 
 **Coverage:**
-- v1.2 requirements: 9 total
-- Mapped to phases: 9
-- Unmapped: 0 ✓
+- v1.3 requirements: 9 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 9
 
 ---
-*Requirements defined: 2026-03-31*
-*Last updated: 2026-03-31 — traceability filled during v1.2 roadmap creation*
+*Requirements defined: 2026-04-02*
+*Last updated: 2026-04-02 — v1.3 requirements defined*
