@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: OpticOdds Tennis Integration
 status: executing
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-04-03T14:15:00Z"
-last_activity: 2026-04-03 -- Completed plan 12-01 (schema + config + pika dependency)
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-04-03T13:52:21.900Z"
+last_activity: 2026-04-03
 progress:
   total_phases: 14
   completed_phases: 4
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 ## Current Position
 
 Phase: 12 (consumer-foundation) — EXECUTING
-Plan: 2 of 3
-Status: Executing Phase 12 (plan 01 complete)
-Last activity: 2026-04-03 -- Completed plan 12-01 (schema + config + pika dependency)
+Plan: 3 of 3
+Status: Ready to execute
+Last activity: 2026-04-03
 
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.3 milestone, 0/3 phases complete)
 
@@ -49,6 +49,7 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.
 | v1.2 (Phases 8-11) | 6 | ~13 min |
 
 *Updated after each plan completion*
+| Phase 12 P03 | 15 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Recent decisions affecting current work:
 - [v1.3 research]: auto_ack=False recommended (negligible overhead; real resilience benefit for low-volume consumer)
 - [v1.3 research]: OpticOdds REST endpoint path has a discrepancy between research files — verify exact path against live credentials before coding opticodds_api.py
 - [Phase 12-01]: OpticOdds credentials use str|None=None defaults so deployments without credentials do not fail on startup
+- [Phase 12]: opticodds-consumer Docker service mirrors ws-consumer exactly (128m memory, restart: unless-stopped, standalone service per D-06)
+- [Phase 12]: Health endpoint MGET extended with opticodds:connection_state keys; opticodds_consumer returns connected/state/since shape matching ws_prophetx
 
 ### Pending Todos
 
@@ -86,6 +89,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-03T14:15:00Z
-Stopped at: Completed 12-01-PLAN.md
-Resume file: .planning/phases/12-consumer-foundation/12-01-SUMMARY.md
+Last session: 2026-04-03T13:52:21.898Z
+Stopped at: Completed 12-03-PLAN.md
+Resume file: None

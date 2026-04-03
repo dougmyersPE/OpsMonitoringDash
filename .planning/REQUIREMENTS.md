@@ -9,8 +9,8 @@ Requirements for OpticOdds Tennis Integration milestone. Each maps to roadmap ph
 
 ### AMQP Consumer Infrastructure
 
-- [ ] **AMQP-01**: OpticOdds RabbitMQ consumer runs as standalone Docker service with pika, auto-reconnect on failure, and heartbeat management
-- [ ] **AMQP-02**: Consumer starts OpticOdds results queue via REST API on startup and caches queue name in Redis
+- [x] **AMQP-01**: OpticOdds RabbitMQ consumer runs as standalone Docker service with pika, auto-reconnect on failure, and heartbeat management
+- [x] **AMQP-02**: Consumer starts OpticOdds results queue via REST API on startup and caches queue name in Redis
 - [ ] **AMQP-03**: Redis keys track OpticOdds connection state (connected/reconnecting/disconnected) and last message timestamp
 
 ### Tennis Status Integration
@@ -95,8 +95,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WSHLT-02 | Phase 10 | Complete |
 | WSHLT-03 | Phase 10 | Complete |
 | DEBT-01 | Phase 11 | Complete |
-| AMQP-01 | Phase 12 | Pending |
-| AMQP-02 | Phase 12 | Pending |
+| AMQP-01 | Phase 12 | Complete |
+| AMQP-02 | Phase 12 | Complete |
 | TNNS-01 | Phase 12 | Pending |
 | TNNS-02 | Phase 13 | Pending |
 | TNNS-03 | Phase 13 | Pending |
