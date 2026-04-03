@@ -4,6 +4,7 @@ import pytest
 from app.monitoring.mismatch_detector import (
     FLAG_ONLY_STATUSES,
     SDIO_TO_PX_STATUS,
+    compute_is_critical,
     compute_status_match,
     get_expected_px_status,
     is_flag_only,
@@ -92,6 +93,50 @@ class TestIsFlagOnly:
 
     def test_final_not_flag_only(self):
         assert is_flag_only("Final") is False
+
+
+class TestComputeStatusMatchOpticOdds:
+    """Tests for OpticOdds as the 6th source in compute_status_match and compute_is_critical."""
+
+    def test_in_progress_agrees_with_live_px(self):
+        """OpticOdds in_progress maps to inprogress — agrees with ProphetX live."""
+        assert compute_status_match("live", None, None, None, None, "in_progress") is True
+
+    def test_not_started_disagrees_with_live_px(self):
+        """OpticOdds not_started maps to scheduled — disagrees with ProphetX live (inprogress)."""
+        assert compute_status_match("live", None, None, None, None, "not_started") is False
+
+    def test_none_opticodds_skipped(self):
+        """OpticOdds None is skipped (NULL-safe) — returns True when no other sources."""
+        assert compute_status_match("live", None, None, None, None, None) is True
+
+    def test_walkover_disagrees_with_live_px(self):
+        """OpticOdds walkover maps to final — disagrees with ProphetX live (inprogress)."""
+        assert compute_status_match("live", None, None, None, None, "walkover") is False
+
+    def test_finished_disagrees_with_live_px(self):
+        """OpticOdds finished maps to final — disagrees with ProphetX live (inprogress)."""
+        assert compute_status_match("live", None, None, None, None, "finished") is False
+
+    def test_opticodds_alone_not_critical(self):
+        """Only 1 live source (opticodds) — not critical (requires 2 sources)."""
+        assert compute_is_critical("not_started", None, None, None, None, "in_progress") is False
+
+    def test_opticodds_plus_sdio_is_critical(self):
+        """OpticOdds in_progress + SDIO InProgress = 2 live sources — critical."""
+        assert compute_is_critical("not_started", None, "InProgress", None, None, "in_progress") is True
+
+    def test_sdio_alone_not_critical_opticodds_none(self):
+        """Only SDIO reports live, opticodds None — 1 source, not critical."""
+        assert compute_is_critical("not_started", None, "InProgress", None, None, None) is False
+
+    def test_live_consumer_value_agrees_with_live_px(self):
+        """OpticOdds 'live' (consumer canonical) maps to inprogress — agrees with ProphetX live."""
+        assert compute_status_match("live", None, None, None, None, "live") is True
+
+    def test_suspended_maps_to_inprogress(self):
+        """OpticOdds suspended maps to inprogress — agrees with ProphetX live."""
+        assert compute_status_match("live", None, None, None, None, "suspended") is True
 
 
 class TestComputeStatusMatchAllNoneSources:
