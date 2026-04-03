@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: OpticOdds Tennis Integration
 status: verifying
-stopped_at: Phase 14 context gathered
-last_updated: "2026-04-03T15:18:20.740Z"
+stopped_at: "Completed 14-01-PLAN.md: OpticOdds health badge and events table column"
+last_updated: "2026-04-03T18:22:00.227Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 14
-  completed_phases: 6
-  total_plans: 11
-  completed_plans: 11
+  completed_phases: 7
+  total_plans: 12
+  completed_plans: 12
   percent: 100
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 13 — status-processing-and-matching
+**Current focus:** Phase 14 — dashboard-and-health
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
+Phase: 14 (dashboard-and-health) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-04-03
 
@@ -53,6 +53,7 @@ Progress: [████████████████████] 9/9 pla
 | Phase 12-consumer-foundation P02 | 4 | 2 tasks | 2 files |
 | Phase 13-status-processing-and-matching P01 | 10 | 2 tasks | 10 files |
 | Phase 13 P02 | 7 | 2 tasks | 2 files |
+| Phase 14-dashboard-and-health P01 | 15 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ Recent decisions affecting current work:
 - [Phase 13-status-processing-and-matching]: compute_status_match extended to 6-param (opticodds_status); NULL-safe design means non-tennis events are unaffected; all 13 call sites updated in poll workers + ws consumer + source_toggle
 - [Phase 13]: FUZZY_THRESHOLD=0.75 for tennis (lower than team-name workers): player names are abbreviated/transliterated more, requiring looser threshold
 - [Phase 13]: Special statuses (walkover/retired/suspended) written verbatim to opticodds_status — mismatch_detector _OPTICODDS_CANONICAL handles them correctly without canonicalization
+- [Phase 14-dashboard-and-health]: Reused WsProphetXHealth interface for opticodds_consumer field (same connected/state/since shape)
 
 ### Pending Todos
 
@@ -96,6 +98,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-03T15:18:20.732Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-dashboard-and-health/14-CONTEXT.md
+Last session: 2026-04-03T18:22:00.220Z
+Stopped at: Completed 14-01-PLAN.md: OpticOdds health badge and events table column
+Resume file: None

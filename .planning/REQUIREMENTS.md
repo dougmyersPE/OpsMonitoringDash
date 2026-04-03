@@ -16,13 +16,13 @@ Requirements for OpticOdds Tennis Integration milestone. Each maps to roadmap ph
 ### Tennis Status Integration
 
 - [ ] **TNNS-01**: Events table has `opticodds_status` column (nullable) populated by the consumer for tennis matches
-- [ ] **TNNS-02**: Consumer matches OpticOdds tennis fixtures to ProphetX events by competitor names + date window (fuzzy match)
-- [ ] **TNNS-03**: Walkover, retired, and suspended statuses display their actual value in the OpticOdds column and trigger Slack alerts
+- [x] **TNNS-02**: Consumer matches OpticOdds tennis fixtures to ProphetX events by competitor names + date window (fuzzy match)
+- [x] **TNNS-03**: Walkover, retired, and suspended statuses display their actual value in the OpticOdds column and trigger Slack alerts
 
 ### Health & Dashboard
 
-- [ ] **DASH-01**: Health endpoint includes OpticOdds consumer connection state; SystemHealth shows OpticOdds badge with connection state tooltip
-- [ ] **DASH-02**: Events table shows OpticOdds status column alongside existing source columns
+- [x] **DASH-01**: Health endpoint includes OpticOdds consumer connection state; SystemHealth shows OpticOdds badge with connection state tooltip
+- [x] **DASH-02**: Events table shows OpticOdds status column alongside existing source columns
 
 ### Mismatch Detection
 
@@ -98,12 +98,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AMQP-01 | Phase 12 | Complete |
 | AMQP-02 | Phase 12 | Complete |
 | TNNS-01 | Phase 12 | Pending |
-| TNNS-02 | Phase 13 | Pending |
-| TNNS-03 | Phase 13 | Pending |
+| TNNS-02 | Phase 13 | Complete |
+| TNNS-03 | Phase 13 | Complete |
 | AMQP-03 | Phase 13 | Complete |
 | MISM-01 | Phase 13 | Complete |
-| DASH-01 | Phase 14 | Pending |
-| DASH-02 | Phase 14 | Pending |
+| DASH-01 | Phase 14 | Complete |
+| DASH-02 | Phase 14 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 9 total
