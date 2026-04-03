@@ -47,6 +47,9 @@ Operators always know the true health of their ProphetX platform — stale event
 - ✓ OpticOdds consumer health monitoring via Redis keys and /health/workers endpoint (AMQP-02) — v1.3 Phase 12
 - ✓ OpticOdds status column in events table via migration 010 (TNNS-01 schema) — v1.3 Phase 12
 
+- ✓ OpticOdds health badge on dashboard with connection state tooltip (DASH-01) — v1.3 Phase 14
+- ✓ OpticOdds status column in events table UI with sortable header (DASH-02) — v1.3 Phase 14
+
 ### Active
 
 See REQUIREMENTS.md for v1.3 scoped requirements.
@@ -129,4 +132,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-03 — Phase 12 consumer-foundation complete*
+*Last updated: 2026-04-03 — Phase 14 dashboard-and-health complete, v1.3 milestone complete*
