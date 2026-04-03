@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: OpticOdds Tennis Integration
-status: planning
-stopped_at: Phase 12 context gathered
-last_updated: "2026-04-02T18:11:42.014Z"
-last_activity: 2026-04-01 — v1.3 roadmap created (Phases 12-14)
+status: executing
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-04-03T14:15:00Z"
+last_activity: 2026-04-03 -- Completed plan 12-01 (schema + config + pika dependency)
 progress:
   total_phases: 14
   completed_phases: 4
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 9
+  completed_plans: 7
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-01)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Milestone v1.3 — Phase 12: Consumer Foundation
+**Current focus:** Phase 12 — consumer-foundation
 
 ## Current Position
 
-Phase: 12 of 14 (Consumer Foundation)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-04-01 — v1.3 roadmap created (Phases 12-14)
+Phase: 12 (consumer-foundation) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 12 (plan 01 complete)
+Last activity: 2026-04-03 -- Completed plan 12-01 (schema + config + pika dependency)
 
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.3 milestone, 0/3 phases complete)
 
@@ -64,6 +64,7 @@ Recent decisions affecting current work:
 - [v1.3 research]: heartbeat=30 recommended (faster dead-connection detection; tennis message processing well under 30s)
 - [v1.3 research]: auto_ack=False recommended (negligible overhead; real resilience benefit for low-volume consumer)
 - [v1.3 research]: OpticOdds REST endpoint path has a discrepancy between research files — verify exact path against live credentials before coding opticodds_api.py
+- [Phase 12-01]: OpticOdds credentials use str|None=None defaults so deployments without credentials do not fail on startup
 
 ### Pending Todos
 
@@ -85,6 +86,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-02T18:11:42.004Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/12-consumer-foundation/12-CONTEXT.md
+Last session: 2026-04-03T14:15:00Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: .planning/phases/12-consumer-foundation/12-01-SUMMARY.md

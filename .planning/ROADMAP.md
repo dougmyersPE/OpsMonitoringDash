@@ -189,7 +189,7 @@ Plans:
   4. Consumer reconnects to the RabbitMQ broker with exponential backoff after a simulated connection drop; logs show backoff delays increasing between attempts
 **Plans**: 3 plans
 Plans:
-- [ ] 12-01-PLAN.md — Schema + config + pika dependency + opticodds_status migration
+- [x] 12-01-PLAN.md — Schema + config + pika dependency + opticodds_status migration
 - [ ] 12-02-PLAN.md — OpticOdds AMQP consumer module + unit tests
 - [ ] 12-03-PLAN.md — Docker Compose service + health endpoint extension + health tests
 
@@ -230,7 +230,7 @@ Plans:
 | 9. Status Authority Model | v1.2 | 2/2 | Complete | 2026-03-31 |
 | 10. WS Health Dashboard | v1.2 | 1/1 | Complete | 2026-04-01 |
 | 11. Tech Debt | v1.2 | 2/2 | Complete | 2026-04-01 |
-| 12. Consumer Foundation | v1.3 | 0/3 | Not started | - |
+| 12. Consumer Foundation | v1.3 | 1/3 | In progress | - |
 | 13. Status Processing and Matching | v1.3 | 0/? | Not started | - |
 | 14. Dashboard and Health | v1.3 | 0/? | Not started | - |
 
