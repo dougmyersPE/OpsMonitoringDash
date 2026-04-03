@@ -20,6 +20,7 @@ class EventResponse(BaseModel):
     sdio_status: str | None
     espn_status: str | None
     oddsblaze_status: str | None
+    opticodds_status: str | None      # Phase 14 D-08
     status_match: bool
     is_flagged: bool
     last_prophetx_poll: datetime | None
@@ -35,6 +36,7 @@ class EventResponse(BaseModel):
             self.sdio_status,
             self.espn_status,
             self.oddsblaze_status,
+            self.opticodds_status,
         )
 
 
