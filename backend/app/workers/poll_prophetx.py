@@ -204,7 +204,7 @@ def run(self, trigger: str = "scheduled"):
                     prophetx_status=status_value,
                     last_prophetx_poll=now,
                     status_source="poll",
-                    status_match=compute_status_match(status_value, None, None, None, None),
+                    status_match=compute_status_match(status_value, None, None, None, None, None),
                 )
                 session.add(event)
             else:
@@ -238,6 +238,7 @@ def run(self, trigger: str = "scheduled"):
                         existing.sdio_status,
                         existing.espn_status,
                         existing.oddsblaze_status,
+                        existing.opticodds_status,
                     )
                 else:
                     # WS is authoritative — log discrepancy if status differs (D-06)
@@ -256,6 +257,7 @@ def run(self, trigger: str = "scheduled"):
                         existing.sdio_status,
                         existing.espn_status,
                         existing.oddsblaze_status,
+                        existing.opticodds_status,
                     )
 
             polled_px_ids.add(prophetx_event_id)
@@ -301,6 +303,7 @@ def run(self, trigger: str = "scheduled"):
                     event.sdio_status,
                     event.espn_status,
                     event.oddsblaze_status,
+                    event.opticodds_status,
                 )
                 events_marked_ended += 1
                 _publish_update("event_updated", str(event.prophetx_event_id))
@@ -317,6 +320,7 @@ def run(self, trigger: str = "scheduled"):
                 event.sdio_status,
                 event.espn_status,
                 event.oddsblaze_status,
+                event.opticodds_status,
             )
             if event.status_match != computed:
                 event.status_match = computed

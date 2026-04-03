@@ -22,6 +22,7 @@ SOURCE_COLUMN_MAP = {
     "sports_data": "sdio_status",
     "espn": "espn_status",
     "oddsblaze": "oddsblaze_status",
+    "opticodds": "opticodds_status",
 }
 
 
@@ -60,6 +61,7 @@ def clear_source_and_recompute(source_key: str) -> int:
                 ev.sdio_status if column_name != "sdio_status" else None,
                 ev.espn_status if column_name != "espn_status" else None,
                 ev.oddsblaze_status if column_name != "oddsblaze_status" else None,
+                ev.opticodds_status if column_name != "opticodds_status" else None,
             )
             count += 1
 

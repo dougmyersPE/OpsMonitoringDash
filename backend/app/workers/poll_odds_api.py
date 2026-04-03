@@ -257,6 +257,7 @@ def run(self):
                     best_match.sdio_status,
                     best_match.espn_status,
                     best_match.oddsblaze_status,
+                    best_match.opticodds_status,
                 )
                 best_match.status_match = new_status_match
                 best_match.last_real_world_poll = now

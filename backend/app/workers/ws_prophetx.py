@@ -158,6 +158,7 @@ def _upsert_event(event_data: dict, op: str | None) -> None:
                     existing.sdio_status,
                     existing.espn_status,
                     existing.oddsblaze_status,
+                    existing.opticodds_status,
                 )
                 session.commit()
                 log.info("ws_prophetx_event_deleted", prophetx_event_id=prophetx_event_id)
@@ -218,7 +219,7 @@ def _upsert_event(event_data: dict, op: str | None) -> None:
                 scheduled_start=scheduled_start,
                 prophetx_status=status_value,
                 last_prophetx_poll=now,
-                status_match=compute_status_match(status_value, None, None, None, None),
+                status_match=compute_status_match(status_value, None, None, None, None, None),
                 status_source="ws",
                 ws_delivered_at=now,
             )
@@ -251,6 +252,7 @@ def _upsert_event(event_data: dict, op: str | None) -> None:
                 existing.sdio_status,
                 existing.espn_status,
                 existing.oddsblaze_status,
+                existing.opticodds_status,
             )
             log.info(
                 "ws_prophetx_event_updated",
