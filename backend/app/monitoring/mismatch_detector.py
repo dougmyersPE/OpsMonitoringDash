@@ -200,6 +200,29 @@ _ODDSBLAZE_CANONICAL: dict[str, str] = {
     "final": "final",           # live=false, event in past
 }
 
+# OpticOdds tennis/sport event statuses.
+# Handles both raw OpticOdds API values (in_progress/finished/etc.) and the
+# consumer's canonical outputs (not_started/live/ended) which are written for
+# normal statuses, plus verbatim special statuses (walkover/retired/suspended).
+_OPTICODDS_CANONICAL: dict[str, str] = {
+    "not_started":   "scheduled",
+    "scheduled":     "scheduled",
+    "delayed":       "scheduled",
+    "start_delayed": "scheduled",
+    "postponed":     "scheduled",
+    "in_progress":   "inprogress",
+    "live":          "inprogress",
+    "suspended":     "inprogress",
+    "interrupted":   "inprogress",
+    "finished":      "final",
+    "complete":      "final",
+    "retired":       "final",
+    "walkover":      "final",
+    "cancelled":     "final",
+    "abandoned":     "final",
+    "ended":         "final",
+}
+
 
 def compute_status_match(
     px_status: str | None,
@@ -207,6 +230,7 @@ def compute_status_match(
     sdio_status: str | None,
     espn_status: str | None = None,
     oddsblaze_status: str | None = None,
+    opticodds_status: str | None = None,
 ) -> bool:
     """Return False if any source with data disagrees with ProphetX status.
 
@@ -224,6 +248,7 @@ def compute_status_match(
         (sdio_status, _SDIO_CANONICAL),
         (espn_status, _ESPN_CANONICAL),
         (oddsblaze_status, _ODDSBLAZE_CANONICAL),
+        (opticodds_status, _OPTICODDS_CANONICAL),
     ]
 
     for source_status, canonical_map in sources:
@@ -242,6 +267,7 @@ def compute_is_critical(
     sdio_status: str | None,
     espn_status: str | None,
     oddsblaze_status: str | None = None,
+    opticodds_status: str | None = None,
 ) -> bool:
     """True when 2+ sources report the event as live but ProphetX does not.
 
@@ -260,6 +286,7 @@ def compute_is_critical(
         (sdio_status, _SDIO_CANONICAL),
         (espn_status, _ESPN_CANONICAL),
         (oddsblaze_status, _ODDSBLAZE_CANONICAL),
+        (opticodds_status, _OPTICODDS_CANONICAL),
     ]
 
     live_count = 0
