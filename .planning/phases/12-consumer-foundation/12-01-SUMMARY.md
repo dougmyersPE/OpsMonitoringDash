@@ -104,3 +104,13 @@ The executor worktree is at commit `b31f2af` (pre-v1.2), which does not include 
 ---
 *Phase: 12-consumer-foundation*
 *Completed: 2026-04-03*
+
+## Self-Check: PASSED
+
+- FOUND: backend/pyproject.toml (contains pika>=1.3.2,<2.0)
+- FOUND: backend/app/core/config.py (contains all 4 OPTICODDS fields)
+- FOUND: backend/app/models/event.py (contains opticodds_status)
+- FOUND: backend/alembic/versions/010_add_opticodds_status.py (migration 010)
+- FOUND: .env.example (contains all 4 OpticOdds vars)
+- FOUND commit 978d53d (Task 1)
+- FOUND commit 76afe92 (Task 2)
