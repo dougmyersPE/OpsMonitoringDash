@@ -47,8 +47,8 @@ class TestWsUpsertCreatePath:
                 "c",
             )
 
-        # compute_status_match should have been called with all-None external sources
-        mock_csm.assert_called_once_with("not_started", None, None, None, None)
+        # compute_status_match should have been called with all-None external sources (6 args)
+        mock_csm.assert_called_once_with("not_started", None, None, None, None, None)
 
         # The Event added to session must have status_match set
         assert len(captured_events) == 1, "session.add() must be called exactly once for op=c"
