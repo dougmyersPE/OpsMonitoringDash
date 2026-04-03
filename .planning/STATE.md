@@ -18,19 +18,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-01)
+See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 12 — consumer-foundation
+**Current focus:** Phase 13 — status-processing-and-matching
 
 ## Current Position
 
 Phase: 13
 Plan: Not started
-Status: Phase complete — ready for verification
+Status: Ready to plan
 Last activity: 2026-04-03
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.3 milestone, 0/3 phases complete)
+Progress: [████████████████████] 9/9 plans (100%) — 1/3 phases complete
 
 ## Performance Metrics
 
@@ -77,8 +77,7 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- **Phase 12 pre-implementation:** OpticOdds REST endpoint path discrepancy (`/v3/copilot/results/queue/start` vs `/fixtures/results/queue/start`) — confirm against live credentials before coding `opticodds_api.py`
-- **Phase 12 pre-implementation:** Exact JSON field names in OpticOdds AMQP message body are MEDIUM confidence — log full raw message at DEBUG level on first few messages to confirm schema empirically
+- **Phase 12 resolved:** Consumer logs raw message body for first 5 messages (D-10) — will confirm JSON schema empirically on first deploy
 - SDIO NFL/NCAAB/NCAAF endpoints 404 (off-season; deferred until seasons resume)
 - ProphetX write endpoint still stubbed (log-only until PATCH path confirmed)
 
@@ -91,6 +90,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-03T13:53:38.713Z
-Stopped at: Completed 12-consumer-foundation 12-02-PLAN.md
+Last session: 2026-04-03
+Stopped at: Phase 12 complete, ready to plan Phase 13
 Resume file: None
