@@ -72,3 +72,36 @@ class TestWorkerHealthWsProphetX:
         assert ws["connected"] is False
         assert ws["state"] is None
         assert ws["since"] is None
+
+
+class TestWorkerHealthOpticOddsConsumer:
+    """Verify opticodds_consumer key in /health/workers response (AMQP-01)."""
+
+    @pytest.mark.asyncio
+    async def test_opticodds_consumer_key_present(self, client):
+        """opticodds_consumer must always be present in the response."""
+        response = await client.get("/api/v1/health/workers")
+        assert response.status_code == 200
+        data = response.json()
+        assert "opticodds_consumer" in data
+        oc = data["opticodds_consumer"]
+        assert "connected" in oc
+        assert "state" in oc
+        assert "since" in oc
+
+    @pytest.mark.asyncio
+    async def test_opticodds_consumer_connected_is_bool(self, client):
+        """opticodds_consumer.connected must be a boolean."""
+        response = await client.get("/api/v1/health/workers")
+        data = response.json()
+        assert isinstance(data["opticodds_consumer"]["connected"], bool)
+
+    @pytest.mark.asyncio
+    async def test_opticodds_consumer_disconnected_when_no_redis_key(self, client):
+        """When opticodds:connection_state is absent, connected must be False and state must be None."""
+        response = await client.get("/api/v1/health/workers")
+        data = response.json()
+        oc = data["opticodds_consumer"]
+        assert oc["connected"] is False
+        assert oc["state"] is None
+        assert oc["since"] is None
