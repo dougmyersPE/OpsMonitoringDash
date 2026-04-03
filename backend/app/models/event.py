@@ -31,6 +31,7 @@ class Event(Base):
     sdio_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     espn_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     oddsblaze_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    opticodds_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
     ws_delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status_match: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
