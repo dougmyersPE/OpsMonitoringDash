@@ -205,7 +205,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 13-01-PLAN.md — Mismatch detector extension + all call site updates + source_toggle
-- [ ] 13-02-PLAN.md — Consumer fuzzy match + DB write + special status alerts + heartbeat wiring + tests
+- [x] 13-02-PLAN.md — Consumer fuzzy match + DB write + special status alerts + heartbeat wiring + tests
 
 ### Phase 14: Dashboard and Health
 **Goal**: Operators can see OpticOdds consumer health alongside other worker badges and the OpticOdds status column in the events table
@@ -234,7 +234,7 @@ Plans:
 | 10. WS Health Dashboard | v1.2 | 1/1 | Complete | 2026-04-01 |
 | 11. Tech Debt | v1.2 | 2/2 | Complete | 2026-04-01 |
 | 12. Consumer Foundation | v1.3 | 3/3 | Complete    | 2026-04-03 |
-| 13. Status Processing and Matching | v1.3 | 1/2 | In Progress|  |
+| 13. Status Processing and Matching | v1.3 | 2/2 | Complete   | 2026-04-03 |
 | 14. Dashboard and Health | v1.3 | 0/? | Not started | - |
 
 ---

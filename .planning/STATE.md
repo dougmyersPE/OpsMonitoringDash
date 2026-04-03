@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: OpticOdds Tennis Integration
-status: executing
-stopped_at: Completed 13-01-PLAN.md (OpticOdds mismatch detection integration)
-last_updated: "2026-04-03T14:55:11.238Z"
+status: verifying
+stopped_at: Completed 13-02-PLAN.md — OpticOdds consumer fuzzy match + DB write + special status alerts
+last_updated: "2026-04-03T15:05:08.097Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 14
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
   percent: 100
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-03)
 
 Phase: 13 (status-processing-and-matching) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-03
 
 Progress: [████████████████████] 9/9 plans (100%) — 1/3 phases complete
@@ -52,6 +52,7 @@ Progress: [████████████████████] 9/9 pla
 | Phase 12 P03 | 15 | 2 tasks | 3 files |
 | Phase 12-consumer-foundation P02 | 4 | 2 tasks | 2 files |
 | Phase 13-status-processing-and-matching P01 | 10 | 2 tasks | 10 files |
+| Phase 13 P02 | 7 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [Phase 12-consumer-foundation]: Phase 12 scope: consumer receives+acks+logs only; DB writes (opticodds_status) deferred to Phase 13 (TNNS-02 fuzzy matching)
 - [Phase 13-status-processing-and-matching]: _OPTICODDS_CANONICAL maps raw OpticOdds values, consumer canonical outputs, and verbatim special statuses (walkover/retired/suspended) in one dict — handles all cases from D-06
 - [Phase 13-status-processing-and-matching]: compute_status_match extended to 6-param (opticodds_status); NULL-safe design means non-tennis events are unaffected; all 13 call sites updated in poll workers + ws consumer + source_toggle
+- [Phase 13]: FUZZY_THRESHOLD=0.75 for tennis (lower than team-name workers): player names are abbreviated/transliterated more, requiring looser threshold
+- [Phase 13]: Special statuses (walkover/retired/suspended) written verbatim to opticodds_status — mismatch_detector _OPTICODDS_CANONICAL handles them correctly without canonicalization
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-03T14:55:11.235Z
-Stopped at: Completed 13-01-PLAN.md (OpticOdds mismatch detection integration)
+Last session: 2026-04-03T15:05:08.095Z
+Stopped at: Completed 13-02-PLAN.md — OpticOdds consumer fuzzy match + DB write + special status alerts
 Resume file: None
