@@ -18,6 +18,7 @@ Covers:
 
 import json
 import sys
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch, ANY, call
 
 import pytest
@@ -257,6 +258,7 @@ class TestUnknownStatusWarning:
         with patch("app.workers.opticodds_consumer._sync_redis") as mock_redis, \
              patch("app.workers.opticodds_consumer.settings") as mock_settings, \
              patch("app.workers.opticodds_consumer._alert_unknown_status"), \
+             patch("app.workers.opticodds_consumer._write_opticodds_status"), \
              patch("app.workers.opticodds_consumer.log") as mock_log:
             mock_redis.from_url.return_value = MagicMock()
             mock_settings.REDIS_URL = "redis://redis:6379"
@@ -373,6 +375,253 @@ class TestUnknownStatusSlackAlert:
 
         mock_wc_cls.assert_not_called()
         mock_log.warning.assert_called_once_with("opticodds_slack_not_configured")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 13 Task 2 Tests: Similarity, Fuzzy Match, Special Alerts, Heartbeat
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestSimilarity:
+    def test_exact_match(self):
+        """_similarity returns 1.0 for identical strings (case-insensitive)."""
+        from app.workers.opticodds_consumer import _similarity
+        assert _similarity("Djokovic", "djokovic") == 1.0
+
+    def test_no_match(self):
+        """_similarity returns < 0.5 for completely different names."""
+        from app.workers.opticodds_consumer import _similarity
+        assert _similarity("Djokovic", "Federer") < 0.5
+
+    def test_partial_match(self):
+        """_similarity returns > 0.6 for abbreviated vs full name."""
+        from app.workers.opticodds_consumer import _similarity
+        assert _similarity("N. Djokovic", "Novak Djokovic") > 0.6
+
+
+class TestFuzzyMatch:
+    """Tests for _write_opticodds_status with mocked DB and dependencies."""
+
+    def _make_mock_event(self, home, away, sport="tennis", hours_offset=0):
+        """Create a mock Event object with tennis-appropriate fields."""
+        ev = MagicMock()
+        ev.home_team = home
+        ev.away_team = away
+        ev.sport = sport
+        ev.scheduled_start = datetime(2026, 4, 3, 14, 0, 0, tzinfo=timezone.utc)
+        if hours_offset:
+            ev.scheduled_start = ev.scheduled_start + timedelta(hours=hours_offset)
+        ev.id = "test-uuid-1234"
+        ev.prophetx_status = "not_started"
+        ev.odds_api_status = None
+        ev.sdio_status = None
+        ev.espn_status = None
+        ev.oddsblaze_status = None
+        ev.opticodds_status = None
+        ev.status_match = True
+        ev.last_real_world_poll = None
+        return ev
+
+    def _make_message(self, home, away, status="in_progress", start_time="2026-04-03T14:00:00Z"):
+        return {"home_team": home, "away_team": away, "status": status, "start_time": start_time}
+
+    def test_match_above_threshold_writes_status(self):
+        """Event with matching names writes opticodds_status to DB."""
+        mock_ev = self._make_mock_event("Djokovic N.", "Federer R.")
+        mock_session = MagicMock()
+        mock_session.__enter__ = MagicMock(return_value=mock_session)
+        mock_session.__exit__ = MagicMock(return_value=False)
+        mock_session.execute.return_value.scalars.return_value.all.return_value = [mock_ev]
+
+        data = self._make_message("Djokovic N.", "Federer R.", status="in_progress")
+
+        with patch("app.workers.opticodds_consumer.SyncSessionLocal", return_value=mock_session), \
+             patch("app.workers.opticodds_consumer.compute_status_match", return_value=True), \
+             patch("app.workers.opticodds_consumer._publish_update") as mock_pub, \
+             patch("app.workers.opticodds_consumer.settings") as mock_settings:
+            mock_settings.REDIS_URL = "redis://redis:6379"
+            mock_settings.SLACK_WEBHOOK_URL = None
+
+            from app.workers.opticodds_consumer import _write_opticodds_status
+            _write_opticodds_status(data)
+
+        # opticodds_status should be set (canonical for in_progress = live)
+        assert mock_ev.opticodds_status is not None
+
+    def test_no_match_logs_warning(self):
+        """No-match case logs WARNING and does not write to DB."""
+        mock_ev = self._make_mock_event("Murray A.", "Nadal R.")
+        mock_session = MagicMock()
+        mock_session.__enter__ = MagicMock(return_value=mock_session)
+        mock_session.__exit__ = MagicMock(return_value=False)
+        mock_session.execute.return_value.scalars.return_value.all.return_value = [mock_ev]
+
+        # Completely different names to ensure no match
+        data = self._make_message("Zverev A.", "Medvedev D.", status="in_progress")
+
+        with patch("app.workers.opticodds_consumer.SyncSessionLocal", return_value=mock_session), \
+             patch("app.workers.opticodds_consumer.compute_status_match", return_value=True), \
+             patch("app.workers.opticodds_consumer._publish_update") as mock_pub, \
+             patch("app.workers.opticodds_consumer.settings") as mock_settings, \
+             patch("app.workers.opticodds_consumer.log") as mock_log:
+            mock_settings.REDIS_URL = "redis://redis:6379"
+
+            from app.workers.opticodds_consumer import _write_opticodds_status
+            _write_opticodds_status(data)
+
+        # WARNING logged (no DB commit)
+        mock_log.warning.assert_called()
+        # session.commit not called
+        mock_session.commit.assert_not_called()
+        mock_pub.assert_not_called()
+
+    def test_special_status_verbatim(self):
+        """walkover is written verbatim to opticodds_status (not 'ended')."""
+        mock_ev = self._make_mock_event("Djokovic N.", "Federer R.")
+        mock_session = MagicMock()
+        mock_session.__enter__ = MagicMock(return_value=mock_session)
+        mock_session.__exit__ = MagicMock(return_value=False)
+        mock_session.execute.return_value.scalars.return_value.all.return_value = [mock_ev]
+
+        data = self._make_message("Djokovic N.", "Federer R.", status="walkover")
+
+        with patch("app.workers.opticodds_consumer.SyncSessionLocal", return_value=mock_session), \
+             patch("app.workers.opticodds_consumer.compute_status_match", return_value=True), \
+             patch("app.workers.opticodds_consumer._publish_update"), \
+             patch("app.workers.opticodds_consumer._alert_special_status") as mock_alert, \
+             patch("app.workers.opticodds_consumer.settings") as mock_settings:
+            mock_settings.REDIS_URL = "redis://redis:6379"
+            mock_settings.SLACK_WEBHOOK_URL = "https://hooks.slack.com/test"
+
+            from app.workers.opticodds_consumer import _write_opticodds_status
+            _write_opticodds_status(data)
+
+        # Must be "walkover", not "ended"
+        assert mock_ev.opticodds_status == "walkover"
+        # Special alert must have been called
+        mock_alert.assert_called_once()
+
+    def test_no_competitors_returns_early(self):
+        """Message with no home/away/participants logs WARNING and returns early."""
+        mock_session = MagicMock()
+        mock_session.__enter__ = MagicMock(return_value=mock_session)
+        mock_session.__exit__ = MagicMock(return_value=False)
+
+        data = {"status": "in_progress"}  # no home_team / away_team / participants
+
+        with patch("app.workers.opticodds_consumer.SyncSessionLocal", return_value=mock_session), \
+             patch("app.workers.opticodds_consumer.settings") as mock_settings, \
+             patch("app.workers.opticodds_consumer.log") as mock_log:
+            mock_settings.REDIS_URL = "redis://redis:6379"
+
+            from app.workers.opticodds_consumer import _write_opticodds_status
+            _write_opticodds_status(data)
+
+        mock_log.warning.assert_called_once_with(
+            "opticodds_no_competitors", data_keys=["status"]
+        )
+        # DB never touched
+        mock_session.execute.assert_not_called()
+
+
+class TestAlertSpecialStatus:
+    """Tests for _alert_special_status Slack alerting with dedup."""
+
+    def test_alert_fires(self):
+        """Alert fires when Redis SETNX returns True (first occurrence)."""
+        mock_redis_client = MagicMock()
+        mock_redis_client.set.return_value = True  # nx=True → not already sent
+        mock_webhook_instance = MagicMock()
+
+        with patch("app.workers.opticodds_consumer._sync_redis") as mock_redis, \
+             patch("app.workers.opticodds_consumer.WebhookClient") as mock_wc_cls, \
+             patch("app.workers.opticodds_consumer.settings") as mock_settings:
+            mock_redis.from_url.return_value = mock_redis_client
+            mock_wc_cls.return_value = mock_webhook_instance
+            mock_settings.REDIS_URL = "redis://redis:6379"
+            mock_settings.SLACK_WEBHOOK_URL = "https://hooks.slack.com/test"
+
+            from app.workers.opticodds_consumer import _alert_special_status
+            _alert_special_status("walkover", "Djokovic vs Federer", "Djokovic", "Federer")
+
+        mock_wc_cls.assert_called_once_with("https://hooks.slack.com/test")
+        send_kwargs = mock_webhook_instance.send.call_args
+        text = send_kwargs.kwargs.get("text") or (send_kwargs.args[0] if send_kwargs.args else "")
+        assert ":tennis:" in text
+        assert "walkover" in text
+
+    def test_alert_dedup(self):
+        """Alert is skipped when Redis SETNX returns False (duplicate within window)."""
+        mock_redis_client = MagicMock()
+        mock_redis_client.set.return_value = False  # Already alerted
+
+        with patch("app.workers.opticodds_consumer._sync_redis") as mock_redis, \
+             patch("app.workers.opticodds_consumer.WebhookClient") as mock_wc_cls, \
+             patch("app.workers.opticodds_consumer.settings") as mock_settings:
+            mock_redis.from_url.return_value = mock_redis_client
+            mock_settings.REDIS_URL = "redis://redis:6379"
+            mock_settings.SLACK_WEBHOOK_URL = "https://hooks.slack.com/test"
+
+            from app.workers.opticodds_consumer import _alert_special_status
+            _alert_special_status("walkover", "Djokovic vs Federer", "Djokovic", "Federer")
+
+        mock_wc_cls.assert_not_called()
+
+    def test_alert_no_webhook(self):
+        """Alert returns early when SLACK_WEBHOOK_URL is empty."""
+        with patch("app.workers.opticodds_consumer._sync_redis") as mock_redis, \
+             patch("app.workers.opticodds_consumer.WebhookClient") as mock_wc_cls, \
+             patch("app.workers.opticodds_consumer.settings") as mock_settings:
+            mock_settings.SLACK_WEBHOOK_URL = ""
+
+            from app.workers.opticodds_consumer import _alert_special_status
+            _alert_special_status("retired", "Murray vs Nadal", "Murray", "Nadal")
+
+        mock_wc_cls.assert_not_called()
+        mock_redis.from_url.assert_not_called()
+
+
+class TestOnMessageHeartbeat:
+    """Tests for _on_message heartbeat wiring and _write_opticodds_status call."""
+
+    def test_heartbeat_called(self):
+        """_write_heartbeat is called on successful message processing."""
+        ch = _make_mock_channel()
+        method = _make_mock_method()
+        body = json.dumps({"status": "in_progress", "home_team": "A", "away_team": "B"}).encode()
+
+        with patch("app.workers.opticodds_consumer._sync_redis") as mock_redis, \
+             patch("app.workers.opticodds_consumer.settings") as mock_settings, \
+             patch("app.workers.opticodds_consumer._write_heartbeat") as mock_hb, \
+             patch("app.workers.opticodds_consumer._write_opticodds_status"):
+            mock_redis.from_url.return_value = MagicMock()
+            mock_settings.REDIS_URL = "redis://redis:6379"
+            mock_settings.SLACK_WEBHOOK_URL = None
+
+            from app.workers.opticodds_consumer import _on_message
+            _on_message(ch, method, None, body)
+
+        mock_hb.assert_called_once()
+
+    def test_write_opticodds_status_called(self):
+        """_write_opticodds_status is called with the parsed dict on every message."""
+        ch = _make_mock_channel()
+        method = _make_mock_method()
+        msg = {"status": "live", "home_team": "Djokovic", "away_team": "Federer"}
+        body = json.dumps(msg).encode()
+
+        with patch("app.workers.opticodds_consumer._sync_redis") as mock_redis, \
+             patch("app.workers.opticodds_consumer.settings") as mock_settings, \
+             patch("app.workers.opticodds_consumer._write_heartbeat"), \
+             patch("app.workers.opticodds_consumer._write_opticodds_status") as mock_write:
+            mock_redis.from_url.return_value = MagicMock()
+            mock_settings.REDIS_URL = "redis://redis:6379"
+            mock_settings.SLACK_WEBHOOK_URL = None
+
+            from app.workers.opticodds_consumer import _on_message
+            _on_message(ch, method, None, body)
+
+        mock_write.assert_called_once_with(msg)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
