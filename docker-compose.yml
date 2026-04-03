@@ -93,6 +93,21 @@ services:
         limits:
           memory: 128m
 
+  opticodds-consumer:
+    build: ./backend
+    command: python -m app.workers.opticodds_consumer
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+
   frontend:
     build: ./frontend
     depends_on:
