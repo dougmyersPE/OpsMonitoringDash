@@ -11,7 +11,7 @@ Requirements for OpticOdds Tennis Integration milestone. Each maps to roadmap ph
 
 - [x] **AMQP-01**: OpticOdds RabbitMQ consumer runs as standalone Docker service with pika, auto-reconnect on failure, and heartbeat management
 - [x] **AMQP-02**: Consumer starts OpticOdds results queue via REST API on startup and caches queue name in Redis
-- [ ] **AMQP-03**: Redis keys track OpticOdds connection state (connected/reconnecting/disconnected) and last message timestamp
+- [x] **AMQP-03**: Redis keys track OpticOdds connection state (connected/reconnecting/disconnected) and last message timestamp
 
 ### Tennis Status Integration
 
@@ -26,7 +26,7 @@ Requirements for OpticOdds Tennis Integration milestone. Each maps to roadmap ph
 
 ### Mismatch Detection
 
-- [ ] **MISM-01**: OpticOdds status included in `compute_status_match` for tennis events; NULL safely skipped for non-tennis events
+- [x] **MISM-01**: OpticOdds status included in `compute_status_match` for tennis events; NULL safely skipped for non-tennis events
 
 ## v1.2 Requirements (Complete)
 
@@ -100,8 +100,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TNNS-01 | Phase 12 | Pending |
 | TNNS-02 | Phase 13 | Pending |
 | TNNS-03 | Phase 13 | Pending |
-| AMQP-03 | Phase 13 | Pending |
-| MISM-01 | Phase 13 | Pending |
+| AMQP-03 | Phase 13 | Complete |
+| MISM-01 | Phase 13 | Complete |
 | DASH-01 | Phase 14 | Pending |
 | DASH-02 | Phase 14 | Pending |
 
