@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: OpticOdds Tennis Integration
-status: executing
-stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-04-03T13:52:21.900Z"
+status: verifying
+stopped_at: Completed 12-consumer-foundation 12-02-PLAN.md
+last_updated: "2026-04-03T13:53:38.716Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 14
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 
 Phase: 12 (consumer-foundation) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-03
 
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.3 milestone, 0/3 phases complete)
@@ -50,6 +50,7 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.
 
 *Updated after each plan completion*
 | Phase 12 P03 | 15 | 2 tasks | 3 files |
+| Phase 12-consumer-foundation P02 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,7 @@ Recent decisions affecting current work:
 - [Phase 12-01]: OpticOdds credentials use str|None=None defaults so deployments without credentials do not fail on startup
 - [Phase 12]: opticodds-consumer Docker service mirrors ws-consumer exactly (128m memory, restart: unless-stopped, standalone service per D-06)
 - [Phase 12]: Health endpoint MGET extended with opticodds:connection_state keys; opticodds_consumer returns connected/state/since shape matching ws_prophetx
+- [Phase 12-consumer-foundation]: Phase 12 scope: consumer receives+acks+logs only; DB writes (opticodds_status) deferred to Phase 13 (TNNS-02 fuzzy matching)
 
 ### Pending Todos
 
@@ -89,6 +91,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-03T13:52:21.898Z
-Stopped at: Completed 12-03-PLAN.md
+Last session: 2026-04-03T13:53:38.713Z
+Stopped at: Completed 12-consumer-foundation 12-02-PLAN.md
 Resume file: None
