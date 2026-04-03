@@ -187,7 +187,11 @@ Plans:
   2. On startup, the consumer calls the OpticOdds queue start REST endpoint, logs the returned queue name, and caches it in Redis — no manual queue provisioning step needed
   3. The `events` table has an `opticodds_status` nullable VARCHAR(50) column (migration 010 applied); existing rows are unaffected
   4. Consumer reconnects to the RabbitMQ broker with exponential backoff after a simulated connection drop; logs show backoff delays increasing between attempts
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 12-01-PLAN.md — Schema + config + pika dependency + opticodds_status migration
+- [ ] 12-02-PLAN.md — OpticOdds AMQP consumer module + unit tests
+- [ ] 12-03-PLAN.md — Docker Compose service + health endpoint extension + health tests
 
 ### Phase 13: Status Processing and Matching
 **Goal**: Incoming OpticOdds tennis messages are matched to ProphetX events, statuses are written to the DB, special statuses trigger Slack alerts, and mismatch detection includes OpticOdds as a source
@@ -226,7 +230,7 @@ Plans:
 | 9. Status Authority Model | v1.2 | 2/2 | Complete | 2026-03-31 |
 | 10. WS Health Dashboard | v1.2 | 1/1 | Complete | 2026-04-01 |
 | 11. Tech Debt | v1.2 | 2/2 | Complete | 2026-04-01 |
-| 12. Consumer Foundation | v1.3 | 0/? | Not started | - |
+| 12. Consumer Foundation | v1.3 | 0/3 | Not started | - |
 | 13. Status Processing and Matching | v1.3 | 0/? | Not started | - |
 | 14. Dashboard and Health | v1.3 | 0/? | Not started | - |
 
