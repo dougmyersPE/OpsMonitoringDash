@@ -43,6 +43,9 @@ Operators always know the true health of their ProphetX platform — stale event
 - ✓ WS health badge on dashboard alongside poll worker badges (WSHLT-01, WSHLT-02) — v1.2 Phase 10
 - ✓ Pusher connection state detail with transition timestamp in badge tooltip (WSHLT-03) — v1.2 Phase 10
 - ✓ Sports API integration fully removed — client, worker, DB column, config, frontend references (DEBT-01) — v1.2 Phase 11
+- ✓ OpticOdds AMQP consumer with pika connection, queue lifecycle, reconnection backoff (AMQP-01) — v1.3 Phase 12
+- ✓ OpticOdds consumer health monitoring via Redis keys and /health/workers endpoint (AMQP-02) — v1.3 Phase 12
+- ✓ OpticOdds status column in events table via migration 010 (TNNS-01 schema) — v1.3 Phase 12
 
 ### Active
 
@@ -79,6 +82,7 @@ GitHub: https://github.com/dougmyersPE/OpsMonitoringDash (private).
 
 ProphetX REST API + WebSocket consumer live at `https://api-ss-sandbox.betprophet.co/partner`.
 4 poll workers: ProphetX WS, SportsDataIO, ESPN, Odds API. (Sports API removed in Phase 11.)
+OpticOdds AMQP consumer for tennis status pushes added in Phase 12.
 Sports focus: NFL, NBA, MLB, NHL, NCAAB, NCAAF, Soccer.
 
 Known tech debt:
@@ -125,4 +129,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-01 — Milestone v1.3 started*
+*Last updated: 2026-04-03 — Phase 12 consumer-foundation complete*
