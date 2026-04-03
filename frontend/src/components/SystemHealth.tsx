@@ -15,6 +15,7 @@ interface WorkerHealth {
   poll_odds_api: boolean;
   poll_espn: boolean;
   ws_prophetx?: WsProphetXHealth;
+  opticodds_consumer?: WsProphetXHealth;
 }
 
 async function fetchWorkerHealth(): Promise<WorkerHealth> {
@@ -34,6 +35,13 @@ function wsTitle(ws: WsProphetXHealth): string {
   if (!ws.since) return `ProphetX WS: ${state}`;
   const sinceStr = formatDistanceToNow(new Date(ws.since), { addSuffix: true });
   return `ProphetX WS: ${state}\nSince: ${sinceStr}`;
+}
+
+function opticOddsTitle(oo: WsProphetXHealth): string {
+  const state = oo.state ?? "unknown";
+  if (!oo.since) return `OpticOdds: ${state}`;
+  const sinceStr = formatDistanceToNow(new Date(oo.since), { addSuffix: true });
+  return `OpticOdds: ${state}\nSince: ${sinceStr}`;
 }
 
 export default function SystemHealth() {
@@ -95,6 +103,29 @@ export default function SystemHealth() {
               )}
             />
             WS
+          </span>
+        );
+      })()}
+      {data.opticodds_consumer && (() => {
+        const active = data.opticodds_consumer.connected;
+        return (
+          <span
+            key="opticodds_consumer"
+            title={opticOddsTitle(data.opticodds_consumer)}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
+              active
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                : "bg-red-500/10 text-red-400 border-red-500/20"
+            )}
+          >
+            <span
+              className={cn(
+                "h-1.5 w-1.5 rounded-full shrink-0",
+                active ? "bg-emerald-400 animate-pulse" : "bg-red-500"
+              )}
+            />
+            OpticOdds
           </span>
         );
       })()}
