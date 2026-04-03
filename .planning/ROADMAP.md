@@ -202,7 +202,10 @@ Plans:
   2. `walkover`, `retired`, and `suspended` statuses appear verbatim in the `opticodds_status` column and generate a Slack alert (observable in Slack channel and audit log)
   3. Redis keys `rmq:connection_state` and `rmq:last_message_at` are present and reflect current consumer state (observable via `redis-cli GET`)
   4. For tennis events, `compute_status_match` returns False when `opticodds_status` disagrees with `prophetx_status`; for non-tennis events, a NULL `opticodds_status` does not affect the match result
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 13-01-PLAN.md — Mismatch detector extension + all call site updates + source_toggle
+- [ ] 13-02-PLAN.md — Consumer fuzzy match + DB write + special status alerts + heartbeat wiring + tests
 
 ### Phase 14: Dashboard and Health
 **Goal**: Operators can see OpticOdds consumer health alongside other worker badges and the OpticOdds status column in the events table
@@ -231,7 +234,7 @@ Plans:
 | 10. WS Health Dashboard | v1.2 | 1/1 | Complete | 2026-04-01 |
 | 11. Tech Debt | v1.2 | 2/2 | Complete | 2026-04-01 |
 | 12. Consumer Foundation | v1.3 | 3/3 | Complete    | 2026-04-03 |
-| 13. Status Processing and Matching | v1.3 | 0/? | Not started | - |
+| 13. Status Processing and Matching | v1.3 | 0/2 | Not started | - |
 | 14. Dashboard and Health | v1.3 | 0/? | Not started | - |
 
 ---
