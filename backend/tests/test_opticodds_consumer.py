@@ -373,3 +373,37 @@ class TestUnknownStatusSlackAlert:
 
         mock_wc_cls.assert_not_called()
         mock_log.warning.assert_called_once_with("opticodds_slack_not_configured")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TDD RED: Task 1 — functions exist and have correct signatures (Phase 13)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestPhase13FunctionsExist:
+    def test_similarity_function_exists(self):
+        """_similarity helper must be importable (TDD RED — fails before implementation)."""
+        from app.workers.opticodds_consumer import _similarity
+        assert callable(_similarity)
+
+    def test_write_opticodds_status_exists(self):
+        """_write_opticodds_status must be importable (TDD RED — fails before implementation)."""
+        from app.workers.opticodds_consumer import _write_opticodds_status
+        assert callable(_write_opticodds_status)
+
+    def test_alert_special_status_exists(self):
+        """_alert_special_status must be importable (TDD RED — fails before implementation)."""
+        from app.workers.opticodds_consumer import _alert_special_status
+        assert callable(_alert_special_status)
+
+    def test_fuzzy_threshold_constant(self):
+        """FUZZY_THRESHOLD must be 0.75 (tennis name variation tolerance)."""
+        from app.workers.opticodds_consumer import FUZZY_THRESHOLD
+        assert FUZZY_THRESHOLD == 0.75
+
+    def test_special_statuses_constant(self):
+        """SPECIAL_STATUSES must contain walkover, retired, suspended."""
+        from app.workers.opticodds_consumer import SPECIAL_STATUSES
+        assert "walkover" in SPECIAL_STATUSES
+        assert "retired" in SPECIAL_STATUSES
+        assert "suspended" in SPECIAL_STATUSES
