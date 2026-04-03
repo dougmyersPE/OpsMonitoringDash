@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     ODDS_API_KEY: str | None = None
     SPORTS_API_KEY: str | None = None
 
+    # OpticOdds
+    OPTICODDS_API_KEY: str | None = None
+    OPTICODDS_RMQ_USERNAME: str | None = None
+    OPTICODDS_RMQ_PASSWORD: str | None = None
+    OPTICODDS_BASE_URL: str = "https://api.opticodds.com/v3/copilot/results/queue/start"
+
     # Admin seed
     ADMIN_EMAIL: str
     ADMIN_PASSWORD: str
