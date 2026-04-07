@@ -5,7 +5,8 @@
 - ✅ **v1.0 MVP** — Phases 1-3 (shipped 2026-02-26)
 - ✅ **v1.1 Stabilization + API Usage** — Phases 4-7 (shipped 2026-03-02)
 - ✅ **v1.2 WebSocket-Primary Status Authority** — Phases 8-11 (shipped 2026-04-01)
-- 🚧 **v1.3 OpticOdds Tennis Integration** — Phases 12-14 (in progress)
+- ✅ **v1.3 OpticOdds Tennis Integration** — Phases 12-14 (shipped 2026-04-03)
+- 🚧 **v1.4 Source Toggle Completeness** — Phase 15 (in progress)
 
 ## Phases
 
@@ -38,13 +39,20 @@
 
 </details>
 
-### 🚧 v1.3 OpticOdds Tennis Integration (In Progress)
+<details>
+<summary>✅ v1.3 OpticOdds Tennis Integration (Phases 12-14) — SHIPPED 2026-04-03</summary>
 
-**Milestone Goal:** Add OpticOdds as a real-time data source for tennis match status monitoring via RabbitMQ queue consumption — standalone consumer service, queue lifecycle management, status normalization, mismatch detection, and dashboard visibility.
+- [x] Phase 12: Consumer Foundation (3/3 plans) — completed 2026-04-03
+- [x] Phase 13: Status Processing and Matching (2/2 plans) — completed 2026-04-03
+- [x] Phase 14: Dashboard and Health (1/1 plan) — completed 2026-04-03
 
-- [ ] **Phase 12: Consumer Foundation** - Standalone AMQP consumer service with queue lifecycle management and DB schema
-- [ ] **Phase 13: Status Processing and Matching** - Fuzzy match fixtures to events, normalize tennis statuses, write to DB, integrate mismatch detection
-- [ ] **Phase 14: Dashboard and Health** - OpticOdds consumer health badge and status column visible to operators
+</details>
+
+### 🚧 v1.4 Source Toggle Completeness (In Progress)
+
+**Milestone Goal:** All data sources are visible and toggleable on the API Usage page — operators can enable/disable OddsBlaze, ProphetX WS, and OpticOdds alongside the existing Odds API / SDIO / ESPN toggles.
+
+- [ ] **Phase 15: Source Toggle Completeness** - OddsBlaze, OpticOdds, and ProphetX WS wired into the Data Sources toggle section with full enable/disable behavior
 
 ## Phase Details
 
@@ -178,6 +186,9 @@ Plans:
 
 </details>
 
+<details>
+<summary>✅ v1.3 OpticOdds Tennis Integration (Phases 12-14) — SHIPPED 2026-04-03</summary>
+
 ### Phase 12: Consumer Foundation
 **Goal**: OpticOdds RabbitMQ consumer runs as a standalone Docker service, the queue lifecycle is managed automatically, and the DB schema is ready to receive tennis status data
 **Depends on**: Phase 11 (v1.2 complete)
@@ -215,6 +226,23 @@ Plans:
   1. GET /api/v1/health/workers includes an `opticodds_consumer` key; SystemHealth component shows an OpticOdds badge with connection state tooltip (connected / reconnecting / disconnected)
   2. The events table on the dashboard shows an `OpticOdds` column; tennis events display their current `opticodds_status` value; non-tennis events show `—`
   3. The OpticOdds health badge updates within 30 seconds of a consumer connection state change
+**Plans**: 1 plan
+Plans:
+- [x] 14-01-PLAN.md — OpticOdds health badge and events table column
+**UI hint**: yes
+
+</details>
+
+### Phase 15: Source Toggle Completeness
+**Goal**: Operators can enable/disable OddsBlaze, OpticOdds, and ProphetX WS from the Data Sources section on the API Usage page, and each source respects its enabled state at runtime
+**Depends on**: Phase 14 (v1.3 complete)
+**Requirements**: TOGL-01, TOGL-02, TOGL-03, TOGL-04, TOGL-05, TOGL-06
+**Success Criteria** (what must be TRUE):
+  1. The Data Sources toggle section on the API Usage page lists OddsBlaze, OpticOdds, and ProphetX WS alongside the existing Odds API / SDIO / ESPN toggles — each showing current enabled state
+  2. Toggling OddsBlaze off causes poll_oddsblaze to skip polling on the next scheduled run and clears any stale OddsBlaze data (observable via API Usage page and absence of new OddsBlaze entries in audit log)
+  3. Toggling OpticOdds off causes poll_opticodds to skip polling on the next scheduled run and clears stale OpticOdds data (same observable pattern)
+  4. Toggling ProphetX WS off causes the WS consumer to skip writing status updates to the DB while keeping the connection alive for health monitoring (observable: health badge stays green, no new ws-sourced audit log entries)
+  5. Re-enabling any of the three sources restores normal polling/writing behavior within one poll cycle
 **Plans**: TBD
 **UI hint**: yes
 
@@ -233,9 +261,10 @@ Plans:
 | 9. Status Authority Model | v1.2 | 2/2 | Complete | 2026-03-31 |
 | 10. WS Health Dashboard | v1.2 | 1/1 | Complete | 2026-04-01 |
 | 11. Tech Debt | v1.2 | 2/2 | Complete | 2026-04-01 |
-| 12. Consumer Foundation | v1.3 | 3/3 | Complete    | 2026-04-03 |
-| 13. Status Processing and Matching | v1.3 | 2/2 | Complete    | 2026-04-03 |
-| 14. Dashboard and Health | v1.3 | 1/1 | Complete    | 2026-04-03 |
+| 12. Consumer Foundation | v1.3 | 3/3 | Complete | 2026-04-03 |
+| 13. Status Processing and Matching | v1.3 | 2/2 | Complete | 2026-04-03 |
+| 14. Dashboard and Health | v1.3 | 1/1 | Complete | 2026-04-03 |
+| 15. Source Toggle Completeness | v1.4 | 0/? | Not started | - |
 
 ---
 *Full phase details for completed milestones archived in milestones/v1.0-ROADMAP.md and milestones/v1.1-ROADMAP.md*

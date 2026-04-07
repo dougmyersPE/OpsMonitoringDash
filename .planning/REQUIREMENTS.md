@@ -23,12 +23,17 @@ Requirements for Source Toggle Completeness milestone. Each maps to roadmap phas
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TOGL-01 | TBD | Pending |
-| TOGL-02 | TBD | Pending |
-| TOGL-03 | TBD | Pending |
-| TOGL-04 | TBD | Pending |
-| TOGL-05 | TBD | Pending |
-| TOGL-06 | TBD | Pending |
+| TOGL-01 | Phase 15 | Pending |
+| TOGL-02 | Phase 15 | Pending |
+| TOGL-03 | Phase 15 | Pending |
+| TOGL-04 | Phase 15 | Pending |
+| TOGL-05 | Phase 15 | Pending |
+| TOGL-06 | Phase 15 | Pending |
+
+**Coverage:**
+- v1.4 requirements: 6 total
+- Mapped to phases: 6 (roadmap complete)
+- Unmapped: 0
 
 ## v1.3 Requirements
 
@@ -131,6 +136,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MISM-01 | Phase 13 | Complete |
 | DASH-01 | Phase 14 | Complete |
 | DASH-02 | Phase 14 | Complete |
+| TOGL-01 | Phase 15 | Pending |
+| TOGL-02 | Phase 15 | Pending |
+| TOGL-03 | Phase 15 | Pending |
+| TOGL-04 | Phase 15 | Pending |
+| TOGL-05 | Phase 15 | Pending |
+| TOGL-06 | Phase 15 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 9 total
@@ -139,4 +150,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-01 — v1.3 roadmap created, all requirements mapped*
+*Last updated: 2026-04-03 — v1.4 roadmap created, all requirements mapped*

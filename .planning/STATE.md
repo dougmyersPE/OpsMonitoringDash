@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Source Toggle Completeness
 status: planning
-stopped_at: "Milestone v1.4 started"
-last_updated: "2026-04-07T00:00:00.000Z"
-last_activity: 2026-04-07
+stopped_at: "Roadmap created — Phase 15 defined, ready for plan-phase"
+last_updated: "2026-04-03T00:00:00.000Z"
+last_activity: 2026-04-03
 progress:
-  total_phases: 0
+  total_phases: 1
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Defining requirements for v1.4
+**Current focus:** v1.4 Phase 15 — Source Toggle Completeness
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-04-07 — Milestone v1.4 started
+Phase: 15 — Source Toggle Completeness
+Plan: Not started
+Status: Ready for /gsd:plan-phase 15
+Last activity: 2026-04-03 — v1.4 roadmap created
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 17 (v1.0–v1.2)
+- Total plans completed: 20 (v1.0–v1.3)
 - Average duration: ~30 min/plan (estimated from v1.2 actuals)
-- Total execution time: ~8.5 hours
+- Total execution time: ~10 hours
 
 **By Phase:**
 
@@ -45,6 +45,7 @@ Last activity: 2026-04-07 — Milestone v1.4 started
 | v1.0 (Phases 1-3) | 11 | ~27 min |
 | v1.1 (Phases 4-7) | 7 | ~21 min |
 | v1.2 (Phases 8-11) | 6 | ~13 min |
+| v1.3 (Phases 12-14) | 6 | ~30 min |
 
 *Updated after each plan completion*
 | Phase 12 P03 | 15 | 2 tasks | 3 files |
@@ -63,19 +64,12 @@ Recent decisions affecting current work:
 - [Phase 11]: compute_status_match reduced to 5-param signature (px + odds_api, sdio, espn, oddsblaze) — Phase 13 extends to 6-param with opticodds
 - [Phase 10]: ws_prophetx health returned as nested object with connected/state/since — opticodds_consumer should follow same shape
 - [v1.3 research]: Standalone Docker service only — pika BlockingConnection blocks indefinitely; Celery incompatible
-- [v1.3 research]: Queue start REST call must be integrated into consumer startup sequence; queue name cached in Redis; abort with fatal log on failure
-- [v1.3 research]: heartbeat=30 recommended (faster dead-connection detection; tennis message processing well under 30s)
-- [v1.3 research]: auto_ack=False recommended (negligible overhead; real resilience benefit for low-volume consumer)
-- [v1.3 research]: OpticOdds REST endpoint path has a discrepancy between research files — verify exact path against live credentials before coding opticodds_api.py
 - [Phase 12-01]: OpticOdds credentials use str|None=None defaults so deployments without credentials do not fail on startup
 - [Phase 12]: opticodds-consumer Docker service mirrors ws-consumer exactly (128m memory, restart: unless-stopped, standalone service per D-06)
-- [Phase 12]: Health endpoint MGET extended with opticodds:connection_state keys; opticodds_consumer returns connected/state/since shape matching ws_prophetx
-- [Phase 12-consumer-foundation]: Phase 12 scope: consumer receives+acks+logs only; DB writes (opticodds_status) deferred to Phase 13 (TNNS-02 fuzzy matching)
-- [Phase 13-status-processing-and-matching]: _OPTICODDS_CANONICAL maps raw OpticOdds values, consumer canonical outputs, and verbatim special statuses (walkover/retired/suspended) in one dict — handles all cases from D-06
 - [Phase 13-status-processing-and-matching]: compute_status_match extended to 6-param (opticodds_status); NULL-safe design means non-tennis events are unaffected; all 13 call sites updated in poll workers + ws consumer + source_toggle
-- [Phase 13]: FUZZY_THRESHOLD=0.75 for tennis (lower than team-name workers): player names are abbreviated/transliterated more, requiring looser threshold
-- [Phase 13]: Special statuses (walkover/retired/suspended) written verbatim to opticodds_status — mismatch_detector _OPTICODDS_CANONICAL handles them correctly without canonicalization
+- [Phase 13]: FUZZY_THRESHOLD=0.75 for tennis — player names are abbreviated/transliterated more, requiring looser threshold
 - [Phase 14-dashboard-and-health]: Reused WsProphetXHealth interface for opticodds_consumer field (same connected/state/since shape)
+- [v1.4 context]: OddsBlaze + OpticOdds toggle backend already implemented (source_toggle.py) — v1.4 work is primarily frontend wiring for those two + new ProphetX WS toggle backend behavior
 
 ### Pending Todos
 
@@ -83,9 +77,9 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- **Phase 12 resolved:** Consumer logs raw message body for first 5 messages (D-10) — will confirm JSON schema empirically on first deploy
 - SDIO NFL/NCAAB/NCAAF endpoints 404 (off-season; deferred until seasons resume)
 - ProphetX write endpoint still stubbed (log-only until PATCH path confirmed)
+- TOGL-05/TOGL-06: verify OddsBlaze and OpticOdds toggle wiring is live end-to-end before marking complete
 
 ### Resolved
 
@@ -93,9 +87,10 @@ Recent decisions affecting current work:
 - Sports API fully removed (Phase 11)
 - WS health badge deployed (Phase 10)
 - ProphetX base URL: `https://cash.api.prophetx.co/partner` — production, switched from sandbox 2026-03-02
+- v1.3 shipped: OpticOdds tennis integration complete (Phases 12-14)
 
 ## Session Continuity
 
-Last session: 2026-04-03T18:22:00.220Z
-Stopped at: Completed 14-01-PLAN.md: OpticOdds health badge and events table column
+Last session: 2026-04-03 — v1.3 Phase 14 complete, v1.4 roadmap created
+Stopped at: Roadmap created, ready for /gsd:plan-phase 15
 Resume file: None
