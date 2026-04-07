@@ -3,6 +3,33 @@
 **Defined:** 2026-04-02
 **Core Value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
 
+## v1.4 Requirements
+
+Requirements for Source Toggle Completeness milestone. Each maps to roadmap phases.
+
+### Source Toggle UI
+
+- [ ] **TOGL-01**: OddsBlaze appears in the Data Sources toggle section on the API Usage page with enable/disable control
+- [ ] **TOGL-02**: OpticOdds appears in the Data Sources toggle section on the API Usage page with enable/disable control
+- [ ] **TOGL-03**: ProphetX WS appears in the Data Sources toggle section on the API Usage page with enable/disable control
+
+### Source Toggle Backend
+
+- [ ] **TOGL-04**: When ProphetX WS is disabled via toggle, the WS consumer skips status writes to DB (connection stays alive for health monitoring)
+- [ ] **TOGL-05**: When OddsBlaze is disabled via toggle, poll_oddsblaze skips polling and clears stale data (already implemented — verify wiring)
+- [ ] **TOGL-06**: When OpticOdds is disabled via toggle, poll_opticodds skips polling and clears stale data (already implemented — verify wiring)
+
+## Traceability (v1.4)
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| TOGL-01 | TBD | Pending |
+| TOGL-02 | TBD | Pending |
+| TOGL-03 | TBD | Pending |
+| TOGL-04 | TBD | Pending |
+| TOGL-05 | TBD | Pending |
+| TOGL-06 | TBD | Pending |
+
 ## v1.3 Requirements
 
 Requirements for OpticOdds Tennis Integration milestone. Each maps to roadmap phases.
