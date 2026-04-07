@@ -52,18 +52,16 @@ Operators always know the true health of their ProphetX platform — stale event
 
 ### Active
 
-See REQUIREMENTS.md for v1.3 scoped requirements.
+See REQUIREMENTS.md for v1.4 scoped requirements.
 
-## Current Milestone: v1.3 OpticOdds Tennis Integration
+## Current Milestone: v1.4 Source Toggle Completeness
 
-**Goal:** Add OpticOdds as a real-time data source for tennis match status monitoring via RabbitMQ queue consumption.
+**Goal:** All data sources are visible and toggleable on the API Usage page — operators can enable/disable OddsBlaze, ProphetX WS, and OpticOdds alongside the existing Odds API / SDIO / ESPN toggles.
 
 **Target features:**
-- RabbitMQ consumer for OpticOdds results stream (tennis sport)
-- Queue lifecycle management (start/stop/status via REST API)
-- Tennis match status mapped to existing event status model (not_started/live/ended)
-- OpticOdds status reflected in dashboard events table and mismatch detection
-- Health monitoring for the OpticOdds consumer (heartbeat, connection state)
+- OddsBlaze, OpticOdds, and ProphetX WS appear in the Data Sources toggle section on the API Usage page
+- Operators can enable/disable each source from the dashboard
+- Disabled sources skip polling and are excluded from mismatch detection
 
 ### Out of Scope
 
@@ -85,7 +83,7 @@ GitHub: https://github.com/dougmyersPE/OpsMonitoringDash (private).
 
 ProphetX REST API + WebSocket consumer live at `https://api-ss-sandbox.betprophet.co/partner`.
 4 poll workers: ProphetX WS, SportsDataIO, ESPN, Odds API. (Sports API removed in Phase 11.)
-OpticOdds AMQP consumer for tennis status pushes added in Phase 12.
+OpticOdds poll worker for tennis fixture status added in Phase 12-13 (converted from AMQP to REST poll).
 Sports focus: NFL, NBA, MLB, NHL, NCAAB, NCAAF, Soccer.
 
 Known tech debt:
@@ -132,4 +130,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-03 — Phase 14 dashboard-and-health complete, v1.3 milestone complete*
+*Last updated: 2026-04-07 — v1.4 milestone started*

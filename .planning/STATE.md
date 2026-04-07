@@ -1,36 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: OpticOdds Tennis Integration
-status: verifying
-stopped_at: "Completed 14-01-PLAN.md: OpticOdds health badge and events table column"
-last_updated: "2026-04-03T18:24:37.513Z"
-last_activity: 2026-04-03
+milestone: v1.4
+milestone_name: Source Toggle Completeness
+status: planning
+stopped_at: "Milestone v1.4 started"
+last_updated: "2026-04-07T00:00:00.000Z"
+last_activity: 2026-04-07
 progress:
-  total_phases: 14
-  completed_phases: 7
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-03)
+See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** Phase 14 — dashboard-and-health
+**Current focus:** Defining requirements for v1.4
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-03
-
-Progress: [████████████████████] 9/9 plans (100%) — 1/3 phases complete
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-07 — Milestone v1.4 started
 
 ## Performance Metrics
 
