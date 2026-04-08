@@ -33,6 +33,7 @@ class TestWsUpsertCreatePath:
         mock_session.add.side_effect = capture_add
 
         with (
+            patch("app.workers.ws_prophetx.is_source_enabled", return_value=True),
             patch("app.workers.ws_prophetx.SyncSessionLocal", return_value=mock_session),
             patch("app.workers.ws_prophetx.compute_status_match", return_value=True) as mock_csm,
             patch("app.workers.ws_prophetx._publish_update"),
@@ -67,6 +68,7 @@ class TestWsUpsertCreatePath:
         mock_session.add.side_effect = lambda obj: captured_events.append(obj)
 
         with (
+            patch("app.workers.ws_prophetx.is_source_enabled", return_value=True),
             patch("app.workers.ws_prophetx.SyncSessionLocal", return_value=mock_session),
             patch("app.workers.ws_prophetx._publish_update"),
         ):
@@ -100,6 +102,7 @@ class TestWsUpsertCreatePath:
         mock_session = _make_session_mock(existing=existing)
 
         with (
+            patch("app.workers.ws_prophetx.is_source_enabled", return_value=True),
             patch("app.workers.ws_prophetx.SyncSessionLocal", return_value=mock_session),
             patch("app.workers.ws_prophetx.compute_status_match", return_value=True) as mock_csm,
             patch("app.workers.ws_prophetx._publish_update"),
@@ -111,3 +114,51 @@ class TestWsUpsertCreatePath:
 
         # Update path must also call compute_status_match
         mock_csm.assert_called_once()
+
+
+class TestWsToggle:
+    """TOGL-04: _upsert_event respects the prophetx_ws source toggle."""
+
+    def test_upsert_skips_when_prophetx_ws_disabled(self):
+        """When is_source_enabled('prophetx_ws') returns False, _upsert_event must return early.
+
+        No DB writes should occur (session.commit not called).
+        """
+        from app.workers.ws_prophetx import _upsert_event
+
+        mock_session = _make_session_mock(existing=None)
+
+        with (
+            patch("app.workers.ws_prophetx.is_source_enabled", return_value=False),
+            patch("app.workers.ws_prophetx.SyncSessionLocal", return_value=mock_session),
+        ):
+            _upsert_event({"event_id": "test-123", "status": "live"}, "u")
+
+        # Session should NOT have been entered for DB work (early return before with block)
+        mock_session.commit.assert_not_called()
+
+    def test_upsert_proceeds_when_prophetx_ws_enabled(self):
+        """When is_source_enabled('prophetx_ws') returns True, _upsert_event must write to DB.
+
+        session.commit() must be called.
+        """
+        from app.workers.ws_prophetx import _upsert_event
+
+        mock_session = _make_session_mock(existing=None)
+
+        with (
+            patch("app.workers.ws_prophetx.is_source_enabled", return_value=True),
+            patch("app.workers.ws_prophetx.SyncSessionLocal", return_value=mock_session),
+            patch("app.workers.ws_prophetx._publish_update"),
+        ):
+            _upsert_event(
+                {
+                    "event_id": "test-123",
+                    "status": "live",
+                    "sport": "soccer",
+                    "name": "Test Match",
+                },
+                "u",
+            )
+
+        mock_session.commit.assert_called()

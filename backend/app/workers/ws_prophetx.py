@@ -36,6 +36,7 @@ from app.db.sync_session import SyncSessionLocal
 from app.models.event import Event
 from app.monitoring.mismatch_detector import compute_status_match
 from app.workers.celery_app import celery_app
+from app.workers.source_toggle import is_source_enabled
 
 log = structlog.get_logger()
 
@@ -137,6 +138,12 @@ def _upsert_event(event_data: dict, op: str | None) -> None:
     )
     if not prophetx_event_id:
         log.warning("ws_prophetx_event_missing_id", keys=list(event_data.keys()))
+        return
+
+    # TOGL-04: Skip DB writes when prophetx_ws source is disabled.
+    # Connection stays alive — diagnostics written before this in _handle_broadcast_event.
+    if not is_source_enabled("prophetx_ws"):
+        log.debug("ws_prophetx_write_skipped", reason="source_disabled", event_id=prophetx_event_id)
         return
 
     now = datetime.now(timezone.utc)

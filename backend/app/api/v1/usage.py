@@ -134,7 +134,7 @@ async def get_usage(
         projections["monthly_total"] += monthly
 
     # --- 6. Source enabled toggles ---
-    source_toggle_keys = ["odds_api", "sports_data", "espn"]
+    source_toggle_keys = ["odds_api", "sports_data", "espn", "oddsblaze", "opticodds", "prophetx_ws"]
     sources_enabled: dict[str, bool] = {}
     for src in source_toggle_keys:
         val = config_map.get(f"source_enabled_{src}", "true")

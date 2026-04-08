@@ -24,6 +24,7 @@ from app.models.event import Event
 from app.monitoring.authority import is_ws_authoritative
 from app.monitoring.mismatch_detector import compute_status_match
 from app.workers.celery_app import celery_app
+from app.workers.source_toggle import is_source_enabled as _is_source_enabled
 
 log = structlog.get_logger()
 
@@ -223,7 +224,9 @@ def run(self, trigger: str = "scheduled"):
                 existing.last_prophetx_poll = now
 
                 # Authority check — poll defers to WS except for terminal "ended" (D-05)
-                authoritative = is_ws_authoritative(
+                # D-03: bypass WS authority when prophetx_ws toggle is off
+                ws_toggle_on = _is_source_enabled("prophetx_ws")
+                authoritative = ws_toggle_on and is_ws_authoritative(
                     existing.ws_delivered_at, settings.WS_AUTHORITY_WINDOW_SECONDS
                 )
                 is_ended = (status_value or "").lower() == "ended"

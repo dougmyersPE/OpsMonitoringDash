@@ -45,6 +45,8 @@ SOURCE_ENABLED_DEFAULTS = {
     "source_enabled_sports_data": ("true", "Enable SportsDataIO polling source"),
     "source_enabled_espn": ("true", "Enable ESPN polling source"),
     "source_enabled_oddsblaze": ("true", "Enable OddsBlaze polling source"),
+    "source_enabled_opticodds":   ("true", "Enable OpticOdds polling source"),
+    "source_enabled_prophetx_ws": ("true", "Enable ProphetX WS status writes"),
 }
 
 
