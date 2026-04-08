@@ -61,14 +61,11 @@ Operators always know the true health of their ProphetX platform — stale event
 
 See REQUIREMENTS.md for v1.4 scoped requirements.
 
-## Current Milestone: v1.4 Source Toggle Completeness
+## Current State
 
-**Goal:** All data sources are visible and toggleable on the API Usage page — operators can enable/disable OddsBlaze, ProphetX WS, and OpticOdds alongside the existing Odds API / SDIO / ESPN toggles.
+Shipped v1.4 Source Toggle Completeness (2026-04-08). All 6 data sources (Odds API, SportsDataIO, ESPN, OddsBlaze, OpticOdds, ProphetX WS) are now visible and toggleable on the API Usage page. Operators can enable/disable any source; disabled sources skip polling and are excluded from mismatch detection. ProphetX WS toggle uniquely preserves the connection for health monitoring while suppressing DB writes.
 
-**Target features:**
-- OddsBlaze, OpticOdds, and ProphetX WS appear in the Data Sources toggle section on the API Usage page
-- Operators can enable/disable each source from the dashboard
-- Disabled sources skip polling and are excluded from mismatch detection
+No active milestone — ready for `/gsd:new-milestone`.
 
 ### Out of Scope
 
@@ -137,4 +134,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 — v1.4 Phase 15 complete (source toggle completeness)*
+*Last updated: 2026-04-08 — v1.4 milestone shipped*
