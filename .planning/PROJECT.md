@@ -50,6 +50,13 @@ Operators always know the true health of their ProphetX platform — stale event
 - ✓ OpticOdds health badge on dashboard with connection state tooltip (DASH-01) — v1.3 Phase 14
 - ✓ OpticOdds status column in events table UI with sortable header (DASH-02) — v1.3 Phase 14
 
+- ✓ OddsBlaze toggle in Data Sources section with enable/disable control (TOGL-01) — v1.4 Phase 15
+- ✓ OpticOdds toggle in Data Sources section with enable/disable control (TOGL-02) — v1.4 Phase 15
+- ✓ ProphetX WS toggle in Data Sources section with enable/disable control (TOGL-03) — v1.4 Phase 15
+- ✓ ProphetX WS disabled skips DB writes, connection stays alive for health monitoring (TOGL-04) — v1.4 Phase 15
+- ✓ OddsBlaze toggle verified end-to-end: poll skip + clear + frontend display (TOGL-05) — v1.4 Phase 15
+- ✓ OpticOdds toggle verified end-to-end: poll skip + clear + frontend display (TOGL-06) — v1.4 Phase 15
+
 ### Active
 
 See REQUIREMENTS.md for v1.4 scoped requirements.
@@ -130,4 +137,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-07 — v1.4 milestone started*
+*Last updated: 2026-04-08 — v1.4 Phase 15 complete (source toggle completeness)*
