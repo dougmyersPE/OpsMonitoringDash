@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Source Toggle Completeness
-status: "Ready for /gsd:plan-phase 15"
-stopped_at: Phase 15 context gathered
-last_updated: "2026-04-08T01:08:01.124Z"
-last_activity: 2026-04-03 — v1.4 roadmap created
+status: executing
+stopped_at: Completed 15-01-PLAN.md — backend toggle behavior and usage API extended
+last_updated: "2026-04-08T01:39:59.445Z"
+last_activity: 2026-04-08
 progress:
   total_phases: 15
   completed_phases: 7
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 14
+  completed_plans: 13
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Operators always know the true health of their ProphetX platform — stale event statuses and low-liquidity markets are caught and resolved before they impact bettors.
-**Current focus:** v1.4 Phase 15 — Source Toggle Completeness
+**Current focus:** Phase 15 — source-toggle-completeness
 
 ## Current Position
 
-Phase: 15 — Source Toggle Completeness
-Plan: Not started
-Status: Ready for /gsd:plan-phase 15
-Last activity: 2026-04-03 — v1.4 roadmap created
+Phase: 15 (source-toggle-completeness) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-04-08
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Last activity: 2026-04-03 — v1.4 roadmap created
 | Phase 13-status-processing-and-matching P01 | 10 | 2 tasks | 10 files |
 | Phase 13 P02 | 7 | 2 tasks | 2 files |
 | Phase 14-dashboard-and-health P01 | 15 | 2 tasks | 5 files |
+| Phase 15 P01 | 25 | 1 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,7 @@ Recent decisions affecting current work:
 - [Phase 13]: FUZZY_THRESHOLD=0.75 for tennis — player names are abbreviated/transliterated more, requiring looser threshold
 - [Phase 14-dashboard-and-health]: Reused WsProphetXHealth interface for opticodds_consumer field (same connected/state/since shape)
 - [v1.4 context]: OddsBlaze + OpticOdds toggle backend already implemented (source_toggle.py) — v1.4 work is primarily frontend wiring for those two + new ProphetX WS toggle backend behavior
+- [Phase 15]: ProphetX WS toggle returns early without clearing prophetx_status (D-02) — primary source; authority bypass uses ws_toggle_on AND is_ws_authoritative() (D-03)
 
 ### Pending Todos
 
@@ -90,6 +92,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-08T01:08:01.116Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-source-toggle-completeness/15-CONTEXT.md
+Last session: 2026-04-08T01:39:59.442Z
+Stopped at: Completed 15-01-PLAN.md — backend toggle behavior and usage API extended
+Resume file: None

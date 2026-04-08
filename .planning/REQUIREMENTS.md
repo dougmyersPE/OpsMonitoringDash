@@ -9,26 +9,26 @@ Requirements for Source Toggle Completeness milestone. Each maps to roadmap phas
 
 ### Source Toggle UI
 
-- [ ] **TOGL-01**: OddsBlaze appears in the Data Sources toggle section on the API Usage page with enable/disable control
-- [ ] **TOGL-02**: OpticOdds appears in the Data Sources toggle section on the API Usage page with enable/disable control
-- [ ] **TOGL-03**: ProphetX WS appears in the Data Sources toggle section on the API Usage page with enable/disable control
+- [x] **TOGL-01**: OddsBlaze appears in the Data Sources toggle section on the API Usage page with enable/disable control
+- [x] **TOGL-02**: OpticOdds appears in the Data Sources toggle section on the API Usage page with enable/disable control
+- [x] **TOGL-03**: ProphetX WS appears in the Data Sources toggle section on the API Usage page with enable/disable control
 
 ### Source Toggle Backend
 
-- [ ] **TOGL-04**: When ProphetX WS is disabled via toggle, the WS consumer skips status writes to DB (connection stays alive for health monitoring)
-- [ ] **TOGL-05**: When OddsBlaze is disabled via toggle, poll_oddsblaze skips polling and clears stale data (already implemented — verify wiring)
-- [ ] **TOGL-06**: When OpticOdds is disabled via toggle, poll_opticodds skips polling and clears stale data (already implemented — verify wiring)
+- [x] **TOGL-04**: When ProphetX WS is disabled via toggle, the WS consumer skips status writes to DB (connection stays alive for health monitoring)
+- [x] **TOGL-05**: When OddsBlaze is disabled via toggle, poll_oddsblaze skips polling and clears stale data (already implemented — verify wiring)
+- [x] **TOGL-06**: When OpticOdds is disabled via toggle, poll_opticodds skips polling and clears stale data (already implemented — verify wiring)
 
 ## Traceability (v1.4)
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TOGL-01 | Phase 15 | Pending |
-| TOGL-02 | Phase 15 | Pending |
-| TOGL-03 | Phase 15 | Pending |
-| TOGL-04 | Phase 15 | Pending |
-| TOGL-05 | Phase 15 | Pending |
-| TOGL-06 | Phase 15 | Pending |
+| TOGL-01 | Phase 15 | Complete |
+| TOGL-02 | Phase 15 | Complete |
+| TOGL-03 | Phase 15 | Complete |
+| TOGL-04 | Phase 15 | Complete |
+| TOGL-05 | Phase 15 | Complete |
+| TOGL-06 | Phase 15 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 6 total
@@ -136,12 +136,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MISM-01 | Phase 13 | Complete |
 | DASH-01 | Phase 14 | Complete |
 | DASH-02 | Phase 14 | Complete |
-| TOGL-01 | Phase 15 | Pending |
-| TOGL-02 | Phase 15 | Pending |
-| TOGL-03 | Phase 15 | Pending |
-| TOGL-04 | Phase 15 | Pending |
-| TOGL-05 | Phase 15 | Pending |
-| TOGL-06 | Phase 15 | Pending |
+| TOGL-01 | Phase 15 | Complete |
+| TOGL-02 | Phase 15 | Complete |
+| TOGL-03 | Phase 15 | Complete |
+| TOGL-04 | Phase 15 | Complete |
+| TOGL-05 | Phase 15 | Complete |
+| TOGL-06 | Phase 15 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 9 total
