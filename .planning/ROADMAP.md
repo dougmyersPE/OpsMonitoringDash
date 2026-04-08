@@ -48,7 +48,7 @@
 
 </details>
 
-### 🚧 v1.4 Source Toggle Completeness (In Progress)
+### v1.4 Source Toggle Completeness (In Progress)
 
 **Milestone Goal:** All data sources are visible and toggleable on the API Usage page — operators can enable/disable OddsBlaze, ProphetX WS, and OpticOdds alongside the existing Odds API / SDIO / ESPN toggles.
 
@@ -243,7 +243,10 @@ Plans:
   3. Toggling OpticOdds off causes poll_opticodds to skip polling on the next scheduled run and clears stale OpticOdds data (same observable pattern)
   4. Toggling ProphetX WS off causes the WS consumer to skip writing status updates to the DB while keeping the connection alive for health monitoring (observable: health badge stays green, no new ws-sourced audit log entries)
   5. Re-enabling any of the three sources restores normal polling/writing behavior within one poll cycle
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 15-01-PLAN.md — Backend toggle behavior: seed, usage API, WS guard, authority bypass + tests
+- [ ] 15-02-PLAN.md — Frontend SourceToggleSection extension + visual verification
 **UI hint**: yes
 
 ## Progress
@@ -264,7 +267,7 @@ Plans:
 | 12. Consumer Foundation | v1.3 | 3/3 | Complete | 2026-04-03 |
 | 13. Status Processing and Matching | v1.3 | 2/2 | Complete | 2026-04-03 |
 | 14. Dashboard and Health | v1.3 | 1/1 | Complete | 2026-04-03 |
-| 15. Source Toggle Completeness | v1.4 | 0/? | Not started | - |
+| 15. Source Toggle Completeness | v1.4 | 0/2 | Not started | - |
 
 ---
 *Full phase details for completed milestones archived in milestones/v1.0-ROADMAP.md and milestones/v1.1-ROADMAP.md*
