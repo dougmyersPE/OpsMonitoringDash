@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Source Toggle Completeness
-status: executing
-stopped_at: Completed 15-01-PLAN.md — backend toggle behavior and usage API extended
-last_updated: "2026-04-08T01:39:59.445Z"
+status: verifying
+stopped_at: Completed 15-02-PLAN.md — frontend SOURCE_DISPLAY extended with all 6 sources
+last_updated: "2026-04-08T01:43:43.275Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 15
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 14
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-07)
 
 Phase: 15 (source-toggle-completeness) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-08
 
 ## Performance Metrics
@@ -53,6 +53,7 @@ Last activity: 2026-04-08
 | Phase 13 P02 | 7 | 2 tasks | 2 files |
 | Phase 14-dashboard-and-health P01 | 15 | 2 tasks | 5 files |
 | Phase 15 P01 | 25 | 1 tasks | 6 files |
+| Phase 15 P02 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,7 @@ Recent decisions affecting current work:
 - [Phase 14-dashboard-and-health]: Reused WsProphetXHealth interface for opticodds_consumer field (same connected/state/since shape)
 - [v1.4 context]: OddsBlaze + OpticOdds toggle backend already implemented (source_toggle.py) — v1.4 work is primarily frontend wiring for those two + new ProphetX WS toggle backend behavior
 - [Phase 15]: ProphetX WS toggle returns early without clearing prophetx_status (D-02) — primary source; authority bypass uses ws_toggle_on AND is_ws_authoritative() (D-03)
+- [Phase 15]: SOURCE_DISPLAY drives toggle row iteration — no changes needed to ApiUsagePage.tsx or usage.ts, only SourceToggleSection.tsx SOURCE_DISPLAY object
 
 ### Pending Todos
 
@@ -92,6 +94,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-08T01:39:59.442Z
-Stopped at: Completed 15-01-PLAN.md — backend toggle behavior and usage API extended
+Last session: 2026-04-08T01:43:43.272Z
+Stopped at: Completed 15-02-PLAN.md — frontend SOURCE_DISPLAY extended with all 6 sources
 Resume file: None
