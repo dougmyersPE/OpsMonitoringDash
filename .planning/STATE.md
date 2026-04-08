@@ -4,7 +4,7 @@ milestone: v1.4
 milestone_name: Source Toggle Completeness
 status: verifying
 stopped_at: Completed 15-02-PLAN.md — frontend SOURCE_DISPLAY extended with all 6 sources
-last_updated: "2026-04-08T01:43:43.275Z"
+last_updated: "2026-04-08T01:48:54.922Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 15
@@ -24,8 +24,8 @@ See: .planning/PROJECT.md (updated 2026-04-07)
 
 ## Current Position
 
-Phase: 15 (source-toggle-completeness) — EXECUTING
-Plan: 2 of 2
+Phase: 15
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-04-08
 

@@ -267,7 +267,7 @@ Plans:
 | 12. Consumer Foundation | v1.3 | 3/3 | Complete | 2026-04-03 |
 | 13. Status Processing and Matching | v1.3 | 2/2 | Complete | 2026-04-03 |
 | 14. Dashboard and Health | v1.3 | 1/1 | Complete | 2026-04-03 |
-| 15. Source Toggle Completeness | v1.4 | 2/2 | Complete   | 2026-04-08 |
+| 15. Source Toggle Completeness | v1.4 | 2/2 | Complete    | 2026-04-08 |
 
 ---
 *Full phase details for completed milestones archived in milestones/v1.0-ROADMAP.md and milestones/v1.1-ROADMAP.md*
