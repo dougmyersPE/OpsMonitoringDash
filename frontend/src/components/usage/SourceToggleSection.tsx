@@ -7,6 +7,9 @@ const SOURCE_DISPLAY: Record<string, string> = {
   odds_api: "Odds API",
   sports_data: "SportsDataIO",
   espn: "ESPN",
+  oddsblaze: "OddsBlaze",
+  opticodds: "OpticOdds",
+  prophetx_ws: "ProphetX WS",
 };
 
 interface SourceToggleSectionProps {
